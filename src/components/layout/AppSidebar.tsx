@@ -7,7 +7,10 @@ import {
   HelpCircle, 
   Users, 
   Clock, 
-  User 
+  User,
+  Calendar,
+  Shield,
+  FileText
 } from "lucide-react";
 import {
   Sidebar,
@@ -25,13 +28,22 @@ const items = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Upload & Print", url: "/upload", icon: Upload },
   { title: "Print History", url: "/history", icon: Folder },
-  { title: "Group Print", url: "/group-print", icon: Users },
   { title: "Print Queue", url: "/queue", icon: Clock },
+  { title: "Schedule Print", url: "/schedule", icon: Calendar },
+];
+
+const collaborationItems = [
+  { title: "Group Print", url: "/group-print", icon: Users },
 ];
 
 const settingsItems = [
   { title: "User Settings", url: "/user-settings", icon: User },
   { title: "Help & Support", url: "/support", icon: HelpCircle },
+];
+
+const legalItems = [
+  { title: "Privacy Policy", url: "/privacy", icon: Shield },
+  { title: "Terms of Service", url: "/terms", icon: FileText },
 ];
 
 export function AppSidebar() {
@@ -63,12 +75,48 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Collaboration</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {collaborationItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} className={getNavCls}>
+                      <item.icon className="mr-2 h-4 w-4" />
+                      {!isCollapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
         
         <SidebarGroup>
           <SidebarGroupLabel>Account</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {settingsItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} className={getNavCls}>
+                      <item.icon className="mr-2 h-4 w-4" />
+                      {!isCollapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Legal</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {legalItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} className={getNavCls}>

@@ -1,4 +1,4 @@
-import { UploadCloud, Home, History, Clock, Settings } from "lucide-react";
+import { UploadCloud, Home, History, Clock, Settings, Users, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useUpload } from "@/context/UploadContext";
@@ -15,18 +15,21 @@ export function AppHeader() {
     { path: "/upload", label: "Upload", icon: UploadCloud },
     { path: "/queue", label: "Queue", icon: Clock },
     { path: "/history", label: "History", icon: History },
+    { path: "/group-print", label: "Group", icon: Users },
+    { path: "/schedule", label: "Schedule", icon: Calendar },
   ];
 
   return (
     <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70">
       <div className="container flex h-14 items-center justify-between">
         <div className="flex items-center gap-6">
-          <span 
-            className="text-lg font-semibold tracking-tight text-blue-600 cursor-pointer hover:opacity-80"
+          <button 
+            className="text-lg font-semibold tracking-tight text-blue-600 cursor-pointer hover:opacity-80 bg-transparent border-none"
             onClick={() => navigate("/")}
+            aria-label="Go to PrintHub dashboard"
           >
             PrintHub
-          </span>
+          </button>
           
           {/* Navigation Menu */}
           <nav className="hidden md:flex items-center gap-1">
