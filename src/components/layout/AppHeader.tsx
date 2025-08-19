@@ -1,4 +1,4 @@
-import { UploadCloud, Home, History, Clock, Settings, Calendar, Bell } from "lucide-react";
+import { UploadCloud, Home, History, Clock, Calendar, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useUpload } from "@/context/UploadContext";
