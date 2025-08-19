@@ -27,6 +27,14 @@ import Analytics from "./pages/admin/Analytics";
 import Layout from "@/components/layout/Layout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 
+// Feature Pages
+import SecurityPrivacy from "./pages/features/SecurityPrivacy";
+import SchedulePrintJob from "./pages/features/SchedulePrintJob";
+import PrintTracking from "./pages/features/PrintTracking";
+import PrintHistory from "./pages/features/PrintHistory";
+import NotificationFeatures from "./pages/features/NotificationFeatures";
+import NoQueueWaiting from "./pages/features/NoQueueWaiting";
+
 
 
 const App = () => (
@@ -52,6 +60,14 @@ const App = () => (
           <Route path="/terms" element={<Layout><Terms /></Layout>} />
           <Route path="/privacy" element={<Layout><Privacy /></Layout>} />
           <Route path="/notifications" element={<Layout><Notifications /></Layout>} />
+          
+          {/* Feature Pages */}
+          <Route path="/features/security-privacy" element={<Layout><SecurityPrivacy /></Layout>} />
+          <Route path="/features/schedule-print-job" element={<Layout><SchedulePrintJob /></Layout>} />
+          <Route path="/features/print-tracking" element={<Layout><PrintTracking /></Layout>} />
+          <Route path="/features/print-history" element={<Layout><PrintHistory /></Layout>} />
+          <Route path="/features/notifications" element={<Layout><NotificationFeatures /></Layout>} />
+          <Route path="/features/no-queue-waiting" element={<Layout><NoQueueWaiting /></Layout>} />
           
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />

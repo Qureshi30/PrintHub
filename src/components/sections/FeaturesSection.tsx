@@ -1,66 +1,60 @@
 import { 
-  Smartphone, 
   Shield, 
-  FileText, 
-  Workflow, 
+  Calendar, 
   RotateCcw, 
-  Cloud, 
-  Zap, 
-  BarChart3, 
-  Clock 
+  History, 
+  Bell, 
+  PrinterIcon 
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const features = [
   {
-    icon: Smartphone,
-    title: "Mobile Ready",
-    description: "Request and approve documents from any device."
-  },
-  {
     icon: Shield,
     title: "Secure & Private",
-    description: "Encrypted documents with automatic deletion after printing."
+    description: "Encrypted documents with automatic deletion after printing for maximum security.",
+    path: "/features/security-privacy"
   },
   {
-    icon: FileText,
-    title: "Smart Request System",
-    description: "Intuitive forms with auto-fill for common document types."
-  },
-  {
-    icon: Workflow,
-    title: "Automated Workflows",
-    description: "Documents routed instantly to the right approvers."
+    icon: Calendar,
+    title: "Schedule Print Job",
+    description: "Schedule your print jobs for convenient pickup times that fit your schedule.",
+    path: "/features/schedule-print-job"
   },
   {
     icon: RotateCcw,
     title: "Print Tracking",
-    description: "Monitor status from submission to printing to pickup."
+    description: "Monitor status from submission to printing to pickup in real-time.",
+    path: "/features/print-tracking"
   },
   {
-    icon: Cloud,
-    title: "Cloud Storage",
-    description: "Secure storage with version history for all documents."
+    icon: History,
+    title: "Print History",
+    description: "Access your complete printing history with detailed records and receipts.",
+    path: "/features/print-history"
   },
   {
-    icon: Zap,
-    title: "Lightning Fast",
-    description: "Get your academic materials printed within 24 hours."
+    icon: Bell,
+    title: "Notifications",
+    description: "Get instant alerts for print job status updates and pickup reminders.",
+    path: "/features/notifications"
   },
   {
-    icon: BarChart3,
-    title: "Track Everything",
-    description: "Monitor all print jobs in real-time via dashboard."
-  },
-  {
-    icon: Clock,
-    title: "Fast Turnaround",
-    description: "College materials printed and ready within 24 hours."
+    icon: PrinterIcon,
+    title: "No Queue Waiting",
+    description: "Skip traditional printing queues with our efficient digital workflow system.",
+    path: "/features/no-queue-waiting"
   }
 ];
 
 export function FeaturesSection() {
   const [isVisible, setIsVisible] = useState(false);
+  const navigate = useNavigate();
+
+  const handleFeatureClick = (path: string) => {
+    navigate(path);
+  };
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -110,7 +104,8 @@ export function FeaturesSection() {
             return (
               <div
                 key={feature.title}
-                className={`group relative p-8 rounded-2xl bg-card/50 backdrop-blur-sm border border-border/50 transition-all duration-700 hover:scale-105 hover-glow bg-gradient-card ${
+                onClick={() => handleFeatureClick(feature.path)}
+                className={`group relative p-8 rounded-2xl bg-card/50 backdrop-blur-sm border border-border/50 transition-all duration-700 hover:scale-105 hover-glow bg-gradient-card cursor-pointer ${
                   isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
                 }`}
                 style={{ 
