@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { 
   Users, 
   Search, 
-  Plus, 
   Edit, 
   Trash2, 
   Shield,
@@ -91,10 +90,6 @@ export default function UserManagement() {
             Manage student accounts and system access
           </p>
         </div>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Add New User
-        </Button>
       </div>
 
       {/* Stats Cards */}

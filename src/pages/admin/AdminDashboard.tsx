@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
 import { 
   Users, 
   Printer, 
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -76,7 +78,7 @@ export default function AdminDashboard() {
 
       {/* Admin Actions */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/users')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
@@ -87,11 +89,13 @@ export default function AdminDashboard() {
             <p className="text-sm text-muted-foreground mb-4">
               Manage student accounts, permissions, and access controls
             </p>
-            <Button className="w-full">Manage Users</Button>
+            <Button className="w-full" onClick={(e) => { e.stopPropagation(); navigate('/admin/users'); }}>
+              Manage Users
+            </Button>
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/printers')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Printer className="h-5 w-5" />
@@ -102,11 +106,13 @@ export default function AdminDashboard() {
             <p className="text-sm text-muted-foreground mb-4">
               Monitor printer status, configure settings, and manage queues
             </p>
-            <Button className="w-full">Manage Printers</Button>
+            <Button className="w-full" onClick={(e) => { e.stopPropagation(); navigate('/admin/printers'); }}>
+              Manage Printers
+            </Button>
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/analytics')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
@@ -117,7 +123,9 @@ export default function AdminDashboard() {
             <p className="text-sm text-muted-foreground mb-4">
               View detailed analytics, generate reports, and track usage
             </p>
-            <Button className="w-full">View Reports</Button>
+            <Button className="w-full" onClick={(e) => { e.stopPropagation(); navigate('/admin/analytics'); }}>
+              View Reports
+            </Button>
           </CardContent>
         </Card>
 

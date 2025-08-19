@@ -25,6 +25,7 @@ import UserManagement from "./pages/admin/UserManagement";
 import PrinterManagement from "./pages/admin/PrinterManagement";
 import Analytics from "./pages/admin/Analytics";
 import Layout from "@/components/layout/Layout";
+import { AdminLayout } from "@/components/layout/AdminLayout";
 
 
 
@@ -53,11 +54,11 @@ const App = () => (
           <Route path="/notifications" element={<Layout><Notifications /></Layout>} />
           
           {/* Admin Routes */}
-          <Route path="/admin" element={<Layout><AdminDashboard /></Layout>} />
-          <Route path="/admin/dashboard" element={<Layout><AdminDashboard /></Layout>} />
-          <Route path="/admin/users" element={<Layout><UserManagement /></Layout>} />
-          <Route path="/admin/printers" element={<Layout><PrinterManagement /></Layout>} />
-          <Route path="/admin/analytics" element={<Layout><Analytics /></Layout>} />
+          <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
+          <Route path="/admin/dashboard" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
+          <Route path="/admin/users" element={<AdminLayout><UserManagement /></AdminLayout>} />
+          <Route path="/admin/printers" element={<AdminLayout><PrinterManagement /></AdminLayout>} />
+          <Route path="/admin/analytics" element={<AdminLayout><Analytics /></AdminLayout>} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
