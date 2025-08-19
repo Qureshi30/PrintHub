@@ -58,7 +58,6 @@ export default function Terms() {
                 <li>Print job scheduling and management</li>
                 <li>Payment processing for printing services</li>
                 <li>Print queue monitoring and notifications</li>
-                <li>Group printing capabilities</li>
               </ul>
             </section>
 

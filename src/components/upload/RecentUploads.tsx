@@ -10,7 +10,6 @@ interface RecentUploadsProps {
   onDelete: (id: string, url?: string) => void;
 }
 
-// Displays recently uploaded files with a grid/list toggle
 export default function RecentUploads({ items, onDelete }: RecentUploadsProps) {
   const [view, setView] = useState<"grid" | "list">("grid");
 
@@ -20,10 +19,10 @@ export default function RecentUploads({ items, onDelete }: RecentUploadsProps) {
   );
 
   return (
-    <section aria-labelledby="recent-title" className="container py-8">
-      <div className="flex items-center justify-between mb-4">
+    <section aria-labelledby="recent-title" className="mt-8 space-y-6">
+      <div className="flex items-center justify-between">
         <h2 id="recent-title" className="text-lg font-semibold tracking-tight">
-          Recent uploads
+          Recent uploads ({sorted.length})
         </h2>
         <div className="flex items-center gap-2">
           <Button
@@ -33,6 +32,7 @@ export default function RecentUploads({ items, onDelete }: RecentUploadsProps) {
             aria-pressed={view === "grid"}
           >
             <LayoutGrid className="h-4 w-4" />
+            <span className="ml-2 hidden sm:inline">Grid</span>
           </Button>
           <Button
             variant={view === "list" ? "secondary" : "outline"}
@@ -41,24 +41,31 @@ export default function RecentUploads({ items, onDelete }: RecentUploadsProps) {
             aria-pressed={view === "list"}
           >
             <List className="h-4 w-4" />
+            <span className="ml-2 hidden sm:inline">List</span>
           </Button>
         </div>
       </div>
 
-      <Separator className="mb-6" />
+      <Separator />
 
       {sorted.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No uploads yet. Your files will appear here once uploaded.</p>
+        <div className="text-center py-12">
+          <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
+            <LayoutGrid className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <p className="text-sm text-muted-foreground">No uploads yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Your files will appear here once uploaded</p>
+        </div>
       ) : view === "grid" ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {sorted.map((item) => (
             <FileCard key={item.id} item={item} onDelete={onDelete} />
           ))}
         </div>
       ) : (
-        <div className="grid gap-3">
+        <div className="space-y-4">
           {sorted.map((item) => (
-            <div key={item.id} className="grid grid-cols-1">
+            <div key={item.id} className="max-w-full">
               <FileCard item={item} onDelete={onDelete} />
             </div>
           ))}

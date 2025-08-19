@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
+import { SpecialPaperAlert } from "@/components/SpecialPaperAlert";
 import { useNavigate } from "react-router-dom";
 import { usePrintJob } from "@/context/PrintJobContext";
 import { Calculator, FileText, DollarSign, Copy } from "lucide-react";
@@ -31,6 +32,8 @@ export default function PrintSettings() {
   const navigate = useNavigate();
   const { jobData, updateJobData } = usePrintJob();
   const [activeTab, setActiveTab] = useState<string>("");
+  const [showSpecialPaperAlert, setShowSpecialPaperAlert] = useState(false);
+  const [specialPaperType, setSpecialPaperType] = useState<"A3" | "certificate" | "photo" | "cardstock">("A3");
   
   // Get selected files from context or use fallback
   const selectedFiles = jobData.selectedFiles || [];
@@ -277,7 +280,14 @@ export default function PrintSettings() {
                             <Label htmlFor="paperSize">Paper Size</Label>
                             <Select 
                               value={settings.paperSize} 
-                              onValueChange={(value) => updateFileSettings(file.id, { paperSize: value })}
+                              onValueChange={(value) => {
+                                updateFileSettings(file.id, { paperSize: value });
+                                // Check if special paper is selected
+                                if (value === "A3") {
+                                  setSpecialPaperType("A3");
+                                  setShowSpecialPaperAlert(true);
+                                }
+                              }}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Select paper size" />
@@ -298,7 +308,20 @@ export default function PrintSettings() {
                             <Label htmlFor="paperType">Paper Type</Label>
                             <Select 
                               value={settings.paperType} 
-                              onValueChange={(value) => updateFileSettings(file.id, { paperType: value })}
+                              onValueChange={(value) => {
+                                updateFileSettings(file.id, { paperType: value });
+                                // Check if special paper type is selected
+                                if (value === "photo") {
+                                  setSpecialPaperType("photo");
+                                  setShowSpecialPaperAlert(true);
+                                } else if (value === "cardstock") {
+                                  setSpecialPaperType("cardstock");
+                                  setShowSpecialPaperAlert(true);
+                                } else if (value === "certificate") {
+                                  setSpecialPaperType("certificate");
+                                  setShowSpecialPaperAlert(true);
+                                }
+                              }}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Select paper type" />
@@ -307,6 +330,7 @@ export default function PrintSettings() {
                                 <SelectItem value="regular">Regular Paper</SelectItem>
                                 <SelectItem value="photo">Photo Paper</SelectItem>
                                 <SelectItem value="cardstock">Cardstock</SelectItem>
+                                <SelectItem value="certificate">Certificate Paper</SelectItem>
                                 <SelectItem value="transparency">Transparency</SelectItem>
                               </SelectContent>
                             </Select>
@@ -395,6 +419,22 @@ export default function PrintSettings() {
           </div>
         </div>
       </div>
+      
+      {/* Special Paper Alert Modal */}
+      <SpecialPaperAlert
+        isOpen={showSpecialPaperAlert}
+        onClose={() => setShowSpecialPaperAlert(false)}
+        onConfirm={() => {
+          setShowSpecialPaperAlert(false);
+          // Continue with current settings
+        }}
+        paperType={specialPaperType}
+        estimatedDelay={specialPaperType === "A3" ? 30 : specialPaperType === "certificate" ? 20 : 15}
+        files={selectedFiles.map(file => ({
+          name: file.name,
+          pages: file.pages
+        }))}
+      />
     </ProtectedRoute>
   );
 }

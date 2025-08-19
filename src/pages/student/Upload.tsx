@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import FileUploader from "@/components/upload/FileUploader";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { FilePreview } from "@/components/FilePreview";
 import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
 import { Cloud, UploadIcon, HardDrive, FileText, AlertCircle, CheckCircle2, Image, FileSpreadsheet, File as FileIcon, Eye, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -73,6 +74,7 @@ export default function Upload() {
   const { toast } = useToast();
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>(mockUploadedFiles);
+  const [previewFile, setPreviewFile] = useState<UploadedFile | null>(null);
 
   const readyFiles = uploadedFiles.filter(f => f.status === "ready");
 
@@ -354,7 +356,15 @@ export default function Upload() {
                         </div>
                         
                         <div className="flex gap-2">
-                          <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewFile(file);
+                            }}
+                            title="Preview file"
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
@@ -430,6 +440,21 @@ export default function Upload() {
           </div>
         </div>
       </div>
+      
+      {/* File Preview Modal */}
+      {previewFile && (
+        <FilePreview
+          isOpen={!!previewFile}
+          onClose={() => setPreviewFile(null)}
+          file={{
+            id: previewFile.id,
+            name: previewFile.name,
+            size: previewFile.size,
+            type: previewFile.type,
+            pages: previewFile.pages
+          }}
+        />
+      )}
     </ProtectedRoute>
   );
 }

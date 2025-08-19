@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { RefundStatus } from "@/components/RefundStatus";
 import { useNavigate } from "react-router-dom";
 import { FileText, Calendar, Printer, Download, RotateCcw } from "lucide-react";
 
@@ -163,14 +164,17 @@ export default function History() {
                           </>
                         )}
                         {job.status === "failed" && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleReprint(job)}
-                          >
-                            <RotateCcw className="h-4 w-4 mr-2" />
-                            Retry
-                          </Button>
+                          <div className="flex gap-2">
+                            <RefundStatus jobId={job.id} />
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleReprint(job)}
+                            >
+                              <RotateCcw className="h-4 w-4 mr-2" />
+                              Retry
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </div>

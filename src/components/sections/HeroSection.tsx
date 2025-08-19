@@ -1,10 +1,6 @@
-import { Button } from "@/components/ui/button";
-import { Upload, Users } from "lucide-react";
-import { useUpload } from "@/context/UploadContext";
 import { useEffect, useState } from "react";
 
 export function HeroSection() {
-  const { openFileDialog } = useUpload();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -34,28 +30,6 @@ export function HeroSection() {
         }`}>
           Nobody prints it better.
         </p>
-
-        <div className={`flex flex-col sm:flex-row gap-4 justify-center items-center transition-all duration-1000 delay-500 ${
-          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-        }`}>
-          <Button 
-            onClick={openFileDialog}
-            size="lg"
-            className="bg-gradient-hero hover:opacity-90 transition-all duration-300 hover:scale-105 hover:shadow-glow px-8 py-3"
-          >
-            <Upload className="mr-2 h-5 w-5" />
-            Schedule Prints
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            size="lg"
-            className="border-primary/20 hover:border-primary/40 transition-all duration-300 hover:scale-105 px-8 py-3"
-          >
-            <Users className="mr-2 h-5 w-5" />
-            Sign Up
-          </Button>
-        </div>
       </div>
 
       {/* Decorative Gradient Overlay */}

@@ -1,4 +1,4 @@
-import { UploadCloud, Home, History, Clock, Settings, Users, Calendar } from "lucide-react";
+import { UploadCloud, Home, History, Clock, Settings, Calendar, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useUpload } from "@/context/UploadContext";
@@ -15,8 +15,8 @@ export function AppHeader() {
     { path: "/upload", label: "Upload", icon: UploadCloud },
     { path: "/queue", label: "Queue", icon: Clock },
     { path: "/history", label: "History", icon: History },
-    { path: "/group-print", label: "Group", icon: Users },
     { path: "/schedule", label: "Schedule", icon: Calendar },
+    { path: "/notifications", label: "Notifications", icon: Bell },
   ];
 
   return (

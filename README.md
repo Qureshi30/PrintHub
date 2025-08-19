@@ -43,7 +43,6 @@ PrintHub is a comprehensive digital printing solution that streamlines the entir
 - **Print History**: Complete record of all print jobs
 - **Job Scheduling**: Schedule prints for later execution
 - **Status Tracking**: Real-time job status updates
-- **Group Printing**: Collaborative printing features
 
 ### 🎨 **User Experience**
 - **Responsive Design**: Works seamlessly on all devices

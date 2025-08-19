@@ -3,14 +3,17 @@ import {
   Home, 
   Upload, 
   Folder, 
-  Settings as SettingsIcon, 
   HelpCircle, 
-  Users, 
   Clock, 
   User,
   Calendar,
   Shield,
-  FileText
+  FileText,
+  Bell,
+  Users,
+  Printer,
+  BarChart3,
+  Settings
 } from "lucide-react";
 import {
   Sidebar,
@@ -30,10 +33,7 @@ const items = [
   { title: "Print History", url: "/history", icon: Folder },
   { title: "Print Queue", url: "/queue", icon: Clock },
   { title: "Schedule Print", url: "/schedule", icon: Calendar },
-];
-
-const collaborationItems = [
-  { title: "Group Print", url: "/group-print", icon: Users },
+  { title: "Notifications", url: "/notifications", icon: Bell },
 ];
 
 const settingsItems = [
@@ -44,6 +44,13 @@ const settingsItems = [
 const legalItems = [
   { title: "Privacy Policy", url: "/privacy", icon: Shield },
   { title: "Terms of Service", url: "/terms", icon: FileText },
+];
+
+const adminItems = [
+  { title: "Admin Dashboard", url: "/admin", icon: Settings },
+  { title: "User Management", url: "/admin/users", icon: Users },
+  { title: "Printer Management", url: "/admin/printers", icon: Printer },
+  { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
 ];
 
 export function AppSidebar() {
@@ -66,24 +73,6 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} end className={getNavCls}>
-                      <item.icon className="mr-2 h-4 w-4" />
-                      {!isCollapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Collaboration</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {collaborationItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavCls}>
                       <item.icon className="mr-2 h-4 w-4" />
                       {!isCollapsed && <span>{item.title}</span>}
                     </NavLink>
@@ -117,6 +106,24 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {legalItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} className={getNavCls}>
+                      <item.icon className="mr-2 h-4 w-4" />
+                      {!isCollapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Administration</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {adminItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} className={getNavCls}>
