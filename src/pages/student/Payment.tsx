@@ -62,9 +62,6 @@ export default function Payment() {
     
     if (success) {
       setPaymentStatus("success");
-      setTimeout(() => {
-        navigate("/queue");
-      }, 2000);
     } else {
       setPaymentStatus("failed");
       setIsProcessing(false);

@@ -3,7 +3,8 @@ import {
   Printer, 
   BarChart3, 
   Home,
-  Shield
+  Shield,
+  Mail
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ export function AdminHeader() {
     { path: "/admin/users", label: "Users", icon: Users },
     { path: "/admin/printers", label: "Printers", icon: Printer },
     { path: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+    { path: "/admin/email", label: "Email", icon: Mail },
   ];
 
   return (

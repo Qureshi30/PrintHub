@@ -24,6 +24,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import UserManagement from "./pages/admin/UserManagement";
 import PrinterManagement from "./pages/admin/PrinterManagement";
 import Analytics from "./pages/admin/Analytics";
+import EmailConfiguration from "./pages/admin/EmailConfiguration";
 import Layout from "@/components/layout/Layout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 
@@ -75,6 +76,7 @@ const App = () => (
           <Route path="/admin/users" element={<AdminLayout><UserManagement /></AdminLayout>} />
           <Route path="/admin/printers" element={<AdminLayout><PrinterManagement /></AdminLayout>} />
           <Route path="/admin/analytics" element={<AdminLayout><Analytics /></AdminLayout>} />
+          <Route path="/admin/email" element={<AdminLayout><EmailConfiguration /></AdminLayout>} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

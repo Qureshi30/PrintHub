@@ -13,10 +13,8 @@ import {
   User, 
   Settings, 
   Bell, 
-  Moon, 
   Shield, 
   ExternalLink,
-  Save,
   School
 } from "lucide-react";
 
@@ -26,22 +24,16 @@ export default function UserSettings() {
   
   const [settings, setSettings] = useState({
     emailNotifications: true,
-    printReminders: true,
-    darkMode: false,
-    autoSelectFiles: true,
-    defaultCopies: 1,
-    defaultPaperSize: "A4"
+    printReminders: true
   });
 
   const handleSettingChange = (key: string, value: boolean | number | string) => {
     setSettings(prev => ({ ...prev, [key]: value }));
-  };
-
-  const handleSaveSettings = () => {
-    // In real app, save to backend
+    
+    // Save immediately when setting changes
     toast({
-      title: "Settings saved",
-      description: "Your preferences have been updated successfully.",
+      title: "Setting updated",
+      description: `${key === 'emailNotifications' ? 'Email notifications' : 'Print reminders'} ${value ? 'enabled' : 'disabled'}.`,
     });
   };
 
@@ -177,91 +169,6 @@ export default function UserSettings() {
                   </div>
                 </CardContent>
               </Card>
-
-              {/* Appearance Settings */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Moon className="h-5 w-5" />
-                    Appearance
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Dark Mode</Label>
-                      <div className="text-sm text-muted-foreground">
-                        Switch to dark theme for better night viewing
-                      </div>
-                    </div>
-                    <Switch 
-                      checked={settings.darkMode}
-                      onCheckedChange={(checked) => handleSettingChange('darkMode', checked)}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Print Defaults */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="h-5 w-5" />
-                    Print Defaults
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Auto-select uploaded files</Label>
-                      <div className="text-sm text-muted-foreground">
-                        Automatically select new uploads for printing
-                      </div>
-                    </div>
-                    <Switch 
-                      checked={settings.autoSelectFiles}
-                      onCheckedChange={(checked) => handleSettingChange('autoSelectFiles', checked)}
-                    />
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="defaultCopies">Default Copies</Label>
-                      <Input
-                        id="defaultCopies"
-                        type="number"
-                        min="1"
-                        max="10"
-                        value={settings.defaultCopies}
-                        onChange={(e) => handleSettingChange('defaultCopies', parseInt(e.target.value) || 1)}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="defaultPaperSize">Default Paper Size</Label>
-                      <select 
-                        id="defaultPaperSize"
-                        value={settings.defaultPaperSize}
-                        onChange={(e) => handleSettingChange('defaultPaperSize', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="A4">A4</option>
-                        <option value="A3">A3</option>
-                        <option value="Letter">Letter</option>
-                        <option value="Legal">Legal</option>
-                      </select>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Save Button */}
-              <Button onClick={handleSaveSettings} className="w-full bg-gradient-hero">
-                <Save className="h-4 w-4 mr-2" />
-                Save All Settings
-              </Button>
             </div>
           </div>
         </div>

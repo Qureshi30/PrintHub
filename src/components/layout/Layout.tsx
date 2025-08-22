@@ -37,11 +37,7 @@ export default function Layout({ children }: { readonly children: React.ReactNod
                   </Button>
                   <Separator orientation="vertical" className="h-4" />
                   <Button variant="link" size="sm" onClick={() => navigate("/support")} className="h-auto p-0">
-                    Support
-                  </Button>
-                  <Separator orientation="vertical" className="h-4" />
-                  <Button variant="link" size="sm" onClick={() => navigate("/user-settings")} className="h-auto p-0">
-                    Settings
+                    Help & Support
                   </Button>
                 </div>
               </div>

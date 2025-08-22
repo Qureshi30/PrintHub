@@ -169,12 +169,14 @@ export default function Queue() {
                       {currentUserJob.pages} pages • {currentUserJob.copies} copies • {currentUserJob.colorMode}
                     </div>
                   </div>
-                  {currentUserJob.status === "pending" && (
-                    <Button variant="outline" size="sm" onClick={handleCancel}>
-                      <X className="h-4 w-4 mr-2" />
-                      Cancel
-                    </Button>
-                  )}
+                  <div className="flex gap-2">
+                    {currentUserJob.status === "pending" && (
+                      <Button variant="outline" size="sm" onClick={handleCancel}>
+                        <X className="h-4 w-4 mr-2" />
+                        Cancel
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

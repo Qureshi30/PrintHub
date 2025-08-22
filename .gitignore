@@ -57,6 +57,8 @@ web_modules/
 .yarn-integrity
 
 # dotenv environment variable files
+# These contain sensitive data like EmailJS credentials, API keys, etc.
+# Note: .env.example files should be committed as templates
 .env
 .env.development.local
 .env.test.local

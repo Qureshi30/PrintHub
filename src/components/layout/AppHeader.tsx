@@ -1,12 +1,10 @@
-import { UploadCloud, Home, History, Clock, Calendar, Bell } from "lucide-react";
+import { UploadCloud, Home, History, Clock, Calendar, Bell, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { useUpload } from "@/context/UploadContext";
 import AuthButtons from "@/components/auth/AuthButtons";
 import { useNavigate, useLocation } from "react-router-dom";
 
 export function AppHeader() {
-  const { openFileDialog } = useUpload();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -57,12 +55,12 @@ export function AppHeader() {
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <Button 
-            onClick={openFileDialog} 
+            onClick={() => navigate("/user-settings")} 
             className="hover-scale bg-gradient-hero hover:shadow-glow transition-all duration-300" 
-            aria-label="Upload files quickly"
+            aria-label="Go to user profile"
           >
-            <UploadCloud className="mr-2 h-4 w-4" />
-            Quick Upload
+            <User className="mr-2 h-4 w-4" />
+            Profile
           </Button>
           <AuthButtons />
         </div>
