@@ -9,7 +9,7 @@ export function AppHeader() {
   const location = useLocation();
 
   const navItems = [
-    { path: "/", label: "Dashboard", icon: Home },
+    { path: "/dashboard", label: "Dashboard", icon: Home },
     { path: "/upload", label: "Upload", icon: UploadCloud },
     { path: "/queue", label: "Queue", icon: Clock },
     { path: "/history", label: "History", icon: History },
@@ -23,7 +23,7 @@ export function AppHeader() {
         <div className="flex items-center gap-6">
           <button 
             className="text-lg font-semibold tracking-tight text-blue-600 cursor-pointer hover:opacity-80 bg-transparent border-none"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/dashboard")}
             aria-label="Go to PrintHub dashboard"
           >
             PrintHub

@@ -1,10 +1,12 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SignedIn, SignedOut } from '@clerk/clerk-react';
 
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
+import StudentDashboard from "./pages/student/StudentDashboard";
 import NotFound from "./pages/shared/NotFound";
 import Upload from "./pages/student/Upload";
 import PrintSettings from "./pages/student/PrintSettings";
@@ -26,6 +28,7 @@ import PrinterManagement from "./pages/admin/PrinterManagement";
 import Analytics from "./pages/admin/Analytics";
 import EmailConfiguration from "./pages/admin/EmailConfiguration";
 import Layout from "@/components/layout/Layout";
+import LandingLayout from "@/components/layout/LandingLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 
 // Feature Pages
@@ -45,7 +48,20 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Layout><Index /></Layout>} />
+          {/* Landing page for non-authenticated users */}
+          <Route path="/" element={
+            <>
+              <SignedOut>
+                <LandingLayout><Index /></LandingLayout>
+              </SignedOut>
+              <SignedIn>
+                <Layout><StudentDashboard /></Layout>
+              </SignedIn>
+            </>
+          } />
+          
+          {/* Student routes (require authentication) */}
+          <Route path="/dashboard" element={<Layout><StudentDashboard /></Layout>} />
           <Route path="/upload" element={<Layout><Upload /></Layout>} />
           <Route path="/print-settings" element={<Layout><PrintSettings /></Layout>} />
           <Route path="/select-printer" element={<Layout><SelectPrinter /></Layout>} />
@@ -54,13 +70,52 @@ const App = () => (
           <Route path="/queue" element={<Layout><Queue /></Layout>} />
           <Route path="/history" element={<Layout><History /></Layout>} />
           <Route path="/user-settings" element={<Layout><UserSettings /></Layout>} />
-          <Route path="/access-denied" element={<AccessDenied />} />
           <Route path="/schedule" element={<Layout><Schedule /></Layout>} />
-          <Route path="/support" element={<Layout><Support /></Layout>} />
-          <Route path="/help" element={<Layout><Support /></Layout>} />
-          <Route path="/terms" element={<Layout><Terms /></Layout>} />
-          <Route path="/privacy" element={<Layout><Privacy /></Layout>} />
           <Route path="/notifications" element={<Layout><Notifications /></Layout>} />
+          
+          {/* Shared routes (available to both authenticated and non-authenticated users) */}
+          <Route path="/support" element={
+            <>
+              <SignedOut>
+                <LandingLayout><Support /></LandingLayout>
+              </SignedOut>
+              <SignedIn>
+                <Layout><Support /></Layout>
+              </SignedIn>
+            </>
+          } />
+          <Route path="/help" element={
+            <>
+              <SignedOut>
+                <LandingLayout><Support /></LandingLayout>
+              </SignedOut>
+              <SignedIn>
+                <Layout><Support /></Layout>
+              </SignedIn>
+            </>
+          } />
+          <Route path="/terms" element={
+            <>
+              <SignedOut>
+                <LandingLayout><Terms /></LandingLayout>
+              </SignedOut>
+              <SignedIn>
+                <Layout><Terms /></Layout>
+              </SignedIn>
+            </>
+          } />
+          <Route path="/privacy" element={
+            <>
+              <SignedOut>
+                <LandingLayout><Privacy /></LandingLayout>
+              </SignedOut>
+              <SignedIn>
+                <Layout><Privacy /></Layout>
+              </SignedIn>
+            </>
+          } />
+          
+          <Route path="/access-denied" element={<AccessDenied />} />
           
           {/* Feature Pages */}
           <Route path="/features/security-privacy" element={<Layout><SecurityPrivacy /></Layout>} />

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
 
 interface PrintJobData {
   selectedFiles?: Array<{
@@ -44,7 +44,7 @@ interface PrintJobContextType {
 
 const PrintJobContext = createContext<PrintJobContextType | undefined>(undefined);
 
-export function PrintJobProvider({ children }: { children: ReactNode }) {
+export function PrintJobProvider({ children }: { readonly children: ReactNode }) {
   const [jobData, setJobData] = useState<PrintJobData>({});
 
   const updateJobData = (data: Partial<PrintJobData>) => {
@@ -59,13 +59,15 @@ export function PrintJobProvider({ children }: { children: ReactNode }) {
     return !!(jobData.selectedFiles && jobData.selectedFiles.length > 0 && jobData.settings && jobData.printer);
   };
 
+  const contextValue = useMemo(() => ({
+    jobData,
+    updateJobData,
+    clearJobData,
+    isJobComplete
+  }), [jobData]);
+
   return (
-    <PrintJobContext.Provider value={{
-      jobData,
-      updateJobData,
-      clearJobData,
-      isJobComplete
-    }}>
+    <PrintJobContext.Provider value={contextValue}>
       {children}
     </PrintJobContext.Provider>
   );

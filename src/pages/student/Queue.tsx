@@ -63,18 +63,18 @@ export default function Queue() {
     queue.find(job => job.userName === "Current User") || null
   );
 
+  const updateQueueTimes = () => {
+    setQueue(prevQueue => 
+      prevQueue.map(job => ({
+        ...job,
+        estimatedTime: Math.max(0, job.estimatedTime - 0.1)
+      }))
+    );
+  };
+
   // Simulate real-time updates
   useEffect(() => {
-    const interval = setInterval(() => {
-      // Simulate queue progression
-      setQueue(prevQueue => 
-        prevQueue.map(job => ({
-          ...job,
-          estimatedTime: Math.max(0, job.estimatedTime - 0.1)
-        }))
-      );
-    }, 1000);
-
+    const interval = setInterval(updateQueueTimes, 1000);
     return () => clearInterval(interval);
   }, []);
 

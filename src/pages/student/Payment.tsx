@@ -199,7 +199,7 @@ export default function Payment() {
                     return (
                       <div 
                         key={method.id}
-                        className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                        className={`p-4 border rounded-lg cursor-pointer transition-all w-full text-left ${
                           selectedMethod === method.id 
                             ? "border-blue-500 bg-blue-50" 
                             : "border-gray-200 hover:border-gray-300"
