@@ -1,245 +1,242 @@
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
+import { useUser } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import { Clock, FileText, Printer, X, CheckCircle, AlertCircle, User } from "lucide-react";
-
-interface QueueJob {
-  id: string;
-  fileName: string;
-  userName: string;
-  pages: number;
-  copies: number;
-  colorMode: "color" | "blackwhite";
-  status: "printing" | "pending" | "completed" | "failed";
-  estimatedTime: number; // in minutes
-  submittedAt: string;
-}
-
-const mockQueue: QueueJob[] = [
-  {
-    id: "1",
-    fileName: "Assignment_Final.pdf",
-    userName: "Current User",
-    pages: 15,
-    copies: 1,
-    colorMode: "blackwhite",
-    status: "printing",
-    estimatedTime: 3,
-    submittedAt: "2024-01-15T10:30:00Z"
-  },
-  {
-    id: "2",
-    fileName: "Report_Draft.docx",
-    userName: "John Doe",
-    pages: 8,
-    copies: 2,
-    colorMode: "color",
-    status: "pending",
-    estimatedTime: 5,
-    submittedAt: "2024-01-15T10:25:00Z"
-  },
-  {
-    id: "3",
-    fileName: "Presentation.pptx",
-    userName: "Jane Smith",
-    pages: 12,
-    copies: 1,
-    colorMode: "color",
-    status: "pending",
-    estimatedTime: 8,
-    submittedAt: "2024-01-15T10:20:00Z"
-  }
-];
+import { useUserPrintJobs, useCancelPrintJob } from "@/hooks/useDatabase";
 
 export default function Queue() {
   const navigate = useNavigate();
-  const [queue, setQueue] = useState<QueueJob[]>(mockQueue);
-  const [currentUserJob, setCurrentUserJob] = useState<QueueJob | null>(
-    queue.find(job => job.userName === "Current User") || null
-  );
+  const { user } = useUser();
+  
+  // Use mock hooks
+  const { printJobs: queueJobs, loading: isLoading, error } = useUserPrintJobs();
+  const cancelJobMutation = useCancelPrintJob();
 
-  const updateQueueTimes = () => {
-    setQueue(prevQueue => 
-      prevQueue.map(job => ({
-        ...job,
-        estimatedTime: Math.max(0, job.estimatedTime - 0.1)
-      }))
-    );
+  // Filter jobs for current user
+  const currentUserJobs = queueJobs.filter(job => job.clerkUserId === user?.id);
+  
+  // Calculate queue position
+  const userQueuePosition = queueJobs.findIndex(job =>
+    job.clerkUserId === user?.id && (job.status === 'queued' || job.status === 'printing')
+  ) + 1;
+
+  const jobsAhead = queueJobs.slice(0, userQueuePosition - 1);
+  
+  const handleCancelJob = (jobId: string) => {
+    cancelJobMutation.mutate();
   };
-
-  // Simulate real-time updates
-  useEffect(() => {
-    const interval = setInterval(updateQueueTimes, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "printing": return <Printer className="h-4 w-4 text-blue-600" />;
-      case "pending": return <Clock className="h-4 w-4 text-yellow-600" />;
-      case "completed": return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case "failed": return <AlertCircle className="h-4 w-4 text-red-600" />;
-      default: return <Clock className="h-4 w-4" />;
+      case 'queued': return <Clock className="h-4 w-4" />;
+      case 'printing': return <Printer className="h-4 w-4" />;
+      case 'completed': return <CheckCircle className="h-4 w-4" />;
+      case 'failed': return <AlertCircle className="h-4 w-4" />;
+      default: return <FileText className="h-4 w-4" />;
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case "printing": return "bg-blue-100 text-blue-800";
-      case "pending": return "bg-yellow-100 text-yellow-800";
-      case "completed": return "bg-green-100 text-green-800";
-      case "failed": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
+      case 'queued': return <Badge variant="secondary">Queued</Badge>;
+      case 'printing': return <Badge variant="default">Printing</Badge>;
+      case 'completed': return <Badge variant="outline">Completed</Badge>;
+      case 'failed': return <Badge variant="destructive">Failed</Badge>;
+      default: return <Badge variant="outline">Unknown</Badge>;
     }
   };
 
-  const userPosition = queue.findIndex(job => job.userName === "Current User") + 1;
-  const totalEstimatedTime = queue
-    .slice(0, userPosition)
-    .reduce((total, job) => total + job.estimatedTime, 0);
+  if (isLoading) {
+    return (
+      <ProtectedRoute>
+        <div className="container mx-auto px-4 py-8">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+            <div className="h-64 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
-  const handleCancel = () => {
-    // Cancel the current user's job
-    setQueue(prev => prev.filter(job => job.userName !== "Current User"));
-    setCurrentUserJob(null);
-    navigate("/upload");
-  };
+  if (error) {
+    return (
+      <ProtectedRoute>
+        <div className="container mx-auto px-4 py-8">
+          <Card className="border-red-200">
+            <CardContent className="pt-6">
+              <div className="text-center text-red-600">
+                <AlertCircle className="h-12 w-12 mx-auto mb-4" />
+                <p>Failed to load queue. Please try again later.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
   return (
     <ProtectedRoute>
-      <div className="container mx-auto py-8 px-4">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <PrintFlowBreadcrumb currentStep="/queue" />
+      <div className="container mx-auto px-4 py-8">
+        <PrintFlowBreadcrumb currentStep="queue" />
+        
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Print Queue</h1>
+          <p className="text-muted-foreground">
+            Track your print jobs and see your position in the queue
+          </p>
+        </div>
+
+        {/* Queue Status Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Your Position</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {userQueuePosition > 0 ? `#${userQueuePosition}` : 'N/A'}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {jobsAhead.length} jobs ahead
+              </p>
+            </CardContent>
+          </Card>
           
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight text-blue-600">
-              Print Queue
-            </h1>
-            <p className="text-muted-foreground">
-              Track your print job progress
-            </p>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Your Jobs</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{currentUserJobs.length}</div>
+              <p className="text-xs text-muted-foreground">
+                Total in queue
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Estimated Wait</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {userQueuePosition > 0 ? `${userQueuePosition * 2} min` : 'N/A'}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Approximate time
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Print Jobs */}
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Your Print Jobs</h2>
+            <Button variant="outline" onClick={() => navigate("/upload")}>
+              Add New Job
+            </Button>
           </div>
 
-          {/* Current User's Job Status */}
-          {currentUserJob && (
-            <Card className="border-blue-200 bg-blue-50/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-blue-600" />
-                  Your Print Job
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <div className="text-sm text-muted-foreground">Position</div>
-                    <div className="text-2xl font-bold text-blue-600">#{userPosition}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Estimated Wait</div>
-                    <div className="text-2xl font-bold text-blue-600">
-                      {Math.ceil(totalEstimatedTime)}m
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Status</div>
-                    <Badge className={getStatusColor(currentUserJob.status)}>
-                      {getStatusIcon(currentUserJob.status)}
-                      {currentUserJob.status}
-                    </Badge>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Progress</div>
-                    <Progress 
-                      value={currentUserJob.status === "printing" ? 75 : 25} 
-                      className="h-2 mt-2" 
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t">
-                  <div>
-                    <div className="font-medium">{currentUserJob.fileName}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {currentUserJob.pages} pages • {currentUserJob.copies} copies • {currentUserJob.colorMode}
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {currentUserJob.status === "pending" && (
-                      <Button variant="outline" size="sm" onClick={handleCancel}>
-                        <X className="h-4 w-4 mr-2" />
-                        Cancel
-                      </Button>
-                    )}
-                  </div>
+          {currentUserJobs.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No print jobs in queue</p>
+                  <p className="text-sm mt-2">Upload files to start printing</p>
                 </div>
               </CardContent>
             </Card>
-          )}
-
-          {/* Queue Overview */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Queue Overview - Library Ground Floor</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {queue.map((job, index) => (
-                  <div 
-                    key={job.id}
-                    className={`flex items-center justify-between p-3 rounded-lg border ${
-                      job.userName === "Current User" ? "bg-blue-50 border-blue-200" : "bg-gray-50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white border-2 border-gray-200 text-sm font-medium">
-                        {index + 1}
-                      </div>
-                      <div>
-                        <div className="font-medium">{job.fileName}</div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            {job.userName}
-                          </span>
-                          <span>{job.pages} pages</span>
-                          <span>{job.copies} copies</span>
-                          <span className="capitalize">{job.colorMode}</span>
+          ) : (
+            currentUserJobs.map((job) => (
+              <Card key={job.id} className="overflow-hidden">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon(job.status)}
+                        <div>
+                          <h3 className="font-semibold">{job.fileName}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {job.settings.pages} pages • {job.settings.copies} copies
+                          </p>
                         </div>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <Badge className={getStatusColor(job.status)}>
-                          {getStatusIcon(job.status)}
-                          {job.status}
-                        </Badge>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          ~{Math.ceil(job.estimatedTime)}m
-                        </div>
-                      </div>
+                    <div className="flex items-center gap-4">
+                      {getStatusBadge(job.status)}
+                      
+                      {job.status === 'queued' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCancelJob(job.id)}
+                          disabled={cancelJobMutation.isLoading}
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Cancel
+                        </Button>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex gap-4">
-            <Button variant="outline" onClick={() => navigate("/upload")} className="flex-1">
-              Print Another Document
-            </Button>
-            <Button onClick={() => navigate("/history")} className="flex-1 bg-gradient-hero">
-              View History
-            </Button>
-          </div>
+                  
+                  {job.status === 'printing' && (
+                    <div className="mt-4">
+                      <div className="flex justify-between text-sm mb-2">
+                        <span>Printing progress</span>
+                        <span>75%</span>
+                      </div>
+                      <Progress value={75} className="w-full" />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
+
+        {/* Global Queue Info */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Global Queue Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-bold text-blue-600">{queueJobs.length}</div>
+                <p className="text-xs text-muted-foreground">Total Jobs</p>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-green-600">
+                  {queueJobs.filter(job => job.status === 'printing').length}
+                </div>
+                <p className="text-xs text-muted-foreground">Printing Now</p>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {queueJobs.filter(job => job.status === 'queued').length}
+                </div>
+                <p className="text-xs text-muted-foreground">In Queue</p>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-600">3</div>
+                <p className="text-xs text-muted-foreground">Active Printers</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </ProtectedRoute>
   );

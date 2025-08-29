@@ -15,7 +15,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       openFileDialog: () => openFn?.(),
       registerOpenDialog: (fn: () => void) => setOpenFn(() => fn),
     }),
-    [openFn]
+    []
   );
 
   return <UploadContext.Provider value={value}>{children}</UploadContext.Provider>;

@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { useUpload } from "@/context/UploadContext";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import RecentUploads from "./RecentUploads";
+import { useBackendUpload } from "@/hooks/useBackendUpload";
 import { UploadedItem } from "./types";
 import {
   File as FileIcon,
@@ -28,6 +28,9 @@ type QueueItem = {
   file: File;
   progress: number;
   status: "queued" | "uploading" | "uploaded" | "error";
+  cloudinaryUrl?: string;
+  publicId?: string;
+  createdAt?: number;
 };
 
 function formatBytes(bytes: number) {
@@ -39,9 +42,9 @@ function formatBytes(bytes: number) {
 
 function getIconForFile(file: File) {
   const name = file.name.toLowerCase();
-  if (name.match(/\.(png|jpg|jpeg|gif|svg)$/)) return ImageIcon;
-  if (name.match(/\.(pdf|doc|docx|txt|rtf|ppt|pptx)$/)) return FileText;
-  if (name.match(/\.(csv|xlsx)$/)) return FileSpreadsheet;
+  if (/\.(png|jpg|jpeg|gif|svg)$/.test(name)) return ImageIcon;
+  if (/\.(pdf|doc|docx|txt|rtf|ppt|pptx)$/.test(name)) return FileText;
+  if (/\.(csv|xlsx)$/.test(name)) return FileSpreadsheet;
   return FileIcon;
 }
 
@@ -51,74 +54,92 @@ function isAllowedType(file: File) {
   return allowed.includes(ext);
 }
 
-export default function FileUploader({ onFileUploaded }: { onFileUploaded?: (file: UploadedItem) => void }) {
+interface FileUploaderProps {
+  readonly onFileUploaded?: (file: UploadedItem) => void;
+}
+
+export default function FileUploader({ onFileUploaded }: FileUploaderProps) {
   const [items, setItems] = useState<QueueItem[]>([]);
-  const [recent, setRecent] = useState<UploadedItem[]>(() => dummyRecent()); // seed with dummy data
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const { registerOpenDialog } = useUpload();
   const { toast } = useToast();
 
-  // Keep interval timers for each uploading item
-  const uploadTimers = useRef<Record<string, number>>({});
+  const { uploadFile } = useBackendUpload({
+    onProgress: (progress) => {
+      // Update progress for the current uploading item
+      setItems((prev) => prev.map((item) => 
+        item.status === "uploading" ? { ...item, progress: progress.percentage } : item
+      ));
+    },
+    onSuccess: (response) => {
+      // Mark item as uploaded and store Cloudinary data
+      setItems((prev) => prev.map((item) => 
+        item.status === "uploading" ? { 
+          ...item, 
+          status: "uploaded", 
+          progress: 100,
+          cloudinaryUrl: response.url,
+          publicId: response.publicId,
+          createdAt: Date.now()
+        } : item
+      ));
+    },
+    onError: (error) => {
+      toast({
+        title: "Upload Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      setItems((prev) => prev.map((item) => 
+        item.status === "uploading" ? { ...item, status: "error" } : item
+      ));
+    },
+  });
 
   useEffect(() => {
-    registerOpenDialog(() => inputRef.current?.click());
-  }, [registerOpenDialog]);
-
-  const startUpload = useCallback((qi: QueueItem) => {
-    setItems((prev) => prev.map((p) => (p.id === qi.id ? { ...p, status: "uploading" } : p)));
-
-    const tick = () => {
-      setItems((prev) => {
-        return prev.map((p) => {
-          if (p.id !== qi.id) return p;
-          const inc = Math.min(8 + Math.random() * 12, 100 - p.progress);
-          const next = Math.min(100, Math.round(p.progress + inc));
-          if (next >= 100) {
-            // Done: move to recent list
-            queueMicrotask(() => finalizeUpload(p));
-          }
-          return { ...p, progress: next };
-        });
-      });
-    };
-
-    const id = window.setInterval(tick, 350);
-    uploadTimers.current[qi.id] = id;
+    const openDialog = () => inputRef.current?.click();
+    registerOpenDialog(openDialog);
   }, []);
 
-  const finalizeUpload = useCallback((item: QueueItem) => {
-    // Stop timer
-    const t = uploadTimers.current[item.id];
-    if (t) {
-      clearInterval(t);
-      delete uploadTimers.current[item.id];
+  const startUpload = useCallback(async (qi: QueueItem) => {
+    setItems((prev) => prev.map((p) => (p.id === qi.id ? { ...p, status: "uploading", progress: 0 } : p)));
+
+    try {
+      const response = await uploadFile(qi.file);
+      
+      // Create uploaded item for parent component
+      const uploadedItem: UploadedItem = {
+        id: qi.id,
+        name: qi.file.name,
+        size: qi.file.size,
+        type: qi.file.type || qi.file.name.split(".").pop() || "file",
+        url: response.url,
+        isImage: /\.(png|jpg|jpeg|gif|svg)$/i.test(qi.file.name),
+        createdAt: Date.now(),
+        cloudinaryPublicId: response.publicId,
+      };
+
+      // Notify parent component about the uploaded file
+      if (onFileUploaded) {
+        onFileUploaded(uploadedItem);
+      }
+
+      toast({
+        title: "Upload Successful",
+        description: `${qi.file.name} has been uploaded to Cloudinary.`,
+      });
+    } catch (error) {
+      console.error("Upload failed:", error);
+      setItems((prev) => prev.map((p) => (p.id === qi.id ? { ...p, status: "error" } : p)));
+      
+      toast({
+        title: "Upload Failed",
+        description: `Failed to upload ${qi.file.name}. Please check your connection and try again.`,
+        variant: "destructive",
+      });
     }
-    // Mark as uploaded in queue
-    setItems((prev) => prev.map((p) => (p.id === item.id ? { ...p, status: "uploaded", progress: 100 } : p)));
-
-    // Create object URL for preview/download
-    const url = URL.createObjectURL(item.file);
-    const isImage = /\.(png|jpg|jpeg|gif|svg)$/i.test(item.file.name);
-
-    const uploaded: UploadedItem = {
-      id: item.id,
-      name: item.file.name,
-      size: item.file.size,
-      type: item.file.type || item.file.name.split(".").pop() || "file",
-      url,
-      isImage,
-      createdAt: Date.now(),
-    };
-
-    setRecent((prev) => [uploaded, ...prev]);
-    
-    // Notify parent component about the uploaded file
-    if (onFileUploaded) {
-      onFileUploaded(uploaded);
-    }
-  }, [onFileUploaded]);
+  }, [uploadFile, onFileUploaded, toast]);
 
   const validateFiles = useCallback((files: File[]) => {
     const valid: File[] = [];
@@ -154,7 +175,13 @@ export default function FileUploader({ onFileUploaded }: { onFileUploaded?: (fil
 
     if (!valid.length) return;
 
-    const next: QueueItem[] = valid.map((file) => ({ id: crypto.randomUUID(), file, progress: 0, status: "queued" }));
+    const next: QueueItem[] = valid.map((file) => ({ 
+      id: crypto.randomUUID(), 
+      file, 
+      progress: 0, 
+      status: "queued",
+      createdAt: Date.now()
+    }));
     setItems((prev) => [...prev, ...next]);
 
     // Start simulated upload for each
@@ -175,30 +202,22 @@ export default function FileUploader({ onFileUploaded }: { onFileUploaded?: (fil
   const onDragLeave = useCallback(() => setIsDragging(false), []);
 
   const removeItem = useCallback((id: string) => {
-    // If uploading, stop timer
-    const t = uploadTimers.current[id];
-    if (t) {
-      clearInterval(t);
-      delete uploadTimers.current[id];
-    }
     setItems((prev) => prev.filter((i) => i.id !== id));
   }, []);
 
-  const deleteRecent = useCallback((id: string, url?: string) => {
-    if (url) URL.revokeObjectURL(url);
-    setRecent((prev) => prev.filter((i) => i.id !== id));
-  }, []);
-
-  // Cleanup created object URLs on unmount
+  // Remove expired items from queue
   useEffect(() => {
-    return () => {
-      Object.values(uploadTimers.current).forEach((t) => clearInterval(t));
-      setRecent((prev) => {
-        prev.forEach((i) => URL.revokeObjectURL(i.url));
-        return prev;
-      });
-    };
-  }, []);
+    const expiredItems = items.filter((item) => 
+      item.status === "uploaded" && 
+      item.createdAt && 
+      Date.now() - item.createdAt > 5000
+    );
+    if (expiredItems.length > 0) {
+      setItems((prev) => prev.filter((item) => 
+        !expiredItems.some((expired) => expired.id === item.id)
+      ));
+    }
+  }, [items]);
 
   const hasFiles = items.length > 0;
 
@@ -210,10 +229,17 @@ export default function FileUploader({ onFileUploaded }: { onFileUploaded?: (fil
         </CardHeader>
         <CardContent>
           <div
+            role="button"
+            tabIndex={0}
             onDrop={onDrop}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
-            className={`rounded-md border-2 border-dashed p-8 text-center transition-colors ${
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                inputRef.current?.click();
+              }
+            }}
+            className={`rounded-md border-2 border-dashed p-8 text-center transition-colors cursor-pointer ${
               isDragging ? "border-primary bg-muted/40" : "border-muted-foreground/30"
             }`}
           >
@@ -275,28 +301,8 @@ export default function FileUploader({ onFileUploaded }: { onFileUploaded?: (fil
           )}
         </CardContent>
       </Card>
-
-      {/* Recently uploaded files section */}
-      <RecentUploads items={recent} onDelete={deleteRecent} />
     </section>
   );
 }
 
-function dummyRecent(): UploadedItem[] {
-  // Minimal dummy items for initial UI demonstration
-  const now = Date.now();
-  const mk = (name: string, size: number, type: string, isImage = false): UploadedItem => ({
-    id: crypto.randomUUID(),
-    name,
-    size,
-    type,
-    url: isImage ? `https://picsum.photos/seed/${encodeURIComponent(name)}/600/400` : `data:text/plain,Demo`,
-    isImage,
-    createdAt: now - Math.floor(Math.random() * 1000 * 60 * 60),
-  });
-  return [
-    mk("proposal.pdf", 1_245_123, "application/pdf"),
-    mk("invoice.xlsx", 854_223, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
-    mk("product-shot.jpg", 2_450_331, "image/jpeg", true),
-  ];
-}
+

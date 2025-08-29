@@ -9,11 +9,14 @@ import { FilePreview } from "@/components/FilePreview";
 import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
 import { Cloud, UploadIcon, HardDrive, FileText, AlertCircle, CheckCircle2, Image, FileSpreadsheet, File as FileIcon, Eye, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { usePrintJob } from "@/context/PrintJobContext";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@clerk/clerk-react";
+import { usePrintJobUpload } from "@/hooks/usePrintJobUpload";
+import { useAvailablePrinters } from "@/hooks/useDatabase";
+import { UploadedItem } from "@/components/upload/types";
 
-// Mock uploaded files interface
+// Uploaded files interface (based on the actual upload component)
 interface UploadedFile {
   id: string;
   name: string;
@@ -23,75 +26,43 @@ interface UploadedFile {
   isImage: boolean;
   uploadedAt: string;
   status: "ready" | "processing" | "error";
+  cloudinaryUrl?: string;
+  cloudinaryPublicId?: string;
 }
 
 // Mock uploaded files data
-const mockUploadedFiles: UploadedFile[] = [
-  {
-    id: "1",
-    name: "Assignment_Final.pdf",
-    size: 2097152, // 2MB
-    type: "pdf",
-    pages: 15,
-    isImage: false,
-    uploadedAt: "2024-01-15T10:30:00Z",
-    status: "ready"
-  },
-  {
-    id: "2", 
-    name: "Report_Draft.docx",
-    size: 1048576, // 1MB
-    type: "docx",
-    pages: 8,
-    isImage: false,
-    uploadedAt: "2024-01-15T10:25:00Z",
-    status: "ready"
-  },
-  {
-    id: "3",
-    name: "Presentation.pptx",
-    size: 5242880, // 5MB
-    type: "pptx",
-    pages: 12,
-    isImage: false,
-    uploadedAt: "2024-01-15T10:20:00Z",
-    status: "ready"
-  },
-  {
-    id: "4",
-    name: "Chart_Data.jpg",
-    size: 524288, // 512KB
-    type: "jpg",
-    isImage: true,
-    uploadedAt: "2024-01-15T10:15:00Z",
-    status: "ready"
-  }
-];
+// Remove the mock data - we'll use real uploads from Cloudinary
 
 export default function Upload() {
   const navigate = useNavigate();
-  const { updateJobData } = usePrintJob();
   const { toast } = useToast();
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>(mockUploadedFiles);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [previewFile, setPreviewFile] = useState<UploadedFile | null>(null);
+  const [isCreatingPrintJobs, setIsCreatingPrintJobs] = useState(false);
+
+  // API hooks
+  const { printers } = useAvailablePrinters();
+  const { createPrintJob } = usePrintJobUpload();
+  const { getToken } = useAuth();
+
+  console.log('🖨️ Printers in Upload component:', printers);
 
   const readyFiles = uploadedFiles.filter(f => f.status === "ready");
 
-  // Callback to add newly uploaded files
-  const handleFileUploaded = (uploadedFile: { id: string; name: string; size: number; url?: string }) => {
-    const fileExtension = uploadedFile.name.toLowerCase().split('.').pop() || '';
-    const isImageFile = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].includes(fileExtension);
-    
+  // Callback to add newly uploaded files from Cloudinary
+  const handleFileUploaded = (uploadedItem: UploadedItem) => {
     const newFile: UploadedFile = {
-      id: uploadedFile.id,
-      name: uploadedFile.name,
-      size: uploadedFile.size,
-      type: fileExtension,
-      pages: estimatePages(uploadedFile.name, uploadedFile.size),
-      isImage: isImageFile,
+      id: uploadedItem.id,
+      name: uploadedItem.name,
+      size: uploadedItem.size,
+      type: uploadedItem.type,
+      pages: estimatePages(uploadedItem.name, uploadedItem.size),
+      isImage: uploadedItem.isImage,
       uploadedAt: new Date().toISOString(),
-      status: "ready"
+      status: "ready",
+      cloudinaryUrl: uploadedItem.url,
+      cloudinaryPublicId: uploadedItem.cloudinaryPublicId,
     };
     
     setUploadedFiles(prev => [newFile, ...prev]);
@@ -145,22 +116,105 @@ export default function Upload() {
     }
   };
 
-  const handleContinue = () => {
-    if (selectedFiles.length > 0) {
-      // Save selected files to print job context
-      const selectedFilesData = selectedFiles.map(fileId => {
+  const handleContinue = async () => {
+    if (selectedFiles.length === 0) return;
+    
+    setIsCreatingPrintJobs(true);
+    
+    try {
+      // Get the first available printer (in a real app, let user choose)
+      const availablePrinter = printers.find(p => p.status === 'online');
+      if (!availablePrinter) {
+        toast({
+          title: "No printers available",
+          description: "Please try again later when printers are online.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create print jobs for each selected file using the backend print-job endpoint
+      const printJobPromises = selectedFiles.map(async (fileId) => {
+        console.log('🔍 Processing file ID:', fileId);
+        console.log('📂 Available ready files:', readyFiles.map(f => ({ id: f.id, name: f.name })));
+        
         const file = readyFiles.find(f => f.id === fileId);
-        return {
-          id: file!.id,
-          name: file!.name,
-          pages: file!.pages || 1,
-          size: formatFileSize(file!.size),
-          type: file!.type
-        };
+        if (!file) {
+          console.error('❌ File not found in readyFiles:', fileId);
+          return null;
+        }
+        
+        if (!file.cloudinaryUrl) {
+          console.error('❌ File missing cloudinaryUrl:', file);
+          return null;
+        }
+
+        console.log('✅ Processing file:', { 
+          id: file.id, 
+          name: file.name, 
+          cloudinaryUrl: file.cloudinaryUrl,
+          cloudinaryPublicId: file.cloudinaryPublicId 
+        });
+
+        try {
+          // Use the backend print-job endpoint which handles everything
+          const token = await getToken();
+          const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/upload/print-job`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              cloudinaryUrl: file.cloudinaryUrl,
+              cloudinaryPublicId: file.cloudinaryPublicId,
+              originalName: file.name,
+              printerId: availablePrinter._id,
+              settings: {
+                copies: 1,
+                color: false,
+                paperType: 'A4',
+                pages: 'all',
+              }
+            }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || 'Failed to create print job');
+          }
+
+          const result = await response.json();
+          return result.data;
+        } catch (error) {
+          console.error(`Failed to create print job for ${file.name}:`, error);
+          return null;
+        }
       });
-      
-      updateJobData({ selectedFiles: selectedFilesData });
-      navigate("/print-settings");
+
+      const results = await Promise.all(printJobPromises);
+      const successfulJobs = results.filter(Boolean);
+
+      if (successfulJobs.length > 0) {
+        toast({
+          title: "Print jobs created successfully!",
+          description: `${successfulJobs.length} print job(s) have been submitted and are now in the queue.`,
+        });
+
+        // Navigate to history page to show the new jobs
+        navigate("/student/history");
+      } else {
+        throw new Error("Failed to create any print jobs");
+      }
+    } catch (error) {
+      console.error('Error creating print jobs:', error);
+      toast({
+        title: "Error creating print jobs",
+        description: error instanceof Error ? error.message : "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingPrintJobs(false);
     }
   };
 
@@ -298,7 +352,7 @@ export default function Upload() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
                       <FileText className="h-5 w-5 text-blue-600" />
-                      Select Files to Print ({readyFiles.length})
+                      Ready to Print ({readyFiles.length} {readyFiles.length === 1 ? 'file' : 'files'})
                     </CardTitle>
                     <Button
                       variant="outline"
@@ -317,18 +371,10 @@ export default function Upload() {
                     return (
                       <div 
                         key={file.id}
-                        className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-all ${
+                        className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-all w-full ${
                           isSelected ? "border-blue-500 bg-blue-50 text-blue-900" : "border-gray-200 hover:border-gray-300"
                         }`}
                         onClick={() => handleFileToggle(file.id)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            handleFileToggle(file.id);
-                          }
-                        }}
                       >
                         <Checkbox 
                           checked={isSelected}
@@ -349,7 +395,7 @@ export default function Upload() {
                             isSelected ? "text-blue-700" : "text-muted-foreground"
                           }`}>
                             <span>{formatFileSize(file.size)}</span>
-                            {file.pages && <span>{file.pages} pages</span>}
+                            {!!file.pages && <span>{file.pages} pages</span>}
                             <span className="uppercase">{file.type}</span>
                             <Badge variant={isSelected ? "default" : "secondary"} className="text-xs">Ready</Badge>
                           </div>
@@ -413,22 +459,24 @@ export default function Upload() {
             {readyFiles.length > 0 ? (
               <Button 
                 onClick={handleContinue} 
-                disabled={selectedFiles.length === 0}
+                disabled={selectedFiles.length === 0 || isCreatingPrintJobs}
                 size="lg" 
                 className="bg-gradient-hero px-8"
               >
-                {selectedFiles.length > 0 
-                  ? `Continue with ${selectedFiles.length} file${selectedFiles.length !== 1 ? 's' : ''} →`
-                  : "Select files to continue"
-                }
+                {(() => {
+                  if (isCreatingPrintJobs) return "Creating print jobs...";
+                  if (selectedFiles.length === 0) return "Select files to continue";
+                  const jobText = selectedFiles.length === 1 ? 'job' : 'jobs';
+                  return `Create ${selectedFiles.length} print ${jobText} →`;
+                })()}
               </Button>
             ) : (
               <Button 
-                onClick={() => navigate("/print-settings")} 
+                onClick={() => navigate("/student/history")} 
                 size="lg" 
                 className="bg-gradient-hero px-8"
               >
-                Continue to Print Settings
+                View Print History
               </Button>
             )}
             <p className="text-sm text-muted-foreground mt-2">

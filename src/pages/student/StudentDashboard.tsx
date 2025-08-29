@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
+import { useUser } from "@clerk/clerk-react";
+import { useDashboardStats } from "@/hooks/useDatabase";
 
 export default function StudentDashboard() {
   const [isVisible, setIsVisible] = useState(false);
+  const { user } = useUser();
+  const { stats } = useDashboardStats(user?.id);
 
   useEffect(() => {
     setIsVisible(true);
@@ -20,10 +24,34 @@ export default function StudentDashboard() {
         {/* Stats Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {[
-            { title: "Pending Jobs", value: "2", change: "Jobs in queue", icon: "⏳", color: "text-yellow-600" },
-            { title: "Completed Jobs", value: "47", change: "This month", icon: "✅", color: "text-green-600" },
-            { title: "Total Spent", value: "$23.50", change: "This semester", icon: "💰", color: "text-blue-600" },
-            { title: "Available Printers", value: "8", change: "Online now", icon: "🖨️", color: "text-purple-600" }
+            { 
+              title: "Pending Jobs", 
+              value: stats.pendingJobs.toString(), 
+              change: "Jobs in queue", 
+              icon: "⏳", 
+              color: "text-yellow-600" 
+            },
+            { 
+              title: "Completed Jobs", 
+              value: stats.completedJobs.toString(), 
+              change: "This month", 
+              icon: "✅", 
+              color: "text-green-600" 
+            },
+            { 
+              title: "Total Spent", 
+              value: `$${stats.totalSpent.toFixed(2)}`, 
+              change: "This semester", 
+              icon: "💰", 
+              color: "text-blue-600" 
+            },
+            { 
+              title: "Available Printers", 
+              value: stats.availablePrinters.toString(), 
+              change: "Online now", 
+              icon: "🖨️", 
+              color: "text-purple-600" 
+            }
           ].map((stat, index) => (
             <div 
               key={stat.title}

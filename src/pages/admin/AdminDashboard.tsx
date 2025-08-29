@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
+import { useAdminStats } from "@/hooks/useDatabase";
 import { 
   Users, 
   Printer, 
@@ -14,6 +15,7 @@ import {
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const { stats } = useAdminStats();
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -37,8 +39,8 @@ export default function AdminDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,234</div>
-            <p className="text-xs text-muted-foreground">+12% from last month</p>
+            <div className="text-2xl font-bold">{stats.activeStudents.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Registered students</p>
           </CardContent>
         </Card>
 
@@ -48,8 +50,8 @@ export default function AdminDashboard() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">847</div>
-            <p className="text-xs text-muted-foreground">+5% from yesterday</p>
+            <div className="text-2xl font-bold">{stats.printJobsToday}</div>
+            <p className="text-xs text-muted-foreground">Jobs processed today</p>
           </CardContent>
         </Card>
 
@@ -59,8 +61,8 @@ export default function AdminDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$423.50</div>
-            <p className="text-xs text-muted-foreground">+8% from yesterday</p>
+            <div className="text-2xl font-bold">${stats.revenueToday.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">Revenue today</p>
           </CardContent>
         </Card>
 
@@ -70,8 +72,8 @@ export default function AdminDashboard() {
             <Printer className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8/10</div>
-            <p className="text-xs text-muted-foreground">2 under maintenance</p>
+            <div className="text-2xl font-bold">{stats.activePrinters}/{stats.totalPrinters}</div>
+            <p className="text-xs text-muted-foreground">{stats.maintenancePrinters} under maintenance</p>
           </CardContent>
         </Card>
       </div>
