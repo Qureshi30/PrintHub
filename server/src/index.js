@@ -15,6 +15,8 @@ const printerRoutes = require('./routes/printerRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const adminLogRoutes = require('./routes/adminLogRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const studentRoutes = require('./routes/studentRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -102,6 +104,8 @@ app.use('/api/printers', printerRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin-logs', adminLogRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/students', studentRoutes);
 
 // Serve static files (if any)
 app.use(express.static('public'));

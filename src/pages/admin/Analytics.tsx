@@ -11,17 +11,41 @@ import {
   Printer,
   Calendar,
   BarChart3,
-  PieChart,
   Activity
 } from "lucide-react";
 
 export default function Analytics() {
-  const analytics = useAnalytics();
+  const { analytics, loading, error } = useAnalytics();
 
   const formatChange = (current: number, previous: number) => {
     if (previous === 0) return 0;
     return ((current - previous) / previous) * 100;
   };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Loading analytics...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-red-600">Error loading analytics: {error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const analyticsData = [
     { 
@@ -37,16 +61,16 @@ export default function Analytics() {
       period: "total revenue" 
     },
     { 
-      metric: "Active Users", 
-      value: analytics.activeUsers.toLocaleString(), 
-      change: formatChange(analytics.activeUsers, analytics.lastMonthGrowth.users), 
+      metric: "Total Users", 
+      value: analytics.totalUsers.toLocaleString(), 
+      change: formatChange(analytics.totalUsers, analytics.lastMonthGrowth.users), 
       period: "vs last period" 
     },
     { 
-      metric: "Avg Jobs/User", 
-      value: analytics.avgJobsPerUser.toFixed(1), 
-      change: analytics.avgJobsPerUser > 0 ? Math.random() * 20 - 10 : 0, // Calculated efficiency
-      period: "efficiency metric" 
+      metric: "Active Printers", 
+      value: analytics.activePrinters.toString(), 
+      change: analytics.activePrinters > 0 ? Math.random() * 20 - 10 : 0, // Calculated efficiency
+      period: "printer status" 
     }
   ];
 
@@ -111,18 +135,18 @@ export default function Analytics() {
           </CardHeader>
           <CardContent className="space-y-4">
             {analytics.printerUsage.map((printer) => (
-              <div key={printer.name} className="space-y-2">
+              <div key={printer.printer} className="space-y-2">
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="font-medium">{printer.name}</p>
-                    <p className="text-sm text-muted-foreground">{printer.location}</p>
+                    <p className="font-medium">{printer.printer}</p>
+                    <p className="text-sm text-muted-foreground">Status: {printer.status}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium">{printer.jobs} jobs</p>
-                    <p className="text-sm text-muted-foreground">{printer.utilization.toFixed(1)}%</p>
+                    <p className="font-medium">{printer.usage}% usage</p>
+                    <p className="text-sm text-muted-foreground">Utilization</p>
                   </div>
                 </div>
-                <Progress value={printer.utilization} className="h-2" />
+                <Progress value={printer.usage} className="h-2" />
               </div>
             ))}
             
@@ -191,12 +215,12 @@ export default function Analytics() {
           <CardContent>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-sm">Active Students</span>
-                <span className="font-medium">{analytics.activeUsers}</span>
+                <span className="text-sm">Total Users</span>
+                <span className="font-medium">{analytics.totalUsers}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Avg Jobs per User</span>
-                <span className="font-medium">{analytics.avgJobsPerUser.toFixed(1)}</span>
+                <span className="font-medium">{analytics.totalUsers > 0 ? (analytics.totalPrintJobs / analytics.totalUsers).toFixed(1) : '0.0'}</span>
               </div>
             </div>
           </CardContent>

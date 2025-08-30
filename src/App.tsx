@@ -6,7 +6,6 @@ import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
-import StudentDashboard from "./pages/student/StudentDashboard";
 import NotFound from "./pages/shared/NotFound";
 import Upload from "./pages/student/Upload";
 import PrintSettings from "./pages/student/PrintSettings";
@@ -27,9 +26,13 @@ import UserManagement from "./pages/admin/UserManagement";
 import PrinterManagement from "./pages/admin/PrinterManagement";
 import Analytics from "./pages/admin/Analytics";
 import EmailConfiguration from "./pages/admin/EmailConfiguration";
+import AuthTestPage from "./pages/AuthTestPage";
+import StudentDashboard from "./pages/student/StudentDashboard";
 import Layout from "@/components/layout/Layout";
 import LandingLayout from "@/components/layout/LandingLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import RoleBasedDashboard from "@/components/RoleBasedDashboard";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 // Feature Pages
 import SecurityPrivacy from "./pages/features/SecurityPrivacy";
@@ -55,23 +58,29 @@ const App = () => (
                 <LandingLayout><Index /></LandingLayout>
               </SignedOut>
               <SignedIn>
-                <Layout><StudentDashboard /></Layout>
+                <RoleBasedDashboard />
               </SignedIn>
             </>
           } />
           
+          {/* Dashboard route that uses role-based rendering */}
+          <Route path="/dashboard" element={
+            <SignedIn>
+              <RoleBasedDashboard />
+            </SignedIn>
+          } />
           {/* Student routes (require authentication) */}
-          <Route path="/dashboard" element={<Layout><StudentDashboard /></Layout>} />
-          <Route path="/upload" element={<Layout><Upload /></Layout>} />
-          <Route path="/print-settings" element={<Layout><PrintSettings /></Layout>} />
-          <Route path="/select-printer" element={<Layout><SelectPrinter /></Layout>} />
-          <Route path="/confirmation" element={<Layout><Confirmation /></Layout>} />
-          <Route path="/payment" element={<Layout><Payment /></Layout>} />
-          <Route path="/queue" element={<Layout><Queue /></Layout>} />
-          <Route path="/history" element={<Layout><History /></Layout>} />
-          <Route path="/user-settings" element={<Layout><UserSettings /></Layout>} />
-          <Route path="/schedule" element={<Layout><Schedule /></Layout>} />
-          <Route path="/notifications" element={<Layout><Notifications /></Layout>} />
+          <Route path="/student/dashboard" element={<SignedIn><Layout><StudentDashboard /></Layout></SignedIn>} />
+          <Route path="/upload" element={<SignedIn><Layout><Upload /></Layout></SignedIn>} />
+          <Route path="/print-settings" element={<SignedIn><Layout><PrintSettings /></Layout></SignedIn>} />
+          <Route path="/select-printer" element={<SignedIn><Layout><SelectPrinter /></Layout></SignedIn>} />
+          <Route path="/confirmation" element={<SignedIn><Layout><Confirmation /></Layout></SignedIn>} />
+          <Route path="/payment" element={<SignedIn><Layout><Payment /></Layout></SignedIn>} />
+          <Route path="/queue" element={<SignedIn><Layout><Queue /></Layout></SignedIn>} />
+          <Route path="/history" element={<SignedIn><Layout><History /></Layout></SignedIn>} />
+          <Route path="/user-settings" element={<SignedIn><Layout><UserSettings /></Layout></SignedIn>} />
+          <Route path="/schedule" element={<SignedIn><Layout><Schedule /></Layout></SignedIn>} />
+          <Route path="/notifications" element={<SignedIn><Layout><Notifications /></Layout></SignedIn>} />
           
           {/* Shared routes (available to both authenticated and non-authenticated users) */}
           <Route path="/support" element={
@@ -117,6 +126,9 @@ const App = () => (
           
           <Route path="/access-denied" element={<AccessDenied />} />
           
+          {/* Test route for authentication */}
+          <Route path="/auth-test" element={<SignedIn><Layout><AuthTestPage /></Layout></SignedIn>} />
+          
           {/* Feature Pages */}
           <Route path="/features/security-privacy" element={<Layout><SecurityPrivacy /></Layout>} />
           <Route path="/features/schedule-print-job" element={<Layout><SchedulePrintJob /></Layout>} />
@@ -125,13 +137,37 @@ const App = () => (
           <Route path="/features/notifications" element={<Layout><NotificationFeatures /></Layout>} />
           <Route path="/features/no-queue-waiting" element={<Layout><NoQueueWaiting /></Layout>} />
           
-          {/* Admin Routes */}
-          <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
-          <Route path="/admin/dashboard" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
-          <Route path="/admin/users" element={<AdminLayout><UserManagement /></AdminLayout>} />
-          <Route path="/admin/printers" element={<AdminLayout><PrinterManagement /></AdminLayout>} />
-          <Route path="/admin/analytics" element={<AdminLayout><Analytics /></AdminLayout>} />
-          <Route path="/admin/email" element={<AdminLayout><EmailConfiguration /></AdminLayout>} />
+          {/* Admin Routes - require admin role */}
+          <Route path="/admin" element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLayout><AdminDashboard /></AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/dashboard" element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLayout><AdminDashboard /></AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/users" element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLayout><UserManagement /></AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/printers" element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLayout><PrinterManagement /></AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/analytics" element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLayout><Analytics /></AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/email" element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLayout><EmailConfiguration /></AdminLayout>
+            </ProtectedRoute>
+          } />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

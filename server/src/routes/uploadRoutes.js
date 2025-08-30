@@ -434,7 +434,8 @@ router.post('/print-job',
         hasFile: !!file,
         hasCloudinaryData: !!(cloudinaryUrl && cloudinaryPublicId),
         printerId,
-        settings
+        settings,
+        originalName
       });
 
       // Determine file data source
@@ -583,7 +584,7 @@ router.post('/print-job',
         clerkUserId: 'admin', // This should be the actual admin's clerkUserId
         jobId: savedJob._id,
         type: 'new_print_job',
-        message: `New print job submitted: ${file.originalname}`,
+        message: `New print job submitted: ${originalName || file?.originalname || 'Unknown file'}`,
         read: false,
       });
       await adminNotification.save();
@@ -593,7 +594,7 @@ router.post('/print-job',
         clerkUserId,
         jobId: savedJob._id,
         type: 'job_submitted',
-        message: `Your print job "${file.originalname}" has been submitted successfully`,
+        message: `Your print job "${originalName || file?.originalname || 'Unknown file'}" has been submitted successfully`,
         read: false,
       });
       await userNotification.save();

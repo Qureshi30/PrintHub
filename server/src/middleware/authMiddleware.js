@@ -1,46 +1,57 @@
-const { ClerkExpressRequireAuth } = require('@clerk/clerk-sdk-node');
+const { ClerkExpressRequireAuth, clerkClient } = require('@clerk/clerk-sdk-node');
 const jwt = require('jsonwebtoken');
 
-// Simple auth middleware that extracts user from Clerk
-const requireAuth = (req, res, next) => {
-  // For development - simple token extraction
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.log('❌ No auth header or invalid format');
-    return res.status(401).json({
-      success: false,
-      error: {
-        message: 'Authentication required',
-        code: 'AUTH_REQUIRED'
+// Enhanced auth middleware that uses Clerk SDK for verification
+const requireAuth = async (req, res, next) => {
+  try {
+    // Use Clerk's built-in middleware for token verification
+    ClerkExpressRequireAuth()(req, res, async (error) => {
+      if (error) {
+        console.log('❌ Clerk auth failed:', error.message);
+        return res.status(401).json({
+          success: false,
+          error: {
+            message: 'Authentication required',
+            code: 'AUTH_REQUIRED'
+          }
+        });
+      }
+
+      // At this point, req.auth contains the verified Clerk auth data
+      const { userId } = req.auth;
+      console.log('🔐 Auth middleware - user ID:', userId);
+
+      try {
+        // Fetch user details from Clerk to get publicMetadata
+        const user = await clerkClient.users.getUser(userId);
+        req.user = {
+          id: userId,
+          role: user.publicMetadata?.role || 'student',
+          email: user.emailAddresses?.[0]?.emailAddress,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+          metadata: user.publicMetadata
+        };
+        
+        console.log('👤 User loaded:', { 
+          id: req.user.id, 
+          role: req.user.role, 
+          email: req.user.email 
+        });
+        
+        next();
+      } catch (userError) {
+        console.error('❌ Failed to fetch user from Clerk:', userError);
+        return res.status(500).json({
+          success: false,
+          error: {
+            message: 'Failed to load user data',
+            code: 'USER_LOAD_FAILED'
+          }
+        });
       }
     });
-  }
-
-  // Extract the token
-  const token = authHeader.substring(7);
-  
-  try {
-    // For development, decode the JWT without verification to get user ID
-    // In production, you'd verify this with Clerk's public key
-    let decoded = null;
-    let userId = 'user_temp_id';
-    
-    try {
-      decoded = jwt.decode(token);
-      userId = decoded?.sub || decoded?.user_id || decoded?.userId || 'user_temp_id';
-    } catch (decodeError) {
-      console.log('⚠️ JWT decode failed, using temp user ID:', decodeError.message);
-      // Continue with temp user ID for development
-    }
-    
-    console.log('🔐 Auth middleware - user ID:', userId);
-    
-    req.auth = {
-      userId: userId,
-      token: token
-    };
-
-    next();
   } catch (error) {
     console.error('❌ Auth middleware error:', error);
     return res.status(401).json({
@@ -53,18 +64,28 @@ const requireAuth = (req, res, next) => {
   }
 };
 
-// Admin auth middleware
+// Admin-only middleware that verifies admin role
 const requireAdmin = async (req, res, next) => {
   try {
-    // First run regular auth
-    requireAuth(req, res, () => {
-      // Check if user is admin (this would come from your user database)
-      // For now, we'll assume all authenticated users can access admin routes
-      req.user = { role: 'admin' }; // This should come from your database
+    // First ensure user is authenticated
+    await requireAuth(req, res, () => {
+      // Check if user has admin role
+      if (req.user?.role !== 'admin') {
+        console.log(`❌ Access denied: User ${req.user?.id} has role "${req.user?.role}" but "admin" required`);
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: 'Admin access required',
+            code: 'ADMIN_REQUIRED'
+          }
+        });
+      }
+
+      console.log(`✅ Admin access granted for user: ${req.user.id}`);
       next();
     });
   } catch (error) {
-    console.error('Admin auth error:', error);
+    console.error('❌ Admin auth error:', error);
     res.status(403).json({
       success: false,
       error: {
@@ -75,12 +96,13 @@ const requireAdmin = async (req, res, next) => {
   }
 };
 
-// Validate user access middleware
+// Validate user access middleware - users can access their own data, admins can access any
 const validateUserAccess = (req, res, next) => {
   const { clerkUserId } = req.params;
   
   // Users can only access their own data, unless they're admin
-  if (req.auth.userId !== clerkUserId && req.user?.role !== 'admin') {
+  if (req.user?.id !== clerkUserId && req.user?.role !== 'admin') {
+    console.log(`❌ Access denied: User ${req.user?.id} tried to access data for ${clerkUserId}`);
     return res.status(403).json({
       success: false,
       error: {
@@ -90,6 +112,7 @@ const validateUserAccess = (req, res, next) => {
     });
   }
 
+  console.log(`✅ Access granted: User ${req.user?.id} accessing data for ${clerkUserId}`);
   next();
 };
 

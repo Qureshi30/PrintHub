@@ -15,7 +15,50 @@ import {
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { stats } = useAdminStats();
+  const { stats, loading, error } = useAdminStats();
+
+  // Default stats to prevent errors
+  const defaultStats = {
+    totalUsers: 0,
+    totalPrintJobs: 0,
+    totalRevenue: 0,
+    activePrinters: 0,
+    activeStudents: 0,
+    printJobsToday: 0,
+    revenueToday: 0,
+    totalPrinters: 0,
+    maintenancePrinters: 0,
+  };
+
+  const displayStats = stats || defaultStats;
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Loading admin dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-red-600">Error loading dashboard: {error}</p>
+            <Button onClick={() => window.location.reload()} className="mt-2">
+              Retry
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -39,7 +82,7 @@ export default function AdminDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.activeStudents.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{displayStats.activeStudents.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Registered students</p>
           </CardContent>
         </Card>
@@ -50,7 +93,7 @@ export default function AdminDashboard() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.printJobsToday}</div>
+            <div className="text-2xl font-bold">{displayStats.printJobsToday}</div>
             <p className="text-xs text-muted-foreground">Jobs processed today</p>
           </CardContent>
         </Card>
@@ -61,7 +104,7 @@ export default function AdminDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${stats.revenueToday.toFixed(2)}</div>
+            <div className="text-2xl font-bold">${displayStats.revenueToday.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">Revenue today</p>
           </CardContent>
         </Card>
@@ -72,8 +115,8 @@ export default function AdminDashboard() {
             <Printer className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.activePrinters}/{stats.totalPrinters}</div>
-            <p className="text-xs text-muted-foreground">{stats.maintenancePrinters} under maintenance</p>
+            <div className="text-2xl font-bold">{displayStats.activePrinters}/{displayStats.totalPrinters}</div>
+            <p className="text-xs text-muted-foreground">{displayStats.maintenancePrinters} under maintenance</p>
           </CardContent>
         </Card>
       </div>

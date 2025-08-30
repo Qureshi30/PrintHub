@@ -5,11 +5,42 @@ import { useDashboardStats } from "@/hooks/useDatabase";
 export default function StudentDashboard() {
   const [isVisible, setIsVisible] = useState(false);
   const { user } = useUser();
-  const { stats } = useDashboardStats(user?.id);
+  const { stats, loading, error } = useDashboardStats(user?.id);
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
+
+  // Default stats if loading or undefined
+  const defaultStats = {
+    pendingJobs: 0,
+    completedJobs: 0,
+    totalSpent: 0,
+    availablePrinters: 0,
+  };
+
+  const displayStats = stats || defaultStats;
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600">Error loading dashboard: {error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1">
@@ -26,28 +57,28 @@ export default function StudentDashboard() {
           {[
             { 
               title: "Pending Jobs", 
-              value: stats.pendingJobs.toString(), 
+              value: displayStats.pendingJobs.toString(), 
               change: "Jobs in queue", 
               icon: "⏳", 
               color: "text-yellow-600" 
             },
             { 
               title: "Completed Jobs", 
-              value: stats.completedJobs.toString(), 
+              value: displayStats.completedJobs.toString(), 
               change: "This month", 
               icon: "✅", 
               color: "text-green-600" 
             },
             { 
               title: "Total Spent", 
-              value: `$${stats.totalSpent.toFixed(2)}`, 
+              value: `$${displayStats.totalSpent.toFixed(2)}`, 
               change: "This semester", 
               icon: "💰", 
               color: "text-blue-600" 
             },
             { 
               title: "Available Printers", 
-              value: stats.availablePrinters.toString(), 
+              value: displayStats.availablePrinters.toString(), 
               change: "Online now", 
               icon: "🖨️", 
               color: "text-purple-600" 
