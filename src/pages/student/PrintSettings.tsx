@@ -12,7 +12,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
 import { SpecialPaperAlert } from "@/components/SpecialPaperAlert";
 import { useNavigate } from "react-router-dom";
-import { usePrintJob } from "@/context/PrintJobContext";
+import { usePrintJobContext } from "@/hooks/usePrintJobContext";
 import { Calculator, FileText, DollarSign, Copy } from "lucide-react";
 
 interface PrintSettings {
@@ -30,13 +30,13 @@ interface FileSettings {
 
 export default function PrintSettings() {
   const navigate = useNavigate();
-  const { jobData, updateJobData } = usePrintJob();
+  const { files, updateFileSettings: updateContextFileSettings } = usePrintJobContext();
   const [activeTab, setActiveTab] = useState<string>("");
   const [showSpecialPaperAlert, setShowSpecialPaperAlert] = useState(false);
   const [specialPaperType, setSpecialPaperType] = useState<"A3" | "certificate" | "photo" | "cardstock">("A3");
   
-  // Get selected files from context or use fallback
-  const selectedFiles = jobData.selectedFiles || [];
+  // Get selected files from flow context
+  const selectedFiles = files || [];
   
   // Initialize settings for each file
   const [fileSettings, setFileSettings] = useState<FileSettings>(() => {
@@ -138,8 +138,19 @@ export default function PrintSettings() {
   };
 
   const handleContinue = () => {
-    // Save all file settings to context and navigate to printer selection
-    updateJobData({ settings: fileSettings });
+    // Save all file settings to flow context
+    selectedFiles.forEach(file => {
+      const settings = fileSettings[file.id];
+      if (settings) {
+        updateContextFileSettings(file.id, {
+          pages: settings.pageRange,
+          copies: settings.copies,
+          color: settings.colorMode === 'color',
+          duplex: settings.duplex === 'double',
+          paperType: settings.paperSize as 'A4' | 'A3' | 'Letter' | 'Legal' | 'Certificate',
+        });
+      }
+    });
     navigate("/select-printer");
   };
 
