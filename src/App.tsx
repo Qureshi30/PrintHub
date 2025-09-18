@@ -21,6 +21,7 @@ import Support from "./pages/shared/Support";
 import Terms from "./pages/shared/Terms";
 import Privacy from "./pages/shared/Privacy";
 import Notifications from "./pages/student/Notifications";
+import { PrintJobProvider } from "./context/PrintJobFlowContext";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UserManagement from "./pages/admin/UserManagement";
 import PrinterManagement from "./pages/admin/PrinterManagement";
@@ -49,31 +50,35 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Routes>
-          {/* Landing page for non-authenticated users */}
-          <Route path="/" element={
-            <>
-              <SignedOut>
-                <LandingLayout><Index /></LandingLayout>
-              </SignedOut>
+      <PrintJobProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Landing page for non-authenticated users */}
+            <Route path="/" element={
+              <>
+                <SignedOut>
+                  <LandingLayout><Index /></LandingLayout>
+                </SignedOut>
+                <SignedIn>
+                  <RoleBasedDashboard />
+                </SignedIn>
+              </>
+            } />
+            
+            {/* Dashboard route that uses role-based rendering */}
+            <Route path="/dashboard" element={
               <SignedIn>
                 <RoleBasedDashboard />
               </SignedIn>
-            </>
-          } />
-          
-          {/* Dashboard route that uses role-based rendering */}
-          <Route path="/dashboard" element={
-            <SignedIn>
-              <RoleBasedDashboard />
-            </SignedIn>
-          } />
-          {/* Student routes (require authentication) */}
-          <Route path="/student/dashboard" element={<SignedIn><Layout><StudentDashboard /></Layout></SignedIn>} />
-          <Route path="/upload" element={<SignedIn><Layout><Upload /></Layout></SignedIn>} />
-          <Route path="/print-settings" element={<SignedIn><Layout><PrintSettings /></Layout></SignedIn>} />
-          <Route path="/select-printer" element={<SignedIn><Layout><SelectPrinter /></Layout></SignedIn>} />
+            } />
+            {/* Student routes (require authentication) */}
+            <Route path="/student/dashboard" element={<SignedIn><Layout><StudentDashboard /></Layout></SignedIn>} />
+            
+            {/* Print flow routes */}
+            <Route path="/upload" element={<SignedIn><Layout><Upload /></Layout></SignedIn>} />
+            <Route path="/print-settings" element={<SignedIn><Layout><PrintSettings /></Layout></SignedIn>} />
+            <Route path="/student/print-settings" element={<SignedIn><Layout><PrintSettings /></Layout></SignedIn>} />
+            <Route path="/select-printer" element={<SignedIn><Layout><SelectPrinter /></Layout></SignedIn>} />
           <Route path="/confirmation" element={<SignedIn><Layout><Confirmation /></Layout></SignedIn>} />
           <Route path="/payment" element={<SignedIn><Layout><Payment /></Layout></SignedIn>} />
           <Route path="/queue" element={<SignedIn><Layout><Queue /></Layout></SignedIn>} />
@@ -173,6 +178,7 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
+      </PrintJobProvider>
     </TooltipProvider>
   </ThemeProvider>
 );
