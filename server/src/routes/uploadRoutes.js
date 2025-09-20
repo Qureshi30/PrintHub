@@ -81,7 +81,14 @@ router.get('/test-cloudinary', (req, res) => {
 // Validation middleware
 const validateRequest = (req, res, next) => {
   const errors = validationResult(req);
+  console.log('🔍 Validation check:', {
+    hasErrors: !errors.isEmpty(),
+    errorCount: errors.array().length,
+    errors: errors.array()
+  });
+  
   if (!errors.isEmpty()) {
+    console.log('❌ Validation failed:', errors.array());
     return res.status(400).json({
       success: false,
       error: {
@@ -90,15 +97,46 @@ const validateRequest = (req, res, next) => {
       }
     });
   }
+  
+  console.log('✅ Validation passed');
   next();
 };
 
 // POST /api/upload/file - Upload file to Cloudinary
 router.post('/file',
   [
+    (req, res, next) => {
+      console.log('📥 Upload request received:');
+      console.log('Headers:', {
+        authorization: req.headers.authorization ? 'Present' : 'Missing',
+        'content-type': req.headers['content-type'],
+        'content-length': req.headers['content-length']
+      });
+      console.log('Body keys:', Object.keys(req.body || {}));
+      next();
+    },
     requireAuth,
+    (req, res, next) => {
+      console.log('🔐 Auth passed, user:', req.auth?.userId);
+      next();
+    },
     uploadSingle('file'),
+    (req, res, next) => {
+      console.log('📎 After multer middleware:', {
+        hasFile: !!req.file,
+        fileDetails: req.file ? {
+          originalname: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size
+        } : 'No file'
+      });
+      next();
+    },
     requireFile,
+    (req, res, next) => {
+      console.log('📋 After file requirement check');
+      next();
+    },
     body('folder').optional().trim().isLength({ max: 100 }).withMessage('Folder name too long')
   ],
   validateRequest,
@@ -526,10 +564,20 @@ router.post('/print-job',
       const totalPages = actualPages * copies;
       const totalCost = (baseCostPerPage + colorSurcharge + paperTypeSurcharge) * totalPages;
 
+      // Get user info for additional fields
+      const user = await User.findOne({ clerkUserId });
+
       // Create print job
       const printJob = new PrintJob({
+        // User Details
         clerkUserId,
+        userName: user?.profile?.firstName ? `${user.profile.firstName} ${user.profile.lastName || ''}`.trim() : undefined,
+        userEmail: user?.profile?.email,
+        
+        // Printer Details
         printerId,
+        
+        // File Details
         file: {
           cloudinaryUrl: fileData.cloudinaryUrl,
           publicId: fileData.publicId,
@@ -537,6 +585,8 @@ router.post('/print-job',
           format: fileData.format,
           sizeKB: fileData.sizeKB,
         },
+        
+        // Print Settings
         settings: {
           pages: settings.pages || 'all',
           copies: copies,
@@ -544,26 +594,35 @@ router.post('/print-job',
           duplex: settings.duplex || false,
           paperType: settings.paperType || 'A4',
         },
+        
+        // Queue & Status
         status: 'queued',
         queuePosition: printer.queue.length + 1,
         estimatedCompletionTime: new Date(Date.now() + (printer.queue.length * 3 + 5) * 60000), // Rough estimate
-        pricing: {
-          costPerPage: baseCostPerPage,
-          colorSurcharge,
-          paperTypeSurcharge,
+        
+        // Cost Details
+        cost: {
+          baseCost: baseCostPerPage * totalPages,
+          colorCost: settings.color ? colorSurcharge * totalPages : 0,
+          paperCost: paperTypeSurcharge * totalPages,
           totalCost,
-          currency: 'USD',
         },
+        
+        // Payment Status
         payment: {
-          status: 'pending',
+          status: 'unpaid',
           method: 'student_credit',
         },
-        notes,
+        
+        // Job History
         timing: {
           submittedAt: new Date(),
-          misprint: false,
-          reprintCount: 0,
         },
+        misprint: false,
+        reprintCount: 0,
+        
+        // Additional fields
+        notes,
       });
 
       const savedJob = await printJob.save();
@@ -573,7 +632,6 @@ router.post('/print-job',
       await printer.save();
 
       // Update user statistics
-      const user = await User.findOne({ clerkUserId });
       if (user) {
         user.statistics.totalJobs += 1;
         await user.save();
@@ -584,6 +642,7 @@ router.post('/print-job',
         clerkUserId: 'admin', // This should be the actual admin's clerkUserId
         jobId: savedJob._id,
         type: 'new_print_job',
+        title: 'New Print Job Submitted',
         message: `New print job submitted: ${originalName || file?.originalname || 'Unknown file'}`,
         read: false,
       });
@@ -594,6 +653,7 @@ router.post('/print-job',
         clerkUserId,
         jobId: savedJob._id,
         type: 'job_submitted',
+        title: 'Print Job Submitted Successfully',
         message: `Your print job "${originalName || file?.originalname || 'Unknown file'}" has been submitted successfully`,
         read: false,
       });
