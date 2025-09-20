@@ -215,17 +215,30 @@ export const useAllUsers = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
+        setLoading(true);
         const authFetch = createAuthenticatedFetch(getToken);
-        const response = await authFetch('/users');
-        setUsers(response.data);
+        const response = await authFetch('/admin/users');
+
+        console.log('API Response:', response);
+
+        // Handle the response structure
+        if (response.success && Array.isArray(response.data)) {
+          setUsers(response.data);
+        } else {
+          throw new Error('Invalid response format');
+        }
       } catch (err) {
+        console.error('Error fetching users:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch users');
+        setUsers([]); // Ensure users is always an array
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUsers();
+    if (getToken) {
+      fetchUsers();
+    }
   }, [getToken]);
 
   return { users, loading, error };
@@ -268,7 +281,7 @@ export const useUserPrintJobs = (userId?: string, options?: any) => {
         setLoading(false);
         return;
       }
-      
+
       try {
         const authFetch = createAuthenticatedFetch(getToken);
         const url = `/students/print-jobs`;
@@ -284,12 +297,12 @@ export const useUserPrintJobs = (userId?: string, options?: any) => {
     fetchPrintJobs();
   }, [userId, getToken]);
 
-  return { 
-    data: printJobs, 
-    printJobs, 
-    loading, 
-    isLoading: loading, 
-    error 
+  return {
+    data: printJobs,
+    printJobs,
+    loading,
+    isLoading: loading,
+    error
   };
 };
 
@@ -491,7 +504,7 @@ export const usePrintJob = (jobId?: string) => {
   useEffect(() => {
     const fetchPrintJob = async () => {
       if (!jobId) return;
-      
+
       try {
         const authFetch = createAuthenticatedFetch(getToken);
         const response = await authFetch(`/print-jobs/${jobId}`);
@@ -684,7 +697,7 @@ export const usePrinter = (printerId?: string) => {
   useEffect(() => {
     const fetchPrinter = async () => {
       if (!printerId) return;
-      
+
       try {
         const authFetch = createAuthenticatedFetch(getToken);
         const response = await authFetch(`/printers/${printerId}`);
@@ -951,7 +964,7 @@ export const useDatabase = () => {
     deleteUser: async () => null,
     getUserById: async () => null,
     getAllUsers: async () => [],
-    invalidateQueries: () => {},
+    invalidateQueries: () => { },
     prefetchQuery: async () => null,
     queryClient: null,
   };
