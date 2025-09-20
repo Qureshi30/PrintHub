@@ -6,6 +6,12 @@ import { Separator } from "@/components/ui/separator";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
 import { useNavigate } from "react-router-dom";
+import { usePrintJobContext } from "@/hooks/usePrintJobContext";
+import { useBackendUpload } from "@/hooks/useBackendUpload";
+import { useCreatePrintJob } from "@/hooks/useDatabase";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@clerk/clerk-react";
+import AuthDebugger from "@/components/debug/AuthDebugger";
 import { 
   CreditCard, 
   Smartphone, 
@@ -14,21 +20,72 @@ import {
   Clock,
   AlertCircle,
   FileText,
-  DollarSign
+  DollarSign,
+  Upload
 } from "lucide-react";
 
 export default function Payment() {
   const navigate = useNavigate();
+  const { userId } = useAuth();
+  const { toast } = useToast();
   const [selectedMethod, setSelectedMethod] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<"pending" | "processing" | "success" | "failed">("pending");
+  const [uploadProgress, setUploadProgress] = useState<{ [fileId: string]: number }>({});
+  const [paymentStatus, setPaymentStatus] = useState<"pending" | "processing" | "uploading" | "success" | "failed">("pending");
 
-  // Mock payment info
+  // Get data from print job flow context
+  const { 
+    files, 
+    settings, 
+    selectedPrinter, 
+    updateFileWithCloudinaryData,
+    goToNextStep 
+  } = usePrintJobContext();
+
+  // Hooks for backend operations
+  const { mutateAsync: createPrintJob } = useCreatePrintJob();
+
+  // Upload hook for Cloudinary upload
+  const { uploadFile } = useBackendUpload({
+    onProgress: (progress) => {
+      // Update progress for current file being uploaded
+    },
+    onSuccess: (response) => {
+      console.log('📤 File uploaded successfully:', response);
+    },
+    onError: (error) => {
+      toast({
+        title: "Upload Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Calculate total cost from files and settings
+  const calculateTotalCost = () => {
+    let total = 0;
+    files.forEach(file => {
+      const fileSettings = settings[file.id];
+      if (fileSettings) {
+        const baseCost = 0.10; // $0.10 per page
+        const colorMultiplier = fileSettings.color ? 2 : 1;
+        const pages = file.pages;
+        const copies = fileSettings.copies;
+        total += baseCost * colorMultiplier * pages * copies;
+      }
+    });
+    return total;
+  };
+
   const paymentInfo = {
-    amount: 1.50,
-    jobId: "PJ-2024-001",
-    fileName: "Assignment_Final.pdf",
-    breakdown: "15 pages × 1 copy × $0.10 = $1.50"
+    amount: calculateTotalCost(),
+    fileCount: files.length,
+    totalPages: files.reduce((sum, file) => sum + file.pages, 0),
+    printerName: selectedPrinter?.name || "Unknown Printer",
+    jobId: `PJ-${Date.now()}`, // Generate a job ID
+    fileName: files.length === 1 ? files[0].name : `${files.length} files`,
+    breakdown: `${files.reduce((sum, file) => sum + file.pages, 0)} pages × ${files.length} file${files.length !== 1 ? 's' : ''}`
   };
 
   const paymentMethods = [
@@ -48,22 +105,176 @@ export default function Payment() {
     }
   ];
 
+  // Upload files to Cloudinary after payment
+  const uploadFilesToCloudinary = async () => {
+    setPaymentStatus("uploading");
+    
+    try {
+      const localFiles = files.filter(file => file.file && !file.cloudinaryUrl);
+      
+      console.log('📋 Upload Context Debug:', {
+        totalFiles: files.length,
+        localFilesCount: localFiles.length,
+        allFiles: files.map(f => ({ 
+          id: f.id, 
+          name: f.name, 
+          hasFile: !!f.file,
+          hasCloudinaryUrl: !!f.cloudinaryUrl,
+          fileType: f.file?.type,
+          fileSize: f.file?.size 
+        })),
+        localFiles: localFiles.map(f => ({ 
+          id: f.id, 
+          name: f.name, 
+          hasFile: !!f.file,
+          fileType: f.file?.type,
+          fileSize: f.file?.size 
+        }))
+      });
+      
+      if (localFiles.length === 0) {
+        console.log('❌ No local files to upload - this might be the issue!');
+        console.log('All files in context:', files);
+        return;
+      }
+
+      console.log(`📤 Uploading ${localFiles.length} files to Cloudinary...`);
+      
+      for (const fileData of localFiles) {
+        console.log('🔍 Processing file:', {
+          fileId: fileData.id,
+          fileName: fileData.name,
+          hasFile: !!fileData.file,
+          fileType: fileData.file?.type,
+          fileSize: fileData.file?.size,
+          fileLastModified: fileData.file?.lastModified,
+          fileConstructor: fileData.file?.constructor?.name
+        });
+        
+        if (fileData.file) {
+          setUploadProgress(prev => ({ ...prev, [fileData.id]: 0 }));
+          
+          try {
+            console.log(`📤 About to upload file:`, fileData.file);
+            const response = await uploadFile(fileData.file);
+            
+            // Update file with Cloudinary data
+            updateFileWithCloudinaryData(fileData.id, response.url, response.publicId);
+            
+            setUploadProgress(prev => ({ ...prev, [fileData.id]: 100 }));
+            
+            console.log(`✅ Uploaded ${fileData.name}:`, response.url);
+          } catch (error) {
+            console.error(`❌ Failed to upload ${fileData.name}:`, error);
+            throw error;
+          }
+        } else {
+          console.error(`❌ No file object found for ${fileData.name}`);
+        }
+      }
+      
+      // Now create print jobs in the backend
+      await createPrintJobsInDatabase();
+      
+    } catch (error) {
+      setPaymentStatus("failed");
+      throw error;
+    }
+  };
+
+  // Create print jobs in MongoDB after successful upload
+  const createPrintJobsInDatabase = async () => {
+    try {
+      console.log('📝 Creating print jobs in database...');
+      
+      if (!userId) {
+        throw new Error('User ID not found');
+      }
+
+      if (!selectedPrinter?._id) {
+        throw new Error('No printer selected');
+      }
+
+      // Create a print job for each file that was uploaded
+      const printJobPromises = files
+        .filter(file => file.file && file.cloudinaryUrl) // Only files that have been uploaded
+        .map(async (fileData) => {
+          const fileSettings = settings[fileData.id];
+          const printJobData = {
+            clerkUserId: userId,
+            printerId: selectedPrinter._id,
+            file: {
+              cloudinaryUrl: fileData.cloudinaryUrl as string,
+              publicId: fileData.cloudinaryPublicId as string,
+              originalName: fileData.name,
+              format: fileData.file!.type.split('/')[1] || 'pdf',
+              sizeKB: Math.round(fileData.file!.size / 1024)
+            },
+            settings: {
+              pages: fileSettings?.pages || 'all',
+              copies: fileSettings?.copies || 1,
+              color: fileSettings?.color || false,
+              duplex: fileSettings?.duplex || false,
+              paperType: fileSettings?.paperType || 'A4'
+            }
+          };
+
+          console.log('📄 Creating print job for:', fileData.name);
+          return await createPrintJob(printJobData);
+        });
+
+      const createdJobs = await Promise.all(printJobPromises);
+      console.log('✅ Successfully created print jobs:', createdJobs.length);
+      
+      toast({
+        title: "Success!",
+        description: `${createdJobs.length} print job(s) created successfully`,
+      });
+      
+      goToNextStep(); // Move to queue step
+    } catch (error) {
+      console.error('❌ Failed to create print jobs:', error);
+      toast({
+        title: "Database Error",
+        description: "Failed to create print jobs in database. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   const handlePayment = async () => {
     if (!selectedMethod) return;
     
     setIsProcessing(true);
     setPaymentStatus("processing");
     
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Simulate success (90% success rate)
-    const success = Math.random() > 0.1;
-    
-    if (success) {
-      setPaymentStatus("success");
-    } else {
+    try {
+      // TODO: Replace with actual payment processing when payment gateway is integrated
+      // For now, simulate payment processing with guaranteed success
+      console.log('💳 Simulating payment processing (always successful for development)...');
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Shorter delay for development
+      
+      // DEVELOPMENT MODE: Always succeed (remove this when real payment is implemented)
+      const DEVELOPMENT_MODE = true; // Set to false when implementing real payments
+      const success = DEVELOPMENT_MODE ? true : Math.random() > 0.1;
+      
+      if (success) {
+        console.log('✅ Payment simulation successful, uploading files...');
+        // Payment successful, now upload files to Cloudinary
+        await uploadFilesToCloudinary();
+        setPaymentStatus("success");
+      } else {
+        setPaymentStatus("failed");
+      }
+    } catch (error) {
       setPaymentStatus("failed");
+      toast({
+        title: "Payment Processing Failed",
+        description: "There was an error processing your payment and uploading files.",
+        variant: "destructive",
+      });
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -72,6 +283,48 @@ export default function Payment() {
     setPaymentStatus("pending");
     setIsProcessing(false);
   };
+
+  if (paymentStatus === "uploading") {
+    return (
+      <ProtectedRoute>
+        <div className="container mx-auto py-8 px-4">
+          <div className="max-w-2xl mx-auto text-center space-y-6">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+              <Upload className="w-8 h-8 text-blue-600 animate-pulse" />
+            </div>
+            <h1 className="text-3xl font-bold text-blue-600">Uploading Files...</h1>
+            <p className="text-muted-foreground">
+              Payment successful! Now uploading your files to prepare your print job.
+            </p>
+            <Card>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  {files.filter(file => file.file).map((file) => (
+                    <div key={file.id} className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{file.name}</span>
+                      <div className="flex items-center gap-2">
+                        {uploadProgress[file.id] === 100 ? (
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Clock className="w-4 h-4 text-blue-600 animate-spin" />
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {uploadProgress[file.id] || 0}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            <p className="text-sm text-muted-foreground">
+              Please don't close this page while files are uploading...
+            </p>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
   if (paymentStatus === "success") {
     return (

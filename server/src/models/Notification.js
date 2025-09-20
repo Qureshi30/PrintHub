@@ -13,7 +13,7 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['job_completed', 'job_failed', 'reprint', 'queue_update', 'maintenance', 'system', 'payment'],
+    enum: ['job_completed', 'job_failed', 'reprint', 'queue_update', 'maintenance', 'system', 'payment', 'new_print_job', 'job_submitted'],
     required: true,
     index: true,
   },
