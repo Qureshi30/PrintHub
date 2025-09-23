@@ -250,13 +250,13 @@ export default function Upload() {
           </div>
 
           {/* Supported Formats Info */}
-          <Card className="border-green-200 bg-green-50/50">
+          <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
-                <FileText className="h-4 w-4 text-green-600" />
-                <span className="font-medium text-green-800">Supported Formats</span>
+                <FileText className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <span className="font-medium text-green-800 dark:text-green-200">Supported Formats</span>
               </div>
-              <p className="text-sm text-green-700">
+              <p className="text-sm text-green-700 dark:text-green-300">
                 PDF, DOCX, PPTX, JPG, PNG, GIF, SVG, XLSX, CSV
               </p>
             </CardContent>
