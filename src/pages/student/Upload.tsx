@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import MobileSidebar from "@/components/layout/MobileSidebar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -234,6 +235,7 @@ export default function Upload() {
 
   return (
     <ProtectedRoute>
+      <MobileSidebar />
       <div className="container mx-auto py-8 px-4">
         <div className="max-w-4xl mx-auto space-y-6">
           <PrintFlowBreadcrumb currentStep="/upload" />
