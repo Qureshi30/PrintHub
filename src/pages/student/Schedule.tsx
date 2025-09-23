@@ -286,7 +286,6 @@ export default function Schedule() {
                     <span className="text-sm font-medium">Important Notes</span>
                   </div>
                   <ul className="text-sm text-yellow-700 mt-1 space-y-1">
-                    <li>• Please arrive 5 minutes before your scheduled time</li>
                     <li>• Bring student ID for verification</li>
                     <li>• Jobs not collected within 24 hours will be discarded</li>
                   </ul>
