@@ -1,4 +1,5 @@
 import { useState } from "react";
+import MobileSidebar from "@/components/layout/MobileSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +28,7 @@ export default function Notifications() {
   const markAllAsReadMutation = useMarkAllNotificationsAsRead();
 
   const handleMarkAsRead = (notificationId: string) => {
-    markAsReadMutation.mutate();
+    markAsReadMutation.mutate(notificationId);
     toast({
       title: "Notification marked as read",
       description: "The notification has been marked as read.",
@@ -35,7 +36,7 @@ export default function Notifications() {
   };
 
   const handleMarkAllAsRead = () => {
-    markAllAsReadMutation.mutate();
+    markAllAsReadMutation.mutate("");
     toast({
       title: "All notifications marked as read",
       description: "All notifications have been marked as read.",
@@ -103,6 +104,7 @@ export default function Notifications() {
 
   return (
     <ProtectedRoute>
+      <MobileSidebar />
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Notifications</h1>

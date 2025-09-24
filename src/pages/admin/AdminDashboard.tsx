@@ -227,26 +227,26 @@ export default function AdminDashboard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
               <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm">Printer "Library-A4-01" came online</span>
+                <div className="w-2 h-2 bg-green-500 dark:bg-green-400 rounded-full"></div>
+                <span className="text-sm text-green-800 dark:text-green-200">Printer "Library-A4-01" came online</span>
               </div>
               <span className="text-xs text-muted-foreground">2 minutes ago</span>
             </div>
             
-            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
               <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="text-sm">New user registration: john.doe@university.edu</span>
+                <div className="w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full"></div>
+                <span className="text-sm text-blue-800 dark:text-blue-200">New user registration: john.doe@university.edu</span>
               </div>
               <span className="text-xs text-muted-foreground">5 minutes ago</span>
             </div>
             
-            <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg">
               <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                <span className="text-sm">Paper low warning: Computer Lab 1</span>
+                <div className="w-2 h-2 bg-yellow-500 dark:bg-yellow-400 rounded-full"></div>
+                <span className="text-sm text-yellow-800 dark:text-yellow-200">Paper low warning: Computer Lab 1</span>
               </div>
               <span className="text-xs text-muted-foreground">12 minutes ago</span>
             </div>
