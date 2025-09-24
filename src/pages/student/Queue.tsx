@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import MobileSidebar from "@/components/layout/MobileSidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -28,7 +29,7 @@ export default function Queue() {
   const jobsAhead = queueJobs.slice(0, userQueuePosition - 1);
   
   const handleCancelJob = (jobId: string) => {
-    cancelJobMutation.mutate();
+    cancelJobMutation.mutate(jobId);
   };
 
   const getStatusIcon = (status: string) => {
@@ -83,6 +84,7 @@ export default function Queue() {
 
   return (
     <ProtectedRoute>
+      <MobileSidebar />
       <div className="container mx-auto px-4 py-8">
         <PrintFlowBreadcrumb currentStep="queue" />
         
@@ -157,14 +159,14 @@ export default function Queue() {
             </Card>
           ) : (
             currentUserJobs.map((job) => (
-              <Card key={job.id} className="overflow-hidden">
+              <Card key={job._id} className="overflow-hidden">
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
                         {getStatusIcon(job.status)}
                         <div>
-                          <h3 className="font-semibold">{job.fileName}</h3>
+                          <h3 className="font-semibold">{job.file?.originalName || 'Document'}</h3>
                           <p className="text-sm text-muted-foreground">
                             {job.settings.pages} pages • {job.settings.copies} copies
                           </p>
@@ -179,7 +181,7 @@ export default function Queue() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleCancelJob(job.id)}
+                          onClick={() => handleCancelJob(job._id)}
                           disabled={cancelJobMutation.isLoading}
                         >
                           <X className="h-4 w-4 mr-2" />
