@@ -11,7 +11,6 @@ import { useBackendUpload } from "@/hooks/useBackendUpload";
 import { useCreatePrintJob } from "@/hooks/useDatabase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@clerk/clerk-react";
-import AuthDebugger from "@/components/debug/AuthDebugger";
 import { 
   CreditCard, 
   Smartphone, 
@@ -21,7 +20,8 @@ import {
   AlertCircle,
   FileText,
   DollarSign,
-  Upload
+  Upload,
+  Settings
 } from "lucide-react";
 
 export default function Payment() {
@@ -39,7 +39,9 @@ export default function Payment() {
     settings, 
     selectedPrinter, 
     updateFileWithCloudinaryData,
-    goToNextStep 
+    getSessionFile,
+    goToNextStep,
+    setPaymentInfo
   } = usePrintJobContext();
 
   // Hooks for backend operations
@@ -61,6 +63,8 @@ export default function Payment() {
       });
     },
   });
+
+
 
   // Calculate total cost from files and settings
   const calculateTotalCost = () => {
@@ -102,6 +106,14 @@ export default function Payment() {
       description: "Visa, Mastercard, RuPay",
       icon: CreditCard,
       popular: false
+    },
+    {
+      id: "dev",
+      name: "Dev Mode",
+      description: "Development testing (always succeeds)",
+      icon: Settings,
+      popular: false,
+      isDev: true
     }
   ];
 
@@ -110,56 +122,112 @@ export default function Payment() {
     setPaymentStatus("uploading");
     
     try {
-      const localFiles = files.filter(file => file.file && !file.cloudinaryUrl);
+      const localFiles = files.filter(file => !file.cloudinaryUrl);
       
       console.log('📋 Upload Context Debug:', {
         totalFiles: files.length,
         localFilesCount: localFiles.length,
-        allFiles: files.map(f => ({ 
-          id: f.id, 
-          name: f.name, 
-          hasFile: !!f.file,
-          hasCloudinaryUrl: !!f.cloudinaryUrl,
-          fileType: f.file?.type,
-          fileSize: f.file?.size 
-        })),
-        localFiles: localFiles.map(f => ({ 
-          id: f.id, 
-          name: f.name, 
-          hasFile: !!f.file,
-          fileType: f.file?.type,
-          fileSize: f.file?.size 
-        }))
+        allFiles: files.map(f => {
+          const sessionFile = getSessionFile(f.id);
+          return { 
+            id: f.id, 
+            name: f.name, 
+            hasSessionFile: !!sessionFile,
+            hasCloudinaryUrl: !!f.cloudinaryUrl,
+            fileType: sessionFile?.type,
+            fileSize: sessionFile?.size 
+          };
+        }),
+        localFiles: localFiles.map(f => {
+          const sessionFile = getSessionFile(f.id);
+          return { 
+            id: f.id, 
+            name: f.name, 
+            hasSessionFile: !!sessionFile,
+            fileType: sessionFile?.type,
+            fileSize: sessionFile?.size 
+          };
+        })
       });
       
       if (localFiles.length === 0) {
-        console.log('❌ No local files to upload - this might be the issue!');
-        console.log('All files in context:', files);
+        console.log('ℹ️ All files already uploaded or no files to upload');
+        await createPrintJobsInDatabase();
         return;
+      }
+
+      // Check if files have missing session files (the root cause we're fixing)
+      const filesWithoutSessionFile = localFiles.filter(f => !getSessionFile(f.id));
+      if (filesWithoutSessionFile.length > 0) {
+        console.error('❌ Missing session files detected:', filesWithoutSessionFile.map(f => f.name));
+        
+        // In Dev Mode, show error message instead of failing silently
+        if (selectedMethod === 'dev') {
+          console.log('🔄 Dev Mode: Files missing, showing error');
+          toast({
+            title: "Files Missing",
+            description: "Some files were lost during upload. Please go back and re-upload your files.",
+            variant: "destructive",
+          });
+          setPaymentStatus("failed");
+          return;
+        } else {
+          throw new Error('Files were corrupted during state management. Please refresh the page and re-upload your files.');
+        }
       }
 
       console.log(`📤 Uploading ${localFiles.length} files to Cloudinary...`);
       
+      const uploadedFilesInfo: Array<{
+        id: string;
+        name: string;
+        cloudinaryUrl: string;
+        cloudinaryPublicId: string;
+        format: string;
+        sizeKB: number;
+        originalSize: number;
+      }> = [];
+      
       for (const fileData of localFiles) {
+        const sessionFile = getSessionFile(fileData.id);
+        
         console.log('🔍 Processing file:', {
           fileId: fileData.id,
           fileName: fileData.name,
-          hasFile: !!fileData.file,
-          fileType: fileData.file?.type,
-          fileSize: fileData.file?.size,
-          fileLastModified: fileData.file?.lastModified,
-          fileConstructor: fileData.file?.constructor?.name
+          hasSessionFile: !!sessionFile,
+          fileType: sessionFile?.type,
+          fileSize: sessionFile?.size,
+          fileLastModified: sessionFile?.lastModified,
+          fileConstructor: sessionFile?.constructor?.name
         });
         
-        if (fileData.file) {
+        if (sessionFile) {
           setUploadProgress(prev => ({ ...prev, [fileData.id]: 0 }));
           
           try {
-            console.log(`📤 About to upload file:`, fileData.file);
-            const response = await uploadFile(fileData.file);
+            console.log(`📤 About to upload file:`, sessionFile);
+            console.log('🔍 File object detailed check in Payment.tsx:', {
+              isFile: sessionFile instanceof File,
+              constructor: sessionFile.constructor.name,
+              hasArrayBuffer: typeof sessionFile.arrayBuffer === 'function',
+              prototype: Object.getPrototypeOf(sessionFile),
+              keys: Object.keys(sessionFile)
+            });
+            const response = await uploadFile(sessionFile);
             
-            // Update file with Cloudinary data
-            updateFileWithCloudinaryData(fileData.id, response.url, response.publicId);
+            // Store uploaded file info
+            uploadedFilesInfo.push({
+              id: fileData.id,
+              name: fileData.name,
+              cloudinaryUrl: response.url,
+              cloudinaryPublicId: response.publicId,
+              format: response.format,
+              sizeKB: response.sizeKB,
+              originalSize: fileData.size
+            });
+            
+            // Update file with Cloudinary data including format and size
+            updateFileWithCloudinaryData(fileData.id, response.url, response.publicId, response.format, response.sizeKB);
             
             setUploadProgress(prev => ({ ...prev, [fileData.id]: 100 }));
             
@@ -169,12 +237,12 @@ export default function Payment() {
             throw error;
           }
         } else {
-          console.error(`❌ No file object found for ${fileData.name}`);
+          console.error(`❌ No session file found for ${fileData.name}`);
         }
       }
       
       // Now create print jobs in the backend
-      await createPrintJobsInDatabase();
+      await createPrintJobsInDatabase(uploadedFilesInfo);
       
     } catch (error) {
       setPaymentStatus("failed");
@@ -183,9 +251,31 @@ export default function Payment() {
   };
 
   // Create print jobs in MongoDB after successful upload
-  const createPrintJobsInDatabase = async () => {
+  const createPrintJobsInDatabase = async (uploadedFiles?: Array<{
+    id: string;
+    name: string;
+    cloudinaryUrl: string;
+    cloudinaryPublicId: string;
+    format: string;
+    sizeKB: number;
+    originalSize: number;
+  }>) => {
     try {
       console.log('📝 Creating print jobs in database...');
+      
+      // Debug: Check current files state
+      console.log('🔍 Files state for print job creation:', {
+        totalFiles: files.length,
+        files: files.map(f => ({
+          id: f.id,
+          name: f.name,
+          hasCloudinaryUrl: !!f.cloudinaryUrl,
+          cloudinaryUrl: f.cloudinaryUrl,
+          cloudinaryPublicId: f.cloudinaryPublicId,
+          format: f.format,
+          sizeKB: f.sizeKB
+        }))
+      });
       
       if (!userId) {
         throw new Error('User ID not found');
@@ -196,8 +286,16 @@ export default function Payment() {
       }
 
       // Create a print job for each file that was uploaded
-      const printJobPromises = files
-        .filter(file => file.file && file.cloudinaryUrl) // Only files that have been uploaded
+      const filesToProcess = uploadedFiles || files.filter(file => file.cloudinaryUrl);
+      console.log('📋 Files eligible for print job creation:', filesToProcess.length);
+      
+      if (uploadedFiles) {
+        console.log('🔄 Using directly passed uploaded files info');
+      } else {
+        console.log('🔄 Using files from React state');
+      }
+      
+      const printJobPromises = filesToProcess
         .map(async (fileData) => {
           const fileSettings = settings[fileData.id];
           const printJobData = {
@@ -207,8 +305,10 @@ export default function Payment() {
               cloudinaryUrl: fileData.cloudinaryUrl as string,
               publicId: fileData.cloudinaryPublicId as string,
               originalName: fileData.name,
-              format: fileData.file!.type.split('/')[1] || 'pdf',
-              sizeKB: Math.round(fileData.file!.size / 1024)
+              format: fileData.format || 'pdf',
+              sizeKB: fileData.sizeKB || Math.round((
+                ('originalSize' in fileData ? fileData.originalSize : 'size' in fileData ? (fileData as { size: number }).size : 0)
+              ) / 1024)
             },
             settings: {
               pages: fileSettings?.pages || 'all',
@@ -216,7 +316,14 @@ export default function Payment() {
               color: fileSettings?.color || false,
               duplex: fileSettings?.duplex || false,
               paperType: fileSettings?.paperType || 'A4'
-            }
+            },
+            payment: {
+              status: 'paid' as const,
+              method: selectedMethod,
+              transactionId: selectedMethod === 'dev' ? `dev_txn_${Date.now()}_${Math.random().toString(36).substring(2, 11)}` : `txn_${Date.now()}`,
+              paidAt: new Date().toISOString()
+            },
+            cost: calculateTotalCost()
           };
 
           console.log('📄 Creating print job for:', fileData.name);
@@ -250,22 +357,74 @@ export default function Payment() {
     setPaymentStatus("processing");
     
     try {
-      // TODO: Replace with actual payment processing when payment gateway is integrated
-      // For now, simulate payment processing with guaranteed success
-      console.log('💳 Simulating payment processing (always successful for development)...');
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Shorter delay for development
-      
-      // DEVELOPMENT MODE: Always succeed (remove this when real payment is implemented)
-      const DEVELOPMENT_MODE = true; // Set to false when implementing real payments
-      const success = DEVELOPMENT_MODE ? true : Math.random() > 0.1;
-      
-      if (success) {
-        console.log('✅ Payment simulation successful, uploading files...');
-        // Payment successful, now upload files to Cloudinary
+      if (selectedMethod === "dev") {
+        // Dev Mode: Always succeed immediately
+        console.log('🔧 Dev Mode: Payment automatically successful, uploading files...');
+        await new Promise(resolve => setTimeout(resolve, 500)); // Short delay for UX
+        
+        // Store payment info
+        setPaymentInfo({
+          method: 'dev',
+          totalCost: calculateTotalCost(),
+          breakdown: {
+            baseCost: calculateTotalCost() * 0.8,
+            colorCost: 0,
+            paperCost: calculateTotalCost() * 0.2
+          }
+        });
+        
         await uploadFilesToCloudinary();
         setPaymentStatus("success");
-      } else {
-        setPaymentStatus("failed");
+      } else if (selectedMethod === "upi") {
+        // UPI Payment processing
+        console.log('� Processing UPI payment...');
+        // TODO: Implement actual UPI payment gateway (Razorpay/Stripe)
+        // For now, simulate processing
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Simulate payment result (currently always fails until .env is configured)
+        const success = false; // Will be true when payment gateway is properly configured
+        
+        if (success) {
+          setPaymentInfo({
+            method: 'upi',
+            totalCost: calculateTotalCost(),
+            breakdown: {
+              baseCost: calculateTotalCost() * 0.8,
+              colorCost: 0,
+              paperCost: calculateTotalCost() * 0.2
+            }
+          });
+          await uploadFilesToCloudinary();
+          setPaymentStatus("success");
+        } else {
+          throw new Error("UPI payment not configured. Please set up payment gateway in .env or use Dev Mode for testing.");
+        }
+      } else if (selectedMethod === "card") {
+        // Credit/Debit Card payment processing
+        console.log('💳 Processing card payment...');
+        // TODO: Implement actual card payment gateway (Razorpay/Stripe)
+        // For now, simulate processing
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Simulate payment result (currently always fails until .env is configured)
+        const success = false; // Will be true when payment gateway is properly configured
+        
+        if (success) {
+          setPaymentInfo({
+            method: 'card',
+            totalCost: calculateTotalCost(),
+            breakdown: {
+              baseCost: calculateTotalCost() * 0.8,
+              colorCost: 0,
+              paperCost: calculateTotalCost() * 0.2
+            }
+          });
+          await uploadFilesToCloudinary();
+          setPaymentStatus("success");
+        } else {
+          throw new Error("Card payment not configured. Please set up payment gateway in .env or use Dev Mode for testing.");
+        }
       }
     } catch (error) {
       setPaymentStatus("failed");
@@ -299,7 +458,7 @@ export default function Payment() {
             <Card>
               <CardContent className="p-6">
                 <div className="space-y-4">
-                  {files.filter(file => file.file).map((file) => (
+                  {files.filter(file => getSessionFile(file.id)).map((file) => (
                     <div key={file.id} className="flex items-center justify-between">
                       <span className="text-sm font-medium">{file.name}</span>
                       <div className="flex items-center gap-2">
@@ -402,6 +561,8 @@ export default function Payment() {
             </p>
           </div>
 
+
+
           <div className="grid md:grid-cols-2 gap-6">
             {/* Order Summary */}
             <Card>
@@ -449,27 +610,31 @@ export default function Payment() {
                 <div className="space-y-3">
                   {paymentMethods.map((method) => {
                     const Icon = method.icon;
+                    const isDevMode = method.isDev;
                     return (
                       <div 
                         key={method.id}
                         className={`p-4 border rounded-lg cursor-pointer transition-all w-full text-left ${
                           selectedMethod === method.id 
-                            ? "border-blue-500 bg-blue-50" 
-                            : "border-gray-200 hover:border-gray-300"
+                            ? (isDevMode ? "border-orange-500 bg-orange-50" : "border-blue-500 bg-blue-50")
+                            : (isDevMode ? "border-orange-200 hover:border-orange-300" : "border-gray-200 hover:border-gray-300")
                         }`}
                         onClick={() => setSelectedMethod(method.id)}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <Icon className="h-5 w-5 text-gray-600" />
+                            <Icon className={`h-5 w-5 ${isDevMode ? 'text-orange-600' : 'text-gray-600'}`} />
                             <div>
                               <div className="font-medium flex items-center gap-2">
                                 {method.name}
                                 {method.popular && (
                                   <Badge variant="secondary" className="text-xs">Popular</Badge>
                                 )}
+                                {isDevMode && (
+                                  <Badge variant="outline" className="text-xs border-orange-300 text-orange-700">DEV</Badge>
+                                )}
                               </div>
-                              <div className="text-sm text-muted-foreground">
+                              <div className={`text-sm ${isDevMode ? 'text-orange-600' : 'text-muted-foreground'}`}>
                                 {method.description}
                               </div>
                             </div>
@@ -506,14 +671,19 @@ export default function Payment() {
 
           {/* Payment Processing */}
           {paymentStatus === "processing" && (
-            <Card className="border-blue-200 bg-blue-50/50">
+            <Card className={selectedMethod === "dev" ? "border-orange-200 bg-orange-50/50" : "border-blue-200 bg-blue-50/50"}>
               <CardContent className="p-6 text-center">
                 <div className="flex items-center justify-center gap-3 mb-4">
-                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="font-medium text-blue-800">Processing Payment...</span>
+                  <div className={`w-6 h-6 border-2 ${selectedMethod === "dev" ? "border-orange-600" : "border-blue-600"} border-t-transparent rounded-full animate-spin`}></div>
+                  <span className={`font-medium ${selectedMethod === "dev" ? "text-orange-800" : "text-blue-800"}`}>
+                    {selectedMethod === "dev" ? "Dev Mode - Auto Processing..." : "Processing Payment..."}
+                  </span>
                 </div>
-                <p className="text-sm text-blue-700">
-                  Please wait while we process your payment. Do not close this window.
+                <p className={`text-sm ${selectedMethod === "dev" ? "text-orange-700" : "text-blue-700"}`}>
+                  {selectedMethod === "dev" 
+                    ? "Using development mode for testing. Payment will automatically succeed."
+                    : "Please wait while we process your payment. Do not close this window."
+                  }
                 </p>
               </CardContent>
             </Card>

@@ -5,6 +5,40 @@ import { useAuth } from '@clerk/clerk-react';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 // Types
+interface PrinterLevels {
+  inkLevel?: number;
+  paperLevel?: number;
+  tonerLevel?: number;
+}
+
+interface NotificationData {
+  _id: string;
+  clerkUserId: string;
+  type: 'job_completed' | 'job_failed' | 'reprint' | 'queue_update' | 'maintenance' | 'system' | 'payment';
+  title: string;
+  message: string;
+  read: boolean;
+  actionRequired?: boolean;
+  relatedPrintJobId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface AdminLogData {
+  _id?: string;
+  adminId: string;
+  action: string;
+  target: string;
+  details: Record<string, unknown>;
+  timestamp?: string;
+}
+
+interface UserPrintJobsOptions {
+  status?: string;
+  limit?: number;
+  page?: number;
+}
+
 interface User {
   _id: string;
   clerkUserId: string;
@@ -256,7 +290,7 @@ export const usePrinters = () => {
   return { printers, loading, error };
 };
 
-export const useUserPrintJobs = (userId?: string, options?: any) => {
+export const useUserPrintJobs = (userId?: string, options?: UserPrintJobsOptions) => {
   const [printJobs, setPrintJobs] = useState<PrintJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -428,6 +462,7 @@ export const useAnalytics = () => {
         const response = await authFetch('/admin/analytics');
         setAnalytics(response.data);
       } catch (err) {
+        console.warn('Analytics endpoint not available, using fallback data:', err);
         // For now, use mock data if the endpoint doesn't exist
         setAnalytics({
           totalPrintJobs: 1247,
@@ -745,7 +780,7 @@ export const useUpdatePrinterLevels = () => {
   const [error, setError] = useState<string | null>(null);
   const { getToken } = useAuth();
 
-  const mutateAsync = useCallback(async ({ printerId, levels }: { printerId: string; levels: any }) => {
+  const mutateAsync = useCallback(async ({ printerId, levels }: { printerId: string; levels: PrinterLevels }) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -764,7 +799,7 @@ export const useUpdatePrinterLevels = () => {
     }
   }, [getToken]);
 
-  const mutate = useCallback((data: { printerId: string; levels: any }) => {
+  const mutate = useCallback((data: { printerId: string; levels: PrinterLevels }) => {
     mutateAsync(data).catch(() => {
       // Error is already handled in mutateAsync
     });
@@ -779,7 +814,7 @@ export const useUpdatePrinterLevels = () => {
 };
 
 export const useUserNotifications = (userId?: string) => {
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { getToken } = useAuth();
@@ -788,8 +823,8 @@ export const useUserNotifications = (userId?: string) => {
     const fetchNotifications = async () => {
       try {
         const authFetch = createAuthenticatedFetch(getToken);
-        const response = await authFetch(`/notifications?clerkUserId=${userId}`);
-        setNotifications(response.data);
+        const response = await authFetch(`/notifications/user/${userId}`);
+        setNotifications(response.data?.notifications || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch notifications');
       } finally {
@@ -816,7 +851,7 @@ export const useMarkNotificationAsRead = () => {
     try {
       const authFetch = createAuthenticatedFetch(getToken);
       const response = await authFetch(`/notifications/${notificationId}/read`, {
-        method: 'PATCH',
+        method: 'PUT',
       });
       return response.data;
     } catch (err) {
@@ -852,9 +887,8 @@ export const useMarkAllNotificationsAsRead = () => {
     setError(null);
     try {
       const authFetch = createAuthenticatedFetch(getToken);
-      const response = await authFetch(`/notifications/read-all`, {
-        method: 'PATCH',
-        body: JSON.stringify({ clerkUserId: userId }),
+      const response = await authFetch(`/notifications/user/${userId}/read-all`, {
+        method: 'PUT',
       });
       return response.data;
     } catch (err) {
@@ -881,7 +915,7 @@ export const useMarkAllNotificationsAsRead = () => {
 };
 
 export const useAdminLogs = () => {
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<AdminLogData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { getToken } = useAuth();
@@ -910,7 +944,7 @@ export const useCreateAdminLog = () => {
   const [error, setError] = useState<string | null>(null);
   const { getToken } = useAuth();
 
-  const mutateAsync = useCallback(async (logData: any) => {
+  const mutateAsync = useCallback(async (logData: AdminLogData) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -929,7 +963,7 @@ export const useCreateAdminLog = () => {
     }
   }, [getToken]);
 
-  const mutate = useCallback((logData: any) => {
+  const mutate = useCallback((logData: AdminLogData) => {
     mutateAsync(logData).catch(() => {
       // Error is already handled in mutateAsync
     });

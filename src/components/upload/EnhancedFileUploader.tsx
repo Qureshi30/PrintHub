@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { cloudinaryService } from "@/lib/cloudinaryService";
 import { useCreatePrintJob } from "@/hooks/useDatabase";
-import { PrintJob } from "@/types/database";
+// Remove PrintJob import as we'll create inline type
 import {
   File as FileIcon,
   FileText,
@@ -45,15 +45,15 @@ function formatBytes(bytes: number) {
 
 function getIconForFile(file: File) {
   const name = file.name.toLowerCase();
-  if (name.match(/\.(png|jpg|jpeg|gif|svg)$/)) return ImageIcon;
-  if (name.match(/\.(pdf|doc|docx|txt|rtf|ppt|pptx)$/)) return FileText;
-  if (name.match(/\.(csv|xlsx)$/)) return FileSpreadsheet;
+  if (/\.(png|jpg|jpeg|gif|svg)$/.exec(name)) return ImageIcon;
+  if (/\.(pdf|doc|docx|txt|rtf|ppt|pptx)$/.exec(name)) return FileText;
+  if (/\.(csv|xlsx)$/.exec(name)) return FileSpreadsheet;
   return FileIcon;
 }
 
 interface EnhancedFileUploaderProps {
-  onFileUploaded?: (jobId: string) => void;
-  maxFiles?: number;
+  readonly onFileUploaded?: (jobId: string) => void;
+  readonly maxFiles?: number;
 }
 
 export default function EnhancedFileUploader({ 
@@ -108,13 +108,14 @@ export default function EnhancedFileUploader({
           : p
       ));
 
-      // Create print job in database
-      const printJobData: Omit<PrintJob, '_id' | 'createdAt' | 'updatedAt'> = {
+      // Create print job in database - using the structure expected by the hook
+      const printJobData = {
         clerkUserId: user.id,
         printerId: '', // Will be selected later
         file: {
           cloudinaryUrl: result.secure_url,
           publicId: result.public_id,
+          originalName: item.file.name,
           format: result.format,
           sizeKB: cloudinaryService.getFileSizeInKB(item.file)
         },
@@ -125,7 +126,7 @@ export default function EnhancedFileUploader({
           duplex: false,
           paperType: 'A4'
         },
-        status: 'pending',
+        status: 'queued' as const,
         misprint: false,
         reprintCount: 0
       };
@@ -188,7 +189,7 @@ export default function EnhancedFileUploader({
     for (const file of files) {
       const validation = validateFile(file);
       if (!validation.isValid) {
-        rejected.push({ name: file.name, reason: validation.error! });
+        rejected.push({ name: file.name, reason: validation.error || 'Unknown error' });
         continue;
       }
       valid.push(file);

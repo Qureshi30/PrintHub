@@ -41,6 +41,32 @@ export const useBackendUpload = (options: UseBackendUploadOptions = {}) => {
       isFileInstance: file instanceof File,
       fileConstructor: file?.constructor?.name
     });
+
+    // Debug the file object in detail
+    console.log('🔍 Detailed file object analysis:', {
+      file: file,
+      prototype: Object.getPrototypeOf(file),
+      constructor: file.constructor.name,
+      hasArrayBuffer: typeof file.arrayBuffer === 'function',
+      hasStream: typeof file.stream === 'function',
+      hasText: typeof file.text === 'function',
+      ownProperties: Object.getOwnPropertyNames(file),
+      fileKeys: Object.keys(file)
+    });
+
+    // If it's not a proper File object, try to handle it gracefully
+    if (!(file instanceof File)) {
+      console.error('❌ Object is not a File instance! Attempting to reconstruct...');
+      console.log('🔍 Received object:', file);
+      
+      // If we have the necessary properties, this might be a deserialized File-like object
+      if (file && typeof file === 'object' && 'name' in file && 'size' in file && 'type' in file) {
+        console.log('⚠️ File-like object detected, but cannot recreate File from metadata alone');
+        throw new Error('File object was corrupted during state management. Please re-upload the file.');
+      } else {
+        throw new Error('Invalid file object - not a File instance');
+      }
+    }
     
     setIsUploading(true);
     setProgress({ loaded: 0, total: 0, percentage: 0 });
@@ -57,9 +83,19 @@ export const useBackendUpload = (options: UseBackendUploadOptions = {}) => {
         throw new Error('No file provided to upload function');
       }
 
-      // Upload through backend
+      // Upload through backend - try alternative FormData approach
       const formData = new FormData();
-      formData.append('file', file);
+      
+      // Make sure we're appending the actual file object
+      console.log('📎 About to append file to FormData:', {
+        file: file,
+        isFile: file instanceof File,
+        name: file.name,
+        size: file.size,
+        type: file.type
+      });
+      
+      formData.append('file', file, file.name); // Explicitly provide filename
       formData.append('folder', 'uploads'); // Optional folder parameter
 
       console.log('📤 Starting backend upload for file:', file.name);
@@ -78,13 +114,25 @@ export const useBackendUpload = (options: UseBackendUploadOptions = {}) => {
         console.log(`  ${key}:`, value instanceof File ? `File(${value.name}, ${value.size} bytes)` : value);
       }
 
+      // Additional FormData debugging
+      console.log('🔍 FormData debug info:', {
+        hasFileEntry: formData.has('file'),
+        hasFolderEntry: formData.has('folder'),
+        formDataKeys: Array.from(formData.keys()),
+        fileIsValid: file instanceof File,
+        fileSize: file.size,
+        fileName: file.name,
+        fileType: file.type,
+        fileLastModified: file.lastModified
+      });
+
       const response = await axios.post(
         `${import.meta.env.VITE_API_BASE_URL}/upload/file`,
         formData,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data',
+            // Don't set Content-Type manually - let axios set it with the boundary
           },
           onUploadProgress: (progressEvent) => {
             if (progressEvent.total) {

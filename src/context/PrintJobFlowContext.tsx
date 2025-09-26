@@ -1,4 +1,5 @@
 import { createContext, useState, ReactNode, useMemo, useCallback, useEffect } from 'react';
+import { parseDocumentPages } from '@/utils/documentParser';
 
 // Print Job Step Types
 export type PrintJobStep = 'upload' | 'settings' | 'printer' | 'confirm' | 'payment' | 'queue';
@@ -43,7 +44,7 @@ export interface SelectedPrinter {
 
 // Payment information
 export interface PaymentInfo {
-  method: 'student_credit' | 'card' | 'campus_card';
+  method: 'student_credit' | 'card' | 'upi' | 'dev' | 'campus_card';
   totalCost: number;
   breakdown: {
     baseCost: number;
@@ -83,13 +84,16 @@ export interface PrintJobContextActions {
   
   // File management
   addFile: (file: PrintJobFile) => void;
-  addLocalFile: (localFile: File) => void;
+  addLocalFile: (localFile: File) => Promise<void>;
   removeFile: (fileId: string) => void;
   updateFileSettings: (fileId: string, settings: Partial<PrintJobSettings>) => void;
   
   // Cloudinary upload (after payment)
   uploadFilesToCloudinary: () => Promise<void>;
-  updateFileWithCloudinaryData: (fileId: string, cloudinaryUrl: string, cloudinaryPublicId: string) => void;
+  updateFileWithCloudinaryData: (fileId: string, cloudinaryUrl: string, cloudinaryPublicId: string, format?: string, sizeKB?: number) => void;
+  
+  // Session file access (not persisted)
+  getSessionFile: (fileId: string) => File | undefined;
   
   // Printer selection
   selectPrinter: (printer: SelectedPrinter) => void;
@@ -156,9 +160,15 @@ const saveStateToStorage = (state: {
   payment: PaymentInfo | null;
 }) => {
   try {
+    // Remove File objects before saving to localStorage (File objects can't be serialized)
+    const filesForStorage = state.files.map(file => ({
+      ...file,
+      file: undefined // Remove File object from localStorage
+    }));
+
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       currentStep: state.currentStep,
-      files: state.files,
+      files: filesForStorage,
       settings: state.settings,
       selectedPrinter: state.selectedPrinter,
       payment: state.payment,
@@ -168,7 +178,7 @@ const saveStateToStorage = (state: {
   }
 };
 
-export function PrintJobProvider({ children }: { children: ReactNode }) {
+export function PrintJobProvider({ children }: { readonly children: ReactNode }) {
   const storedState = loadStoredState();
   
   const [currentStep, setCurrentStep] = useState<PrintJobStep>(storedState.currentStep);
@@ -178,6 +188,9 @@ export function PrintJobProvider({ children }: { children: ReactNode }) {
   const [payment, setPayment] = useState<PaymentInfo | null>(storedState.payment);
   const [isCreatingJobs, setIsCreatingJobs] = useState(false);
   const [createdJobIds, setCreatedJobIds] = useState<string[]>([]);
+  
+  // Separate session-based storage for File objects (never serialized)
+  const [sessionFiles, setSessionFiles] = useState<{ [fileId: string]: File }>({});
 
   // Save to localStorage whenever state changes
   useEffect(() => {
@@ -291,39 +304,102 @@ export function PrintJobProvider({ children }: { children: ReactNode }) {
   };
 
   // Add local file (stores File object for later Cloudinary upload)
-  const addLocalFile = useCallback((localFile: File) => {
-    const newFile: PrintJobFile = {
-      id: crypto.randomUUID(),
+  const addLocalFile = useCallback(async (localFile: File) => {
+    const fileId = crypto.randomUUID();
+    
+    // Create initial file without the File object (to avoid localStorage serialization issues)
+    const initialFile: PrintJobFile = {
+      id: fileId,
       name: localFile.name,
       size: localFile.size,
       type: localFile.name.split('.').pop()?.toLowerCase() || 'unknown',
-      pages: estimatePages(localFile),
+      pages: 1, // Initial placeholder
       isImage: /\.(png|jpg|jpeg|gif|svg)$/i.test(localFile.name),
       format: localFile.name.split('.').pop()?.toLowerCase() || 'unknown',
       sizeKB: Math.round(localFile.size / 1024),
-      file: localFile, // Store the File object for later upload
+      // Don't store file object directly - it will be stored separately
     };
     
-    addFile(newFile);
+    // Store File object in session state (not persisted to localStorage)
+    setSessionFiles(prev => ({ ...prev, [fileId]: localFile }));
+    
+    addFile(initialFile);
+    
+    // Parse document pages asynchronously
+    try {
+      const documentInfo = await parseDocumentPages(localFile);
+      console.log(`Parsed ${localFile.name}: ${documentInfo.pages} pages (${documentInfo.type})`);
+      
+      // Update the file with accurate page count
+      setFiles(prev => prev.map(file => 
+        file.id === initialFile.id 
+          ? { ...file, pages: documentInfo.pages }
+          : file
+      ));
+    } catch (error) {
+      console.error(`Failed to parse ${localFile.name}:`, error);
+      // Keep the fallback estimation
+      const fallbackPages = estimatePages(localFile);
+      setFiles(prev => prev.map(file => 
+        file.id === initialFile.id 
+          ? { ...file, pages: fallbackPages }
+          : file
+      ));
+    }
   }, []);
 
   // Estimate pages for local file
   const estimatePages = (file: File): number => {
     const ext = file.name.toLowerCase().split('.').pop();
+    
     if (ext === 'jpg' || ext === 'jpeg' || ext === 'png' || ext === 'gif') {
       return 1; // Images are typically 1 page
     }
-    // Rough estimation for documents (500KB per page)
+    
+    if (ext === 'pdf') {
+      // For PDFs, use a more conservative estimation
+      // Small PDFs (<1MB) = assume 1 page
+      // Medium PDFs (1-5MB) = rough estimation with 50KB per page
+      // Large PDFs (>5MB) = rough estimation with 100KB per page
+      if (file.size < 1024 * 1024) { // < 1MB
+        return 1;
+      } else if (file.size < 5 * 1024 * 1024) { // < 5MB
+        return Math.max(1, Math.round(file.size / (50 * 1024)));
+      } else {
+        return Math.max(1, Math.round(file.size / (100 * 1024)));
+      }
+    }
+    
+    // For other documents, use original estimation
     return Math.max(1, Math.round(file.size / (500 * 1024)));
   };
 
+  // Get session file (not persisted to localStorage)
+  const getSessionFile = useCallback((fileId: string): File | undefined => {
+    return sessionFiles[fileId];
+  }, [sessionFiles]);
+
   // Update file with Cloudinary data after upload
-  const updateFileWithCloudinaryData = useCallback((fileId: string, cloudinaryUrl: string, cloudinaryPublicId: string) => {
+  const updateFileWithCloudinaryData = useCallback((fileId: string, cloudinaryUrl: string, cloudinaryPublicId: string, format?: string, sizeKB?: number) => {
     setFiles(prev => prev.map(file => 
       file.id === fileId 
-        ? { ...file, cloudinaryUrl, cloudinaryPublicId, file: undefined } // Remove local file reference
+        ? { 
+            ...file, 
+            cloudinaryUrl, 
+            cloudinaryPublicId, 
+            format: format || file.format,
+            sizeKB: sizeKB || file.sizeKB
+            // Keep session file separate - don't modify it here
+          }
         : file
     ));
+    
+    // Remove session file after successful upload since it's no longer needed
+    setSessionFiles(prev => {
+      const newFiles = { ...prev };
+      delete newFiles[fileId];
+      return newFiles;
+    });
   }, []);
 
   // Upload all local files to Cloudinary (called after payment)
@@ -374,6 +450,7 @@ export function PrintJobProvider({ children }: { children: ReactNode }) {
     updateFileSettings,
     uploadFilesToCloudinary,
     updateFileWithCloudinaryData,
+    getSessionFile,
     selectPrinter: setSelectedPrinter,
     setPaymentInfo: (paymentInfo) => setPayment(paymentInfo),
     setIsCreatingJobs,
@@ -392,6 +469,7 @@ export function PrintJobProvider({ children }: { children: ReactNode }) {
     goToPreviousStep,
     addLocalFile,
     updateFileWithCloudinaryData,
+    getSessionFile,
     uploadFilesToCloudinary,
   ]);
 

@@ -46,7 +46,7 @@ function isAllowedType(file: File) {
 }
 
 interface LocalFileUploaderProps {
-  readonly onFileAdded?: (file: File) => void;
+  readonly onFileAdded?: (file: File) => Promise<void>;
 }
 
 export default function LocalFileUploader({ onFileAdded }: LocalFileUploaderProps) {
@@ -98,9 +98,13 @@ export default function LocalFileUploader({ onFileAdded }: LocalFileUploaderProp
     setItems((prev) => [...prev, ...next]);
 
     // Notify parent component about added files
-    next.forEach(item => {
+    next.forEach(async (item) => {
       if (onFileAdded) {
-        onFileAdded(item.file);
+        try {
+          await onFileAdded(item.file);
+        } catch (error) {
+          console.error('Error processing file:', error);
+        }
       }
     });
 
