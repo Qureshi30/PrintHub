@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import MobileSidebar from "@/components/layout/MobileSidebar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -106,6 +107,7 @@ export default function Notifications() {
 
   return (
     <ProtectedRoute>
+      <MobileSidebar />
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Notifications</h1>
