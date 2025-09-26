@@ -264,7 +264,7 @@ export default function Schedule() {
                   <div className="flex items-center gap-2 pt-2 border-t border-green-200">
                     <FileText className="h-4 w-4 text-green-700" />
                     <span className="text-sm text-green-700">
-                      3 documents • 15 total pages • $4.50 estimated cost
+                      3 documents • 15 total pages • ₹30.00 estimated cost
                     </span>
                   </div>
                 </div>
