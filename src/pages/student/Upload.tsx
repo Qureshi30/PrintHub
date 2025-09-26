@@ -55,14 +55,23 @@ export default function Upload() {
   const readyFiles = files; // All files in context are ready
 
   // Callback to add newly selected local files
-  const handleLocalFileAdded = (localFile: File) => {
-    addLocalFile(localFile);
-    
-    // Show success notification
-    toast({
-      title: "File added successfully!",
-      description: `${localFile.name} has been added to your selection and will be uploaded after payment.`,
-    });
+  const handleLocalFileAdded = async (localFile: File) => {
+    try {
+      await addLocalFile(localFile);
+      
+      // Show success notification
+      toast({
+        title: "File added successfully!",
+        description: `${localFile.name} has been added to your selection and will be uploaded after payment.`,
+      });
+    } catch (error) {
+      console.error('Failed to add file:', error);
+      toast({
+        title: "Error adding file",
+        description: `Failed to process ${localFile.name}. Please try again.`,
+        variant: "destructive",
+      });
+    }
   };
 
   // Handle file removal

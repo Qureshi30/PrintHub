@@ -75,10 +75,10 @@ export function FilePreview({ isOpen, onClose, file }: FilePreviewProps) {
     }
   }, [isOpen, file.id]);
 
-  const getFileIcon = (type: string) => {
-    if (type.includes('image')) return ImageIcon;
-    if (type.includes('pdf') || type.includes('document')) return FileText;
-    return FileIcon;
+  const getFileIcon = (type: string, props: { className?: string }) => {
+    if (type.includes('image')) return <ImageIcon {...props} />;
+    if (type.includes('pdf') || type.includes('document')) return <FileText {...props} />;
+    return <FileIcon {...props} />;
   };
 
   const isImage = file.type.includes('image');
@@ -155,7 +155,7 @@ export function FilePreview({ isOpen, onClose, file }: FilePreviewProps) {
             ) : (
               <div className="w-96 h-96 flex items-center justify-center bg-white border-2 border-dashed border-gray-300 rounded-lg">
                 <div className="text-center">
-                  {getFileIcon(file.type)({ className: "h-16 w-16 mx-auto mb-4 text-gray-400" })}
+                  {getFileIcon(file.type, { className: "h-16 w-16 mx-auto mb-4 text-gray-400" })}
                   <p className="text-sm text-gray-500">
                     {isPDF ? 'PDF Document' : 'Document Preview'}
                   </p>
@@ -252,7 +252,7 @@ export function FilePreview({ isOpen, onClose, file }: FilePreviewProps) {
           {/* File Info */}
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-2">
-              {getFileIcon(file.type)({ className: "h-4 w-4" })}
+              {getFileIcon(file.type, { className: "h-4 w-4" })}
               <span className="font-medium truncate max-w-xs">{file.name}</span>
             </div>
             <Badge variant="outline">{formatFileSize(file.size)}</Badge>

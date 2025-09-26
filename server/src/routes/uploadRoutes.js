@@ -7,7 +7,7 @@ const PrintJob = require('../models/PrintJob');
 const Printer = require('../models/Printer');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
-const emailNotificationService = require('../services/emailNotificationService');
+const emailService = require('../services/unifiedEmailService');
 
 const router = express.Router();
 
@@ -232,8 +232,8 @@ router.post('/multiple',
       const uploadFolder = folder ? `print_jobs/${req.auth.userId}/${folder}` : `print_jobs/${req.auth.userId}`;
 
       // Upload all files
-      const uploadPromises = files.map(file => 
-        uploadToCloudinary(file, {
+      const uploadPromises = files.map(file => {
+        return uploadToCloudinary(file, {
           folder: uploadFolder,
           resource_type: 'auto',
           use_filename: true,
@@ -241,8 +241,8 @@ router.post('/multiple',
         }).then(result => ({
           ...result,
           originalName: file.originalname
-        }))
-      );
+        }));
+      });
 
       const uploadResults = await Promise.all(uploadPromises);
 
@@ -662,7 +662,7 @@ router.post('/print-job',
       // Send email notification to admin
       try {
         const userEmail = user?.profile?.email || 'unknown@example.com';
-        await emailNotificationService.sendNewPrintJobNotification(savedJob, userEmail);
+        await emailService.sendNewPrintJobNotification(savedJob, userEmail);
       } catch (emailError) {
         console.error('⚠️ Email notification failed:', emailError);
         // Don't fail the entire request if email fails

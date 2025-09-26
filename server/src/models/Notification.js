@@ -128,6 +128,10 @@ notificationSchema.virtual('timeAgo').get(function() {
   return 'Just now';
 });
 
+// Compound indexes for better performance
+notificationSchema.index({ clerkUserId: 1, createdAt: -1 });
+notificationSchema.index({ clerkUserId: 1, read: 1, createdAt: -1 });
+
 // Ensure virtual fields are serialized
 notificationSchema.set('toJSON', { virtuals: true });
 

@@ -7,6 +7,52 @@ import { useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
 import { useUserPrintJobs } from "@/hooks/useDatabase";
 import { FileText, Calendar, Printer, Download, RotateCcw } from "lucide-react";
+// Match the PrintJob type from useDatabase hook
+interface PrintJobType {
+  _id: string;
+  clerkUserId: string;
+  printerId: string;
+  file: {
+    cloudinaryUrl: string;
+    publicId: string;
+    originalName: string;
+    format: string;
+    sizeKB: number;
+  };
+  settings: {
+    pages: string;
+    copies: number;
+    color: boolean;
+    duplex: boolean;
+    paperType: string;
+  };
+  status: 'queued' | 'printing' | 'completed' | 'failed' | 'cancelled';
+  queuePosition?: number;
+  estimatedCompletionTime?: string;
+  pricing: {
+    costPerPage: number;
+    colorSurcharge: number;
+    paperTypeSurcharge: number;
+    totalCost: number;
+    currency: string;
+  };
+  payment: {
+    status: 'pending' | 'paid' | 'failed' | 'refunded';
+    method: string;
+    transactionId?: string;
+    paidAt?: string;
+  };
+  timing: {
+    submittedAt: string;
+    startedAt?: string;
+    completedAt?: string;
+    totalProcessingTime?: number;
+    misprint: boolean;
+    reprintCount: number;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
 
 function History() {
   const navigate = useNavigate();
@@ -23,7 +69,7 @@ function History() {
     );
   }
 
-  const jobs = printJobs?.data?.data || [];
+  const jobs = printJobs || [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -41,7 +87,7 @@ function History() {
     return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handleReprint = (job: any) => {
+  const handleReprint = (job: PrintJobType) => {
     // In a real app, this would pre-fill the print settings with the job's configuration
     navigate("/upload");
   };
@@ -65,9 +111,9 @@ function History() {
 
         <div className="space-y-4">
           {jobs.map((job) => {
-            // Calculate cost
+            // Calculate cost (₹1 per page)
             const pages = job.settings.pages === 'all' ? 10 : parseInt(job.settings.pages.split('-')[1] || '1');
-            const cost = pages * job.settings.copies * (job.settings.color ? 0.15 : 0.05);
+            const cost = pages * job.settings.copies * 1.00; // ₹1 per page
             
             return (
               <Card key={job._id}>
@@ -88,14 +134,14 @@ function History() {
                           <span>{pages} pages</span>
                           <span>{job.settings.copies} copies</span>
                           <span className="capitalize">{job.settings.color ? 'color' : 'black & white'}</span>
-                          {cost > 0 && <span>${cost.toFixed(2)}</span>}
+                          {cost > 0 && <span>₹{cost.toFixed(2)}</span>}
                         </div>
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Calendar className="h-3 w-3" />
-                          Submitted: {formatDate(job.createdAt)}
+                          Submitted: {formatDate(job.timing.createdAt)}
                           {job.status === 'completed' && (
                             <span className="ml-2">
-                              • Completed: {formatDate(job.updatedAt)}
+                              • Completed: {formatDate(job.timing.updatedAt)}
                             </span>
                           )}
                         </div>
