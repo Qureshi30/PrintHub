@@ -108,6 +108,9 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/students', studentRoutes);
 
+console.log('✅ All API routes registered successfully');
+console.log('📍 Admin routes available at: /api/admin/*');
+
 // Serve static files (if any)
 app.use(express.static('public'));
 
