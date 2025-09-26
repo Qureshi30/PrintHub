@@ -127,7 +127,7 @@ const printJobSchema = new mongoose.Schema({
     },
     method: {
       type: String,
-      enum: ['student_credit', 'card', 'campus_card', 'cash'],
+      enum: ['student_credit', 'card', 'campus_card', 'cash', 'dev'],
       default: 'student_credit',
     },
     transactionId: {

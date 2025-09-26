@@ -1,5 +1,5 @@
 import { History, Download, Calendar, FileText, Search, Filter, BarChart3, Receipt } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,7 @@ export default function PrintHistory() {
       time: "2:30 PM",
       pages: 85,
       copies: 1,
-      cost: "$8.50",
+      cost: "₹85.00",
       location: "Main Library",
       status: "Completed",
       type: "Black & White"
@@ -48,7 +48,7 @@ export default function PrintHistory() {
       time: "10:15 AM",
       pages: 12,
       copies: 2,
-      cost: "$2.40",
+      cost: "₹24.00",
       location: "Engineering Building",
       status: "Completed",
       type: "Black & White"
@@ -60,7 +60,7 @@ export default function PrintHistory() {
       time: "4:45 PM",
       pages: 24,
       copies: 1,
-      cost: "$12.00",
+      cost: "₹24.00",
       location: "Student Union",
       status: "Completed",
       type: "Color"
@@ -72,7 +72,7 @@ export default function PrintHistory() {
       time: "11:20 AM",
       pages: 8,
       copies: 5,
-      cost: "$4.00",
+      cost: "₹40.00",
       location: "Business School",
       status: "Completed",
       type: "Black & White"
@@ -84,7 +84,7 @@ export default function PrintHistory() {
       time: "3:15 PM",
       pages: 15,
       copies: 1,
-      cost: "$1.50",
+      cost: "₹15.00",
       location: "Main Library",
       status: "Completed",
       type: "Black & White"
@@ -92,10 +92,10 @@ export default function PrintHistory() {
   ];
 
   const monthlyStats = [
-    { month: "January 2025", jobs: 8, pages: 156, spent: "$24.50" },
-    { month: "December 2024", jobs: 12, pages: 203, spent: "$35.20" },
-    { month: "November 2024", jobs: 15, pages: 287, spent: "$42.80" },
-    { month: "October 2024", jobs: 9, pages: 134, spent: "$19.90" }
+    { month: "January 2025", jobs: 8, pages: 156, spent: "₹156.00" },
+    { month: "December 2024", jobs: 12, pages: 203, spent: "₹203.00" },
+    { month: "November 2024", jobs: 15, pages: 287, spent: "₹287.00" },
+    { month: "October 2024", jobs: 9, pages: 134, spent: "₹134.00" }
   ];
 
   const getStatusColor = (status: string) => {

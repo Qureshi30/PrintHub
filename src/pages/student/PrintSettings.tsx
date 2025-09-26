@@ -13,7 +13,7 @@ import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
 import { SpecialPaperAlert } from "@/components/SpecialPaperAlert";
 import { useNavigate } from "react-router-dom";
 import { usePrintJobContext } from "@/hooks/usePrintJobContext";
-import { Calculator, FileText, DollarSign, Copy } from "lucide-react";
+import { Calculator, FileText, Copy } from "lucide-react";
 
 interface PrintSettings {
   pageRange: string;
@@ -103,9 +103,10 @@ export default function PrintSettings() {
     const settings = fileSettings[fileId];
     if (!file || !settings) return { perPage: 0, total: 0, pages: 0 };
 
+    // INR pricing: ₹1 per page for all types
     const baseCosts = {
-      blackwhite: { regular: 0.10, photo: 0.25, cardstock: 0.15, transparency: 0.30 },
-      color: { regular: 0.25, photo: 0.50, cardstock: 0.35, transparency: 0.60 }
+      blackwhite: { regular: 1.00, photo: 1.00, cardstock: 1.00, transparency: 1.00 },
+      color: { regular: 1.00, photo: 1.00, cardstock: 1.00, transparency: 1.00 }
     };
 
     const paperSizeMultiplier = {
@@ -371,7 +372,7 @@ export default function PrintSettings() {
                             </div>
                             <div className="flex justify-between text-sm">
                               <span>Cost per page:</span>
-                              <span>${cost.perPage.toFixed(2)}</span>
+                              <span>₹{cost.perPage.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                               <span>Color mode:</span>
@@ -386,8 +387,7 @@ export default function PrintSettings() {
                           <div className="flex justify-between font-medium">
                             <span>Total for this file:</span>
                             <span className="flex items-center gap-1">
-                              <DollarSign className="h-4 w-4" />
-                              {cost.total.toFixed(2)}
+                              ₹{cost.total.toFixed(2)}
                             </span>
                           </div>
                         </CardContent>
@@ -411,8 +411,7 @@ export default function PrintSettings() {
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-green-800 flex items-center gap-1">
-                    <DollarSign className="h-5 w-5" />
-                    {calculateTotalCost().toFixed(2)}
+                    ₹{calculateTotalCost().toFixed(2)}
                   </div>
                 </div>
               </div>
@@ -440,7 +439,11 @@ export default function PrintSettings() {
           // Continue with current settings
         }}
         paperType={specialPaperType}
-        estimatedDelay={specialPaperType === "A3" ? 30 : specialPaperType === "certificate" ? 20 : 15}
+        estimatedDelay={(() => {
+          if (specialPaperType === "A3") return 30;
+          if (specialPaperType === "certificate") return 20;
+          return 15;
+        })()}
         files={selectedFiles.map(file => ({
           name: file.name,
           pages: file.pages

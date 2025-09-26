@@ -3,6 +3,7 @@ const { body, param, query, validationResult } = require('express-validator');
 const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
 const Printer = require('../models/Printer');
 const PrintJob = require('../models/PrintJob');
+const printerService = require('../services/printerService');
 
 const router = express.Router();
 
@@ -30,11 +31,39 @@ router.get('/test', async (req, res) => {
       .select('name status location isActive capabilities queue')
       .sort({ name: 1 });
 
-    console.log('✅ Test printer fetch success:', printers.length);
+    // Calculate real queue data for each printer (same as main endpoint)
+    const printersWithQueueData = await Promise.all(
+      printers.map(async (printer) => {
+        // Get active print jobs for this printer
+        const queueLength = await PrintJob.countDocuments({
+          printerId: printer._id,
+          status: { $in: ['pending', 'queued', 'printing'] }
+        });
+
+        // Estimate wait time (assuming 3 minutes per job on average)
+        const estimatedWait = queueLength * 3;
+
+        // Convert to plain object and add queue data
+        const printerObj = printer.toObject();
+        printerObj.queueLength = queueLength;
+        printerObj.estimatedWait = estimatedWait;
+        
+        // Ensure pricing is in INR format
+        printerObj.pricing = {
+          baseCostPerPage: 1.00, // ₹1 per page
+          colorCostPerPage: 0,    // No extra for color
+          currency: 'INR'
+        };
+
+        return printerObj;
+      })
+    );
+
+    console.log('✅ Test printer fetch success:', printersWithQueueData.length);
 
     res.json({
       success: true,
-      data: printers,
+      data: printersWithQueueData,
       message: 'Test fetch successful'
     });
   } catch (error) {
@@ -69,17 +98,44 @@ router.get('/',
 
       console.log('🔍 Printer filter:', filter);
 
-      // Simplified query without populate to avoid potential issues
+      // Get printers with real queue data
       const printers = await Printer.find(filter)
         .select('name status location isActive capabilities costPerPage queue')
-        .sort({ name: 1 })
-        .lean(); // Use lean() for better performance
+        .sort({ name: 1 });
 
-      console.log('✅ Found printers:', printers.length);
+      // Calculate real queue data for each printer
+      const printersWithQueueData = await Promise.all(
+        printers.map(async (printer) => {
+          // Get active print jobs for this printer
+          const queueLength = await PrintJob.countDocuments({
+            printerId: printer._id,
+            status: { $in: ['pending', 'queued', 'printing'] }
+          });
+
+          // Estimate wait time (assuming 3 minutes per job on average)
+          const estimatedWait = queueLength * 3;
+
+          // Convert to plain object and add queue data
+          const printerObj = printer.toObject();
+          printerObj.queueLength = queueLength;
+          printerObj.estimatedWait = estimatedWait;
+          
+          // Ensure pricing is in INR format
+          printerObj.pricing = {
+            baseCostPerPage: 1.00, // ₹1 per page
+            colorCostPerPage: 0,    // No extra for color
+            currency: 'INR'
+          };
+
+          return printerObj;
+        })
+      );
+
+      console.log('✅ Found printers with queue data:', printersWithQueueData.length);
 
       res.json({
         success: true,
-        data: printers
+        data: printersWithQueueData
       });
     } catch (error) {
       console.error('❌ Get printers error:', error);
