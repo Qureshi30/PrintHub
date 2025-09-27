@@ -1,17 +1,33 @@
 const mongoose = require('mongoose');
 
 const printJobSchema = new mongoose.Schema({
+  // User Details
   clerkUserId: {
     type: String,
     required: true,
     index: true,
+    alias: 'userId', // Also available as userId for easier access
   },
+  userName: {
+    type: String,
+    trim: true,
+    maxlength: 100,
+  },
+  userEmail: {
+    type: String,
+    trim: true,
+    lowercase: true,
+  },
+  
+  // Printer Details
   printerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Printer',
     required: true,
     index: true,
   },
+  
+  // File Details
   file: {
     cloudinaryUrl: {
       type: String,
@@ -24,6 +40,7 @@ const printJobSchema = new mongoose.Schema({
     originalName: {
       type: String,
       required: true,
+      alias: 'originalFileName', // Also available as originalFileName
     },
     format: {
       type: String,
@@ -34,6 +51,8 @@ const printJobSchema = new mongoose.Schema({
       required: true,
     },
   },
+  
+  // Print Settings
   settings: {
     pages: {
       type: String,
@@ -60,9 +79,11 @@ const printJobSchema = new mongoose.Schema({
       default: 'A4',
     },
   },
+  
+  // Queue & Status
   status: {
     type: String,
-    enum: ['pending', 'queued', 'printing', 'completed', 'failed', 'cancelled'],
+    enum: ['pending', 'queued', 'in-progress', 'printing', 'completed', 'failed', 'cancelled'],
     default: 'pending',
     index: true,
   },
@@ -76,6 +97,8 @@ const printJobSchema = new mongoose.Schema({
   actualCompletionTime: {
     type: Date,
   },
+  
+  // Cost Details
   cost: {
     baseCost: {
       type: Number,
@@ -94,6 +117,41 @@ const printJobSchema = new mongoose.Schema({
       default: 0,
     },
   },
+  
+  // Payment Status
+  payment: {
+    status: {
+      type: String,
+      enum: ['unpaid', 'pending', 'paid', 'failed', 'refunded'],
+      default: 'unpaid',
+    },
+    method: {
+      type: String,
+      enum: ['student_credit', 'card', 'campus_card', 'cash', 'dev'],
+      default: 'student_credit',
+    },
+    transactionId: {
+      type: String,
+      trim: true,
+    },
+    paidAt: {
+      type: Date,
+    },
+  },
+  
+  // Job History
+  timing: {
+    submittedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    startedAt: {
+      type: Date,
+    },
+    completedAt: {
+      type: Date,
+    },
+  },
   misprint: {
     type: Boolean,
     default: false,
@@ -107,6 +165,8 @@ const printJobSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'PrintJob',
   },
+  
+  // Additional Fields
   notes: {
     type: String,
     trim: true,
@@ -116,6 +176,39 @@ const printJobSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  payment: {
+    amount: {
+      type: Number,
+      default: 0,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'completed', 'failed', 'refunded'],
+      default: 'pending',
+    },
+    razorpayOrderId: {
+      type: String,
+      sparse: true, // Allow null values but create index for non-null values
+    },
+    razorpayPaymentId: {
+      type: String,
+      sparse: true,
+    },
+    razorpaySignature: {
+      type: String,
+      sparse: true,
+    },
+    paidAt: {
+      type: Date,
+    },
+    refundedAt: {
+      type: Date,
+    },
+    refundAmount: {
+      type: Number,
+      default: 0,
+    },
+  },
 }, {
   timestamps: true,
 });
@@ -123,11 +216,13 @@ const printJobSchema = new mongoose.Schema({
 // Indexes for better query performance
 printJobSchema.index({ clerkUserId: 1, status: 1 });
 printJobSchema.index({ printerId: 1, status: 1 });
+printJobSchema.index({ 'payment.razorpayOrderId': 1 });
+printJobSchema.index({ 'payment.status': 1 });
 printJobSchema.index({ status: 1, createdAt: -1 });
 printJobSchema.index({ queuePosition: 1 });
 
 // Pre-save middleware to calculate total cost
-printJobSchema.pre('save', function(next) {
+printJobSchema.pre('save', function (next) {
   if (this.isModified('cost') || this.isNew) {
     this.cost.totalCost = this.cost.baseCost + this.cost.colorCost + this.cost.paperCost;
   }
@@ -135,34 +230,34 @@ printJobSchema.pre('save', function(next) {
 });
 
 // Virtual for estimated pages (simple calculation)
-printJobSchema.virtual('estimatedPages').get(function() {
+printJobSchema.virtual('estimatedPages').get(function () {
   if (this.settings.pages === 'all') {
     return 1; // Default assumption, should be calculated from actual file
   }
-  
+
   const pages = this.settings.pages;
   if (pages.includes('-')) {
     const [start, end] = pages.split('-').map(Number);
     return Math.max(0, end - start + 1);
   }
-  
+
   if (pages.includes(',')) {
     return pages.split(',').length;
   }
-  
+
   return 1;
 });
 
 // Virtual for total estimated cost
-printJobSchema.virtual('estimatedTotalCost').get(function() {
+printJobSchema.virtual('estimatedTotalCost').get(function () {
   const pages = this.estimatedPages;
   const copies = this.settings.copies;
-  
+
   // Base cost calculation (these should come from printer settings)
   const baseCostPerPage = 0.10; // $0.10 per page
   const colorMultiplier = this.settings.color ? 3 : 1; // Color costs 3x more
   const paperMultiplier = this.settings.paperType === 'A3' ? 2 : 1;
-  
+
   return pages * copies * baseCostPerPage * colorMultiplier * paperMultiplier;
 });
 

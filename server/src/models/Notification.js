@@ -13,7 +13,7 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['job_completed', 'job_failed', 'reprint', 'queue_update', 'maintenance', 'system', 'payment'],
+    enum: ['job_completed', 'job_failed', 'reprint', 'queue_update', 'maintenance', 'system', 'payment', 'new_print_job', 'job_submitted'],
     required: true,
     index: true,
   },
@@ -127,6 +127,10 @@ notificationSchema.virtual('timeAgo').get(function() {
   if (minutes > 0) return `${minutes}m ago`;
   return 'Just now';
 });
+
+// Compound indexes for better performance
+notificationSchema.index({ clerkUserId: 1, createdAt: -1 });
+notificationSchema.index({ clerkUserId: 1, read: 1, createdAt: -1 });
 
 // Ensure virtual fields are serialized
 notificationSchema.set('toJSON', { virtuals: true });

@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const connectDB = require('./config/database');
 const { errorHandler, notFound } = require('./middleware/errorMiddleware');
+const { startAllSchedulers } = require('./services/printScheduler');
 
 // Import routes
 const userRoutes = require('./routes/userRoutes');
@@ -17,6 +18,8 @@ const adminLogRoutes = require('./routes/adminLogRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const studentRoutes = require('./routes/studentRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const webhookRoutes = require('./routes/webhookRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -106,6 +109,10 @@ app.use('/api/admin-logs', adminLogRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/students', studentRoutes);
+app.use('/api/payments', paymentRoutes);
+
+// Webhook routes (no rate limiting for webhooks)
+app.use('/webhooks', webhookRoutes);
 
 console.log('✅ All API routes registered successfully');
 console.log('📍 Admin routes available at: /api/admin/*');
@@ -135,6 +142,9 @@ app.listen(PORT, () => {
   console.log(`🌐 CORS Origins: Multiple localhost ports`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`📦 MongoDB Connected: localhost`);
+  
+  // Start background schedulers for print job processing
+  startAllSchedulers();
 });
 
 module.exports = app;

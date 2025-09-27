@@ -12,8 +12,8 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
 import { SpecialPaperAlert } from "@/components/SpecialPaperAlert";
 import { useNavigate } from "react-router-dom";
-import { usePrintJob } from "@/context/PrintJobContext";
-import { Calculator, FileText, DollarSign, Copy } from "lucide-react";
+import { usePrintJobContext } from "@/hooks/usePrintJobContext";
+import { Calculator, FileText, Copy } from "lucide-react";
 
 interface PrintSettings {
   pageRange: string;
@@ -30,13 +30,13 @@ interface FileSettings {
 
 export default function PrintSettings() {
   const navigate = useNavigate();
-  const { jobData, updateJobData } = usePrintJob();
+  const { files, updateFileSettings: updateContextFileSettings } = usePrintJobContext();
   const [activeTab, setActiveTab] = useState<string>("");
   const [showSpecialPaperAlert, setShowSpecialPaperAlert] = useState(false);
   const [specialPaperType, setSpecialPaperType] = useState<"A3" | "certificate" | "photo" | "cardstock">("A3");
   
-  // Get selected files from context or use fallback
-  const selectedFiles = jobData.selectedFiles || [];
+  // Get selected files from flow context
+  const selectedFiles = files || [];
   
   // Initialize settings for each file
   const [fileSettings, setFileSettings] = useState<FileSettings>(() => {
@@ -103,9 +103,10 @@ export default function PrintSettings() {
     const settings = fileSettings[fileId];
     if (!file || !settings) return { perPage: 0, total: 0, pages: 0 };
 
+    // INR pricing: ₹1 per page for all types
     const baseCosts = {
-      blackwhite: { regular: 0.10, photo: 0.25, cardstock: 0.15, transparency: 0.30 },
-      color: { regular: 0.25, photo: 0.50, cardstock: 0.35, transparency: 0.60 }
+      blackwhite: { regular: 1.00, photo: 1.00, cardstock: 1.00, transparency: 1.00 },
+      color: { regular: 1.00, photo: 1.00, cardstock: 1.00, transparency: 1.00 }
     };
 
     const paperSizeMultiplier = {
@@ -138,8 +139,19 @@ export default function PrintSettings() {
   };
 
   const handleContinue = () => {
-    // Save all file settings to context and navigate to printer selection
-    updateJobData({ settings: fileSettings });
+    // Save all file settings to flow context
+    selectedFiles.forEach(file => {
+      const settings = fileSettings[file.id];
+      if (settings) {
+        updateContextFileSettings(file.id, {
+          pages: settings.pageRange,
+          copies: settings.copies,
+          color: settings.colorMode === 'color',
+          duplex: settings.duplex === 'double',
+          paperType: settings.paperSize as 'A4' | 'A3' | 'Letter' | 'Legal' | 'Certificate',
+        });
+      }
+    });
     navigate("/select-printer");
   };
 
@@ -360,7 +372,7 @@ export default function PrintSettings() {
                             </div>
                             <div className="flex justify-between text-sm">
                               <span>Cost per page:</span>
-                              <span>${cost.perPage.toFixed(2)}</span>
+                              <span>₹{cost.perPage.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                               <span>Color mode:</span>
@@ -375,8 +387,7 @@ export default function PrintSettings() {
                           <div className="flex justify-between font-medium">
                             <span>Total for this file:</span>
                             <span className="flex items-center gap-1">
-                              <DollarSign className="h-4 w-4" />
-                              {cost.total.toFixed(2)}
+                              ₹{cost.total.toFixed(2)}
                             </span>
                           </div>
                         </CardContent>
@@ -400,8 +411,7 @@ export default function PrintSettings() {
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-green-800 flex items-center gap-1">
-                    <DollarSign className="h-5 w-5" />
-                    {calculateTotalCost().toFixed(2)}
+                    ₹{calculateTotalCost().toFixed(2)}
                   </div>
                 </div>
               </div>
@@ -429,7 +439,11 @@ export default function PrintSettings() {
           // Continue with current settings
         }}
         paperType={specialPaperType}
-        estimatedDelay={specialPaperType === "A3" ? 30 : specialPaperType === "certificate" ? 20 : 15}
+        estimatedDelay={(() => {
+          if (specialPaperType === "A3") return 30;
+          if (specialPaperType === "certificate") return 20;
+          return 15;
+        })()}
         files={selectedFiles.map(file => ({
           name: file.name,
           pages: file.pages
