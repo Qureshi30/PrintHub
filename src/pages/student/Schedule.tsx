@@ -1,4 +1,5 @@
 import { useState } from "react";
+import MobileSidebar from "@/components/layout/MobileSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -93,6 +94,7 @@ export default function Schedule() {
 
   return (
     <ProtectedRoute>
+      <MobileSidebar />
       <div className="container mx-auto py-8 px-4">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header */}
@@ -262,7 +264,7 @@ export default function Schedule() {
                   <div className="flex items-center gap-2 pt-2 border-t border-green-200">
                     <FileText className="h-4 w-4 text-green-700" />
                     <span className="text-sm text-green-700">
-                      3 documents • 15 total pages • $4.50 estimated cost
+                      3 documents • 15 total pages • ₹30.00 estimated cost
                     </span>
                   </div>
                 </div>
@@ -286,7 +288,6 @@ export default function Schedule() {
                     <span className="text-sm font-medium">Important Notes</span>
                   </div>
                   <ul className="text-sm text-yellow-700 mt-1 space-y-1">
-                    <li>• Please arrive 5 minutes before your scheduled time</li>
                     <li>• Bring student ID for verification</li>
                     <li>• Jobs not collected within 24 hours will be discarded</li>
                   </ul>

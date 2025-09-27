@@ -1,17 +1,33 @@
 const mongoose = require('mongoose');
 
 const printJobSchema = new mongoose.Schema({
+  // User Details
   clerkUserId: {
     type: String,
     required: true,
     index: true,
+    alias: 'userId', // Also available as userId for easier access
   },
+  userName: {
+    type: String,
+    trim: true,
+    maxlength: 100,
+  },
+  userEmail: {
+    type: String,
+    trim: true,
+    lowercase: true,
+  },
+  
+  // Printer Details
   printerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Printer',
     required: true,
     index: true,
   },
+  
+  // File Details
   file: {
     cloudinaryUrl: {
       type: String,
@@ -24,6 +40,7 @@ const printJobSchema = new mongoose.Schema({
     originalName: {
       type: String,
       required: true,
+      alias: 'originalFileName', // Also available as originalFileName
     },
     format: {
       type: String,
@@ -34,6 +51,8 @@ const printJobSchema = new mongoose.Schema({
       required: true,
     },
   },
+  
+  // Print Settings
   settings: {
     pages: {
       type: String,
@@ -60,9 +79,11 @@ const printJobSchema = new mongoose.Schema({
       default: 'A4',
     },
   },
+  
+  // Queue & Status
   status: {
     type: String,
-    enum: ['pending', 'queued', 'printing', 'completed', 'failed', 'cancelled'],
+    enum: ['pending', 'queued', 'in-progress', 'printing', 'completed', 'failed', 'cancelled'],
     default: 'pending',
     index: true,
   },
@@ -76,6 +97,8 @@ const printJobSchema = new mongoose.Schema({
   actualCompletionTime: {
     type: Date,
   },
+  
+  // Cost Details
   cost: {
     baseCost: {
       type: Number,
@@ -94,6 +117,41 @@ const printJobSchema = new mongoose.Schema({
       default: 0,
     },
   },
+  
+  // Payment Status
+  payment: {
+    status: {
+      type: String,
+      enum: ['unpaid', 'pending', 'paid', 'failed', 'refunded'],
+      default: 'unpaid',
+    },
+    method: {
+      type: String,
+      enum: ['student_credit', 'card', 'campus_card', 'cash', 'dev'],
+      default: 'student_credit',
+    },
+    transactionId: {
+      type: String,
+      trim: true,
+    },
+    paidAt: {
+      type: Date,
+    },
+  },
+  
+  // Job History
+  timing: {
+    submittedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    startedAt: {
+      type: Date,
+    },
+    completedAt: {
+      type: Date,
+    },
+  },
   misprint: {
     type: Boolean,
     default: false,
@@ -107,6 +165,8 @@ const printJobSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'PrintJob',
   },
+  
+  // Additional Fields
   notes: {
     type: String,
     trim: true,
