@@ -1,69 +1,196 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
-import { useNavigate } from "react-router-dom";
-import { 
-  CreditCard, 
-  Smartphone, 
-  Shield, 
-  CheckCircle, 
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "@clerk/clerk-react";
+import { useToast } from "@/hooks/use-toast";
+import {
+  CreditCard,
+  Smartphone,
+  Shield,
+  CheckCircle,
   Clock,
   AlertCircle,
   FileText,
-  DollarSign
+  DollarSign,
+  Loader2
 } from "lucide-react";
+
+// Declare Razorpay types
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
+// Declare Razorpay global
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 export default function Payment() {
   const navigate = useNavigate();
-  const [selectedMethod, setSelectedMethod] = useState<string>("");
+  const [searchParams] = useSearchParams();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  const [selectedMethod, setSelectedMethod] = useState<string>("razorpay");
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<"pending" | "processing" | "success" | "failed">("pending");
+  const [paymentInfo, setPaymentInfo] = useState({
+    amount: 0,
+    jobId: "",
+    fileName: "",
+    breakdown: "",
+    printJobId: ""
+  });
 
-  // Mock payment info
-  const paymentInfo = {
-    amount: 1.50,
-    jobId: "PJ-2024-001",
-    fileName: "Assignment_Final.pdf",
-    breakdown: "15 pages × 1 copy × $0.10 = $1.50"
-  };
+  // Get payment details from URL params
+  useEffect(() => {
+    const amount = parseFloat(searchParams.get('amount') || '0');
+    const jobId = searchParams.get('jobId') || '';
+    const fileName = searchParams.get('fileName') || '';
+    const printJobId = searchParams.get('printJobId') || '';
+    const pages = searchParams.get('pages') || '1';
+    const copies = searchParams.get('copies') || '1';
+
+    setPaymentInfo({
+      amount,
+      jobId,
+      fileName,
+      printJobId,
+      breakdown: `${pages} pages × ${copies} copies × ₹${(amount / (parseInt(pages) * parseInt(copies))).toFixed(2)} = ₹${amount.toFixed(2)}`
+    });
+  }, [searchParams]);
 
   const paymentMethods = [
     {
-      id: "upi",
-      name: "UPI Payment",
-      description: "Pay using Google Pay, PhonePe, Paytm",
-      icon: Smartphone,
-      popular: true
-    },
-    {
-      id: "card",
-      name: "Credit/Debit Card",
-      description: "Visa, Mastercard, RuPay",
+      id: "razorpay",
+      name: "Razorpay Payment",
+      description: "UPI, Cards, Net Banking, Wallets",
       icon: CreditCard,
-      popular: false
+      popular: true
     }
   ];
 
+  // Load Razorpay script
+  const loadRazorpayScript = () => {
+    return new Promise<boolean>((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handlePayment = async () => {
-    if (!selectedMethod) return;
-    
+    if (!selectedMethod) {
+      toast.error("Please select a payment method");
+      return;
+    }
+
     setIsProcessing(true);
     setPaymentStatus("processing");
-    
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Simulate success (90% success rate)
-    const success = Math.random() > 0.1;
-    
-    if (success) {
-      setPaymentStatus("success");
-    } else {
+
+    try {
+      // Load Razorpay script
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        throw new Error("Failed to load Razorpay");
+      }
+
+      // Create order on backend
+      const orderResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/payments/create-order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user?.id || ''}`,
+        },
+        body: JSON.stringify({
+          amount: paymentInfo.amount,
+          printJobId: paymentInfo.printJobId,
+        }),
+      });
+
+      if (!orderResponse.ok) {
+        throw new Error('Failed to create order');
+      }
+
+      const orderData = await orderResponse.json();
+
+      // Configure Razorpay options
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: orderData.amount,
+        currency: "INR",
+        name: "PrintHub",
+        description: `Payment for ${paymentInfo.fileName}`,
+        order_id: orderData.id,
+        handler: async function (response: any) {
+          try {
+            // Verify payment
+            const verifyResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/payments/verify-payment`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user?.id || ''}`,
+              },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                printJobId: paymentInfo.printJobId,
+              }),
+            });
+
+            if (!verifyResponse.ok) {
+              throw new Error('Payment verification failed');
+            }
+
+            setPaymentStatus("success");
+            toast.success("Payment successful!");
+          } catch (error) {
+            console.error('Payment verification failed:', error);
+            setPaymentStatus("failed");
+            toast.error("Payment verification failed. Please contact support.");
+            setIsProcessing(false);
+          }
+        },
+        prefill: {
+          name: user?.fullName || '',
+          email: user?.emailAddresses?.[0]?.emailAddress || '',
+        },
+        theme: {
+          color: "#3B82F6"
+        },
+        modal: {
+          ondismiss: function () {
+            setIsProcessing(false);
+            setPaymentStatus("pending");
+            toast.error("Payment cancelled");
+          }
+        }
+      };
+
+      const paymentObject = new window.Razorpay(options);
+      paymentObject.open();
+
+    } catch (error) {
+      console.error('Payment failed:', error);
       setPaymentStatus("failed");
+      toast.error("Payment failed. Please try again.");
       setIsProcessing(false);
     }
   };
@@ -139,7 +266,7 @@ export default function Payment() {
       <div className="container mx-auto py-8 px-4">
         <div className="max-w-4xl mx-auto space-y-6">
           <PrintFlowBreadcrumb currentStep="/payment" />
-          
+
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold tracking-tight text-blue-600">
               Payment
@@ -197,13 +324,12 @@ export default function Payment() {
                   {paymentMethods.map((method) => {
                     const Icon = method.icon;
                     return (
-                      <div 
+                      <div
                         key={method.id}
-                        className={`p-4 border rounded-lg cursor-pointer transition-all w-full text-left ${
-                          selectedMethod === method.id 
-                            ? "border-blue-500 bg-blue-50" 
+                        className={`p-4 border rounded-lg cursor-pointer transition-all w-full text-left ${selectedMethod === method.id
+                            ? "border-blue-500 bg-blue-50"
                             : "border-gray-200 hover:border-gray-300"
-                        }`}
+                          }`}
                         onClick={() => setSelectedMethod(method.id)}
                       >
                         <div className="flex items-center justify-between">
@@ -221,11 +347,10 @@ export default function Payment() {
                               </div>
                             </div>
                           </div>
-                          <div className={`w-4 h-4 rounded-full border-2 ${
-                            selectedMethod === method.id 
-                              ? "border-blue-500 bg-blue-500" 
+                          <div className={`w-4 h-4 rounded-full border-2 ${selectedMethod === method.id
+                              ? "border-blue-500 bg-blue-500"
                               : "border-gray-300"
-                          }`}>
+                            }`}>
                             {selectedMethod === method.id && (
                               <div className="w-full h-full rounded-full bg-white scale-50"></div>
                             )}
@@ -268,16 +393,16 @@ export default function Payment() {
 
           {/* Action Buttons */}
           <div className="flex gap-4">
-            <Button 
-              variant="outline" 
-              onClick={() => navigate(-1)} 
+            <Button
+              variant="outline"
+              onClick={() => navigate(-1)}
               className="flex-1"
               disabled={isProcessing}
             >
               Back
             </Button>
-            <Button 
-              onClick={handlePayment} 
+            <Button
+              onClick={handlePayment}
               className="flex-1 bg-gradient-hero"
               disabled={!selectedMethod || isProcessing}
             >

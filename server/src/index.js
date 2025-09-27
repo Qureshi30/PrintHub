@@ -17,6 +17,8 @@ const adminLogRoutes = require('./routes/adminLogRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const studentRoutes = require('./routes/studentRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const webhookRoutes = require('./routes/webhookRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -106,6 +108,10 @@ app.use('/api/admin-logs', adminLogRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/students', studentRoutes);
+app.use('/api/payments', paymentRoutes);
+
+// Webhook routes (no rate limiting for webhooks)
+app.use('/webhooks', webhookRoutes);
 
 console.log('✅ All API routes registered successfully');
 console.log('📍 Admin routes available at: /api/admin/*');

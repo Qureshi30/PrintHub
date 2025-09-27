@@ -116,6 +116,39 @@ const printJobSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  payment: {
+    amount: {
+      type: Number,
+      default: 0,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'completed', 'failed', 'refunded'],
+      default: 'pending',
+    },
+    razorpayOrderId: {
+      type: String,
+      sparse: true, // Allow null values but create index for non-null values
+    },
+    razorpayPaymentId: {
+      type: String,
+      sparse: true,
+    },
+    razorpaySignature: {
+      type: String,
+      sparse: true,
+    },
+    paidAt: {
+      type: Date,
+    },
+    refundedAt: {
+      type: Date,
+    },
+    refundAmount: {
+      type: Number,
+      default: 0,
+    },
+  },
 }, {
   timestamps: true,
 });
@@ -123,11 +156,13 @@ const printJobSchema = new mongoose.Schema({
 // Indexes for better query performance
 printJobSchema.index({ clerkUserId: 1, status: 1 });
 printJobSchema.index({ printerId: 1, status: 1 });
+printJobSchema.index({ 'payment.razorpayOrderId': 1 });
+printJobSchema.index({ 'payment.status': 1 });
 printJobSchema.index({ status: 1, createdAt: -1 });
 printJobSchema.index({ queuePosition: 1 });
 
 // Pre-save middleware to calculate total cost
-printJobSchema.pre('save', function(next) {
+printJobSchema.pre('save', function (next) {
   if (this.isModified('cost') || this.isNew) {
     this.cost.totalCost = this.cost.baseCost + this.cost.colorCost + this.cost.paperCost;
   }
@@ -135,34 +170,34 @@ printJobSchema.pre('save', function(next) {
 });
 
 // Virtual for estimated pages (simple calculation)
-printJobSchema.virtual('estimatedPages').get(function() {
+printJobSchema.virtual('estimatedPages').get(function () {
   if (this.settings.pages === 'all') {
     return 1; // Default assumption, should be calculated from actual file
   }
-  
+
   const pages = this.settings.pages;
   if (pages.includes('-')) {
     const [start, end] = pages.split('-').map(Number);
     return Math.max(0, end - start + 1);
   }
-  
+
   if (pages.includes(',')) {
     return pages.split(',').length;
   }
-  
+
   return 1;
 });
 
 // Virtual for total estimated cost
-printJobSchema.virtual('estimatedTotalCost').get(function() {
+printJobSchema.virtual('estimatedTotalCost').get(function () {
   const pages = this.estimatedPages;
   const copies = this.settings.copies;
-  
+
   // Base cost calculation (these should come from printer settings)
   const baseCostPerPage = 0.10; // $0.10 per page
   const colorMultiplier = this.settings.color ? 3 : 1; // Color costs 3x more
   const paperMultiplier = this.settings.paperType === 'A3' ? 2 : 1;
-  
+
   return pages * copies * baseCostPerPage * colorMultiplier * paperMultiplier;
 });
 
