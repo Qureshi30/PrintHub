@@ -12,14 +12,38 @@ router.get('/dashboard-stats', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     console.log(`📊 Student dashboard stats requested by: ${req.user.fullName} (${req.user.email})`);
-    
-    // In a real app, you'd fetch actual stats from your database based on userId
+
+    // Get user's print jobs to calculate real statistics
+    const printJobs = await PrintJob.find({ clerkUserId: userId });
+
+    // Calculate pending jobs (queued, printing, payment_verified)
+    const pendingJobs = printJobs.filter(job =>
+      ['queued', 'printing', 'payment_verified', 'pending'].includes(job.status)
+    ).length;
+
+    // Calculate completed jobs
+    const completedJobs = printJobs.filter(job => job.status === 'completed').length;
+
+    // Calculate total spent from completed and paid jobs
+    const totalSpent = printJobs
+      .filter(job => job.payment && job.payment.status === 'completed')
+      .reduce((sum, job) => sum + (job.payment.amount || 0), 0);
+
+    // Get available printers count (this is system-wide, not user-specific)
+    const Printer = require('../models/Printer');
+    const availablePrintersCount = await Printer.countDocuments({
+      status: 'online',
+      isActive: true
+    });
+
     const stats = {
-      pendingJobs: 2,
-      completedJobs: 15,
-      totalSpent: 47.25,
-      availablePrinters: 6
+      pendingJobs,
+      completedJobs,
+      totalSpent: Math.round(totalSpent * 100) / 100, // Round to 2 decimal places
+      availablePrinters: availablePrintersCount
     };
+
+    console.log(`✅ Dashboard stats for ${req.user.fullName}:`, stats);
 
     res.json({
       success: true,
@@ -45,7 +69,7 @@ router.get('/dashboard-stats', requireAuth, async (req, res) => {
 router.get('/profile', requireAuth, async (req, res) => {
   try {
     const user = req.user;
-    
+
     res.json({
       success: true,
       data: {
@@ -77,13 +101,13 @@ router.get('/print-jobs', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     console.log(`🖨️ Fetching print jobs for student: ${userId}`);
-    
+
     const printJobs = await PrintJob.find({ clerkUserId: userId })
       .populate('printerId', 'name location')
       .sort({ createdAt: -1 });
 
     console.log(`✅ Found ${printJobs.length} print jobs for student: ${userId}`);
-    
+
     res.json({
       success: true,
       data: printJobs

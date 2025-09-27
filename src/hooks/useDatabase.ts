@@ -217,27 +217,38 @@ export const useDashboardStats = (userId?: string) => {
   const [error, setError] = useState<string | null>(null);
   const { getToken } = useAuth();
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const authFetch = createAuthenticatedFetch(getToken);
-        const response = await authFetch('/students/dashboard-stats');
-        setStats(response.data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch dashboard stats');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchStats = useCallback(async () => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
 
-    if (userId) {
-      fetchStats();
-    } else {
+    try {
+      setLoading(true);
+      setError(null);
+      const authFetch = createAuthenticatedFetch(getToken);
+      const response = await authFetch('/students/dashboard-stats');
+
+      console.log('📊 Dashboard stats received:', response.data);
+      setStats(response.data);
+    } catch (err) {
+      console.error('❌ Dashboard stats error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch dashboard stats');
+    } finally {
       setLoading(false);
     }
   }, [userId, getToken]);
 
-  return { stats, loading, error };
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  // Return refresh function for manual updates
+  const refresh = useCallback(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  return { stats, loading, error, refresh };
 };
 
 export const useAllUsers = () => {
