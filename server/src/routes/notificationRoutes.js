@@ -202,7 +202,7 @@ router.delete('/:id',
 router.post('/',
   [
     body('clerkUserId').notEmpty().withMessage('User ID is required'),
-    body('type').isIn(['job_completed', 'job_failed', 'reprint', 'queue_update', 'maintenance', 'system', 'payment']).withMessage('Invalid notification type'),
+    body('type').isIn(['job_completed', 'job_failed', 'reprint', 'queue_update', 'maintenance', 'system', 'payment', 'new_print_job', 'job_submitted']).withMessage('Invalid notification type'),
     body('title').notEmpty().trim().isLength({ max: 100 }).withMessage('Title is required and must be under 100 characters'),
     body('message').notEmpty().trim().isLength({ max: 500 }).withMessage('Message is required and must be under 500 characters'),
     body('priority').optional().isIn(['low', 'medium', 'high', 'urgent']),

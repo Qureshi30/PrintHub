@@ -62,6 +62,7 @@ export interface User {
 export interface PrintJobFile {
   cloudinaryUrl: string;
   publicId: string;
+  originalName: string;
   format: string;
   sizeKB: number;
 }
@@ -86,13 +87,13 @@ export interface PrintJobPayment {
   status: 'pending' | 'paid' | 'refunded';
   method: 'student_credit' | 'card' | 'campus_card';
   transactionId: string;
-  paidAt: Date;
+  paidAt: string;
 }
 
 export interface PrintJobTiming {
-  submittedAt: Date;
-  startedAt?: Date;
-  completedAt?: Date;
+  submittedAt: string;
+  startedAt?: string;
+  completedAt?: string;
   totalProcessingTime?: number;
 }
 
@@ -102,16 +103,16 @@ export interface PrintJob {
   printerId: string;
   file: PrintJobFile;
   settings: PrintSettings;
-  status: 'pending' | 'queued' | 'printing' | 'completed' | 'failed' | 'cancelled';
+  status: 'queued' | 'printing' | 'completed' | 'failed' | 'cancelled';
   queuePosition?: number;
-  estimatedCompletionTime?: Date;
+  estimatedCompletionTime?: string;
   pricing?: PrintJobPricing;
   payment?: PrintJobPayment;
   timing?: PrintJobTiming;
   misprint: boolean;
   reprintCount: number;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Printer types
@@ -234,7 +235,7 @@ export interface AdminLogMetadata {
   userEmail?: string;
   oldValue?: string;
   newValue?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Financial Transaction types

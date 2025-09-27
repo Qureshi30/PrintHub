@@ -1,9 +1,11 @@
 import { useState } from "react";
+import MobileSidebar from "@/components/layout/MobileSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@clerk/clerk-react";
 import { useUserNotifications, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from "@/hooks/useDatabase";
 import { 
   Bell, 
@@ -13,21 +15,21 @@ import {
   Clock, 
   Printer,
   FileText,
-  RefreshCw,
-  Trash2
+  RefreshCw
 } from "lucide-react";
 
 export default function Notifications() {
   const { toast } = useToast();
+  const { userId } = useAuth();
   const [filter, setFilter] = useState<"all" | "unread" | "action_required">("all");
   
-  // Use mock hooks
-  const { notifications, loading: isLoading, error } = useUserNotifications();
+  // Use hooks with user ID
+  const { notifications, loading: isLoading, error } = useUserNotifications(userId || undefined);
   const markAsReadMutation = useMarkNotificationAsRead();
   const markAllAsReadMutation = useMarkAllNotificationsAsRead();
 
   const handleMarkAsRead = (notificationId: string) => {
-    markAsReadMutation.mutate();
+    markAsReadMutation.mutate(notificationId);
     toast({
       title: "Notification marked as read",
       description: "The notification has been marked as read.",
@@ -35,11 +37,13 @@ export default function Notifications() {
   };
 
   const handleMarkAllAsRead = () => {
-    markAllAsReadMutation.mutate();
-    toast({
-      title: "All notifications marked as read",
-      description: "All notifications have been marked as read.",
-    });
+    if (userId) {
+      markAllAsReadMutation.mutate(userId);
+      toast({
+        title: "All notifications marked as read",
+        description: "All notifications have been marked as read.",
+      });
+    }
   };
 
   const getNotificationIcon = (type: string) => {
@@ -103,6 +107,7 @@ export default function Notifications() {
 
   return (
     <ProtectedRoute>
+      <MobileSidebar />
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Notifications</h1>
@@ -167,7 +172,7 @@ export default function Notifications() {
           ) : (
             filteredNotifications.map((notification) => (
               <Card 
-                key={notification.id} 
+                key={notification._id} 
                 className={`transition-all duration-200 hover:shadow-md ${
                   !notification.read ? 'border-blue-200 bg-blue-50/50' : ''
                 }`}
@@ -198,7 +203,7 @@ export default function Notifications() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleMarkAsRead(notification.id)}
+                              onClick={() => handleMarkAsRead(notification._id)}
                               disabled={markAsReadMutation.isLoading}
                             >
                               {markAsReadMutation.isLoading ? (
