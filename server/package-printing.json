@@ -1,0 +1,47 @@
+{
+  "name": "printhub-server-printing",
+  "version": "1.0.0",
+  "description": "PrintHub Server-Side Printing Service with pdf-to-printer",
+  "main": "printServer.js",
+  "scripts": {
+    "start": "node printServer.js",
+    "dev": "nodemon printServer.js",
+    "test": "echo \"No tests specified\" && exit 0",
+    "install-deps": "npm install",
+    "print-test": "node -e \"const { testPrint } = require('./src/utils/printerUtils'); testPrint().then(console.log).catch(console.error);\""
+  },
+  "keywords": [
+    "printing",
+    "pdf-to-printer",
+    "express",
+    "mongodb",
+    "cloudinary",
+    "razorpay"
+  ],
+  "author": "PrintHub Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^7.5.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "axios": "^1.5.0",
+    "pdf-to-printer": "^5.6.0",
+    "node-cron": "^3.0.2",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Qureshi30/PrintHub.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Qureshi30/PrintHub/issues"
+  },
+  "homepage": "https://github.com/Qureshi30/PrintHub#readme"
+}

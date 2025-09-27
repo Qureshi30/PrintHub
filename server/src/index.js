@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const connectDB = require('./config/database');
 const { errorHandler, notFound } = require('./middleware/errorMiddleware');
+const { startAllSchedulers } = require('./services/printScheduler');
 
 // Import routes
 const userRoutes = require('./routes/userRoutes');
@@ -141,6 +142,9 @@ app.listen(PORT, () => {
   console.log(`🌐 CORS Origins: Multiple localhost ports`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`📦 MongoDB Connected: localhost`);
+  
+  // Start background schedulers for print job processing
+  startAllSchedulers();
 });
 
 module.exports = app;

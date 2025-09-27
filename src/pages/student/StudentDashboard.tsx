@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import MobileSidebar from "@/components/layout/MobileSidebar";
 import { useUser } from "@clerk/clerk-react";
 import { useDashboardStats } from "@/hooks/useDatabase";
 import { Button } from "@/components/ui/button";
@@ -45,7 +46,9 @@ export default function StudentDashboard() {
   }
 
   return (
-    <div className="flex-1">
+    <>
+      <MobileSidebar />
+      <div className="flex-1">
       {/* Dashboard Content */}
       <div className={`space-y-8 p-8 pt-16 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="flex items-center justify-between">
@@ -114,6 +117,6 @@ export default function StudentDashboard() {
           ))}
         </div>
       </div>
-    </div>
+    </>
   );
 }
