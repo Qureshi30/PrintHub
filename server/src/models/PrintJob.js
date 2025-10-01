@@ -176,6 +176,39 @@ const printJobSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  payment: {
+    amount: {
+      type: Number,
+      default: 0,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'completed', 'failed', 'refunded'],
+      default: 'pending',
+    },
+    razorpayOrderId: {
+      type: String,
+      sparse: true, // Allow null values but create index for non-null values
+    },
+    razorpayPaymentId: {
+      type: String,
+      sparse: true,
+    },
+    razorpaySignature: {
+      type: String,
+      sparse: true,
+    },
+    paidAt: {
+      type: Date,
+    },
+    refundedAt: {
+      type: Date,
+    },
+    refundAmount: {
+      type: Number,
+      default: 0,
+    },
+  },
 }, {
   timestamps: true,
 });
@@ -183,11 +216,13 @@ const printJobSchema = new mongoose.Schema({
 // Indexes for better query performance
 printJobSchema.index({ clerkUserId: 1, status: 1 });
 printJobSchema.index({ printerId: 1, status: 1 });
+printJobSchema.index({ 'payment.razorpayOrderId': 1 });
+printJobSchema.index({ 'payment.status': 1 });
 printJobSchema.index({ status: 1, createdAt: -1 });
 printJobSchema.index({ queuePosition: 1 });
 
 // Pre-save middleware to calculate total cost
-printJobSchema.pre('save', function(next) {
+printJobSchema.pre('save', function (next) {
   if (this.isModified('cost') || this.isNew) {
     this.cost.totalCost = this.cost.baseCost + this.cost.colorCost + this.cost.paperCost;
   }

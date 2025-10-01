@@ -13,49 +13,53 @@ router.get('/dashboard-stats', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     console.log(`📊 Student dashboard stats requested by: ${req.user.fullName} (${req.user.email})`);
-    
-    // Get real stats from database
-    const [pendingJobs, completedJobs, totalSpentResult, availablePrinters] = await Promise.all([
-      // Count pending jobs for this user
-      PrintJob.countDocuments({ 
-        clerkUserId: userId, 
-        status: { $in: ['pending', 'queued', 'printing'] } 
-      }),
-      
-      // Count completed jobs for this user
-      PrintJob.countDocuments({ 
-        clerkUserId: userId, 
-        status: 'completed' 
-      }),
-      
-      // Calculate total money spent by this user
-      PrintJob.aggregate([
-        { 
-          $match: { 
-            clerkUserId: userId, 
-            'payment.status': 'paid' 
-          } 
-        },
-        { 
-          $group: { 
-            _id: null, 
-            totalSpent: { $sum: '$pricing.totalCost' } 
-          } 
-        }
-      ]),
-      
-      // Count available (online) printers
-      Printer.countDocuments({ status: 'online' })
-    ]);
+// Get real stats from database
+const [pendingJobs, completedJobs, totalSpentResult, availablePrinters] = await Promise.all([
+  // Count pending jobs for this user
+  PrintJob.countDocuments({ 
+    clerkUserId: userId, 
+    status: { $in: ['pending', 'queued', 'printing', 'payment_verified'] } 
+  }),
 
+  // Count completed jobs for this user
+  PrintJob.countDocuments({ 
+    clerkUserId: userId, 
+    status: 'completed' 
+  }),
+
+  // Calculate total money spent by this user (only 'completed' payments)
+  PrintJob.aggregate([
+    { 
+      $match: { 
+        clerkUserId: userId, 
+        'payment.status': 'completed' 
+      } 
+    },
+    { 
+      $group: { 
+        _id: null, 
+        totalSpent: { $sum: { $ifNull: ['$payment.amount', 0] } } 
+      } 
+    }
+  ]),
+
+  // Count available (online & active) printers
+  Printer.countDocuments({ 
+    status: 'online', 
+    isActive: true 
+  })
+]);
+
+// Extract total spent value safely
+const totalSpent = totalSpentResult[0]?.totalSpent || 0;
     const stats = {
       pendingJobs,
       completedJobs,
-      totalSpent: totalSpentResult.length > 0 ? totalSpentResult[0].totalSpent : 0,
-      availablePrinters
+      totalSpent: Math.round(totalSpent * 100) / 100, // Round to 2 decimal places
+      availablePrinters: availablePrintersCount
     };
 
-    console.log(`📊 Dashboard stats for ${req.user.fullName}:`, stats);
+    console.log(`✅ Dashboard stats for ${req.user.fullName}:`, stats);
 
     res.json({
       success: true,
@@ -81,7 +85,7 @@ router.get('/dashboard-stats', requireAuth, async (req, res) => {
 router.get('/profile', requireAuth, async (req, res) => {
   try {
     const user = req.user;
-    
+
     res.json({
       success: true,
       data: {
@@ -113,13 +117,13 @@ router.get('/print-jobs', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     console.log(`🖨️ Fetching print jobs for student: ${userId}`);
-    
+
     const printJobs = await PrintJob.find({ clerkUserId: userId })
       .populate('printerId', 'name location')
       .sort({ createdAt: -1 });
 
     console.log(`✅ Found ${printJobs.length} print jobs for student: ${userId}`);
-    
+
     res.json({
       success: true,
       data: printJobs
