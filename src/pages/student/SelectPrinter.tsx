@@ -5,10 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
+import PrinterCompatibilityAlert from "@/components/PrinterCompatibilityAlert";
 import { useNavigate } from "react-router-dom";
 import { Printer, Clock, Users, CheckCircle, Loader2 } from "lucide-react";
 import { printerService, type PrinterStation } from "@/services/printerService";
 import { usePrintJobContext } from "@/hooks/usePrintJobContext";
+import { 
+  validatePrinterCompatibility, 
+  type PrinterCapabilities,
+  type PrintSettings as CompatibilityPrintSettings,
+  type CompatibilityResult
+} from "@/utils/printerCompatibility";
 
 export default function SelectPrinter() {
   const navigate = useNavigate();
@@ -16,6 +23,10 @@ export default function SelectPrinter() {
   const [printers, setPrinters] = useState<PrinterStation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [compatibilityResult, setCompatibilityResult] = useState<CompatibilityResult | null>(null);
+  const [showCompatibilityAlert, setShowCompatibilityAlert] = useState(false);
+  const [printerCapabilities, setPrinterCapabilities] = useState<PrinterCapabilities | null>(null);
+  const [hasIncompatibleSettings, setHasIncompatibleSettings] = useState(false);
   
   // Use PrintJob context
   const { selectPrinter, setCurrentStep } = usePrintJobContext();
@@ -41,8 +52,52 @@ export default function SelectPrinter() {
     fetchPrinters();
   }, [setCurrentStep]);
 
+  // Validate printer compatibility when printer is selected
+  useEffect(() => {
+    if (!selectedPrinterId) return;
+
+    const validateCompatibility = async () => {
+      try {
+        const selectedPrinter = printers.find(p => p.id === selectedPrinterId);
+        if (!selectedPrinter?.capabilities) return;
+
+        const capabilities: PrinterCapabilities = {
+          colorSupport: selectedPrinter.capabilities.color,
+          duplexSupport: selectedPrinter.capabilities.duplex,
+          supportedPaperTypes: selectedPrinter.capabilities.paperSizes,
+          maxCopies: 100,
+        };
+
+        setPrinterCapabilities(capabilities);
+
+        // Check if any files have incompatible default settings
+        const defaultSettings: CompatibilityPrintSettings = {
+          color: true, // Default to color
+          duplex: false, // Default to single-sided
+          paperType: 'A4', // Default paper type
+          copies: 1,
+        };
+
+        const result = validatePrinterCompatibility(defaultSettings, capabilities);
+        
+        if (result && !result.isCompatible) {
+          setCompatibilityResult(result);
+          setShowCompatibilityAlert(true);
+          setHasIncompatibleSettings(true);
+        } else {
+          setShowCompatibilityAlert(false);
+          setHasIncompatibleSettings(false);
+        }
+      } catch (error) {
+        console.error('Failed to validate printer compatibility:', error);
+      }
+    };
+
+    validateCompatibility();
+  }, [selectedPrinterId, printers]);
+
   const handleContinue = () => {
-    if (selectedPrinterId) {
+    if (selectedPrinterId && !hasIncompatibleSettings) {
       // Store selected printer in context
       const selectedPrinterData = printers.find(p => p.id === selectedPrinterId);
       if (selectedPrinterData) {
@@ -112,16 +167,43 @@ export default function SelectPrinter() {
             </div>
           )}
 
+          {/* Printer Compatibility Alert */}
+          {showCompatibilityAlert && compatibilityResult && printerCapabilities && (
+            <div className="mt-4">
+              <PrinterCompatibilityAlert
+                compatibilityResult={compatibilityResult}
+                printerName={printers.find(p => p.id === selectedPrinterId)?.name || "Selected Printer"}
+                currentSettings={{
+                  color: true,
+                  duplex: false, 
+                  paperType: 'A4',
+                  copies: 1,
+                }}
+                capabilities={printerCapabilities}
+              />
+            </div>
+          )}
+
           {!loading && !error && (
             <div className="grid gap-4 md:grid-cols-2">
-              {printers.map((printer) => (
-                <Card 
-                  key={printer.id}
-                  className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                    selectedPrinterId === printer.id ? "ring-2 ring-blue-500 bg-blue-50/50" : ""
-                  } ${printer.status !== "online" ? "opacity-60" : ""}`}
-                  onClick={() => printer.status === "online" && setSelectedPrinterId(printer.id)}
-                >
+              {printers.map((printer) => {
+                // Check if this printer is incompatible
+                const isIncompatible = selectedPrinterId === printer.id && hasIncompatibleSettings;
+                
+                // Determine ring classes based on selection and compatibility
+                let ringClasses = "";
+                if (selectedPrinterId === printer.id) {
+                  ringClasses = isIncompatible 
+                    ? "ring-2 ring-red-500 bg-red-50/50" 
+                    : "ring-2 ring-blue-500 bg-blue-50/50";
+                }
+                
+                return (
+                  <Card 
+                    key={printer.id}
+                    className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${ringClasses} ${printer.status !== "online" ? "opacity-60" : ""}`}
+                    onClick={() => printer.status === "online" && setSelectedPrinterId(printer.id)}
+                  >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
@@ -207,7 +289,8 @@ export default function SelectPrinter() {
                     )}
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -217,10 +300,10 @@ export default function SelectPrinter() {
             </Button>
             <Button 
               onClick={handleContinue} 
-              disabled={!selectedPrinterId}
+              disabled={!selectedPrinterId || hasIncompatibleSettings}
               className="flex-1 bg-gradient-hero"
             >
-              Continue to Confirmation
+              {hasIncompatibleSettings ? "Resolve Compatibility Issues" : "Continue to Confirmation"}
             </Button>
           </div>
         </div>

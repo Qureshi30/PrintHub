@@ -367,7 +367,22 @@ export const useCreatePrintJob = () => {
       });
       return response.data;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create print job';
+      let errorMessage = 'Failed to create print job';
+      
+      if (err instanceof Error) {
+        if (err.message.includes('Failed to fetch') || err.message.includes('ECONNREFUSED')) {
+          errorMessage = 'Cannot connect to server. Please check if the backend is running.';
+        } else if (err.message.includes('503') || err.message.includes('DATABASE_CONNECTION_ERROR')) {
+          errorMessage = 'Database connection issue. Please try again in a moment.';
+        } else if (err.message.includes('403')) {
+          errorMessage = 'Permission denied. Please check your authentication.';
+        } else if (err.message.includes('404')) {
+          errorMessage = 'Printer not found. Please select a different printer.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {

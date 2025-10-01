@@ -20,6 +20,41 @@ const validateRequest = (req, res, next) => {
   next();
 };
 
+// Debug endpoint to test auth
+router.get('/debug/:clerkUserId',
+  [
+    param('clerkUserId').notEmpty().withMessage('User ID is required'),
+    requireAuth,
+    validateUserAccess
+  ],
+  validateRequest,
+  async (req, res) => {
+    try {
+      const { clerkUserId } = req.params;
+      
+      res.json({
+        success: true,
+        debug: {
+          requestedUserId: clerkUserId,
+          authenticatedUserId: req.user?.id,
+          userRole: req.user?.role,
+          accessGranted: true
+        }
+      });
+    } catch (error) {
+      console.error('❌ Debug notifications error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          message: 'Debug failed',
+          code: 'DEBUG_ERROR',
+          details: error.message
+        }
+      });
+    }
+  }
+);
+
 // GET /api/notifications/user/:clerkUserId - Get user notifications
 router.get('/user/:clerkUserId',
   [
@@ -38,14 +73,19 @@ router.get('/user/:clerkUserId',
       const { read, type, page = 1, limit = 20 } = req.query;
       const skip = (page - 1) * limit;
 
+      console.log('🔔 Fetching notifications for user:', clerkUserId);
+      console.log('📋 Request params:', { read, type, page, limit });
+      console.log('👤 Authenticated user:', req.user?.id);
+
       // Build filter
       const filter = { clerkUserId };
       if (read !== undefined) filter.read = read;
       if (type) filter.type = type;
 
+      console.log('🔍 Filter:', filter);
+
       const [notifications, total, unreadCount] = await Promise.all([
         Notification.find(filter)
-          .populate('jobId', 'file.originalName status')
           .populate('metadata.printerId', 'name location')
           .sort({ createdAt: -1 })
           .skip(skip)
@@ -53,6 +93,8 @@ router.get('/user/:clerkUserId',
         Notification.countDocuments(filter),
         Notification.getUnreadCount(clerkUserId)
       ]);
+
+      console.log('📊 Results:', { notificationCount: notifications.length, total, unreadCount });
 
       res.json({
         success: true,

@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { usePrinters } from "@/hooks/useDatabase";
+import { AddPrinterDialog } from "@/components/admin/AddPrinterDialog";
+import { EditPrinterDialog } from "@/components/admin/EditPrinterDialog";
+import { DeletePrinterDialog } from "@/components/admin/DeletePrinterDialog";
 import { 
   Printer, 
   Plus, 
@@ -12,13 +16,76 @@ import {
   XCircle,
   Activity,
   Wrench,
-  MapPin
+  MapPin,
+  Edit,
+  Trash2
 } from "lucide-react";
 
+interface Printer {
+  _id: string;
+  name: string;
+  location: string;
+  status: string;
+  queue?: Array<unknown>;
+  supplies?: {
+    inkLevel?: {
+      black?: number;
+      cyan?: number;
+      magenta?: number;
+      yellow?: number;
+    };
+    paperLevel?: number;
+    tonerLevel?: number;
+  };
+  // Legacy properties for backward compatibility
+  inkLevel?: number;
+  paperLevel?: number;
+}
+
 export default function PrinterManagement() {
-  const { data: printers, isLoading } = usePrinters();
+  const { printers, loading } = usePrinters();
   
-  if (isLoading) {
+  // Dialog states
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedPrinter, setSelectedPrinter] = useState<Printer | null>(null);
+
+  // Event handlers
+  const handleAddPrinter = () => {
+    setAddDialogOpen(true);
+  };
+
+  const handleEditPrinter = (printer: Printer) => {
+    setSelectedPrinter(printer);
+    setEditDialogOpen(true);
+  };
+
+  const handleDeletePrinter = (printer: Printer) => {
+    setSelectedPrinter(printer);
+    setDeleteDialogOpen(true);
+  };
+
+  const refreshData = () => {
+    // Force a small delay then reload to ensure data is fresh
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
+  };
+
+  const handlePrinterAdded = () => {
+    refreshData();
+  };
+
+  const handlePrinterUpdated = () => {
+    refreshData();
+  };
+
+  const handlePrinterDeleted = () => {
+    refreshData();
+  };
+  
+  if (loading) {
     return (
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-center h-64">
@@ -28,9 +95,23 @@ export default function PrinterManagement() {
     );
   }
 
-  const printerList = printers?.data || [];
+  const printerList = printers || [];
   const onlinePrinters = printerList.filter(p => p.status === "online").length;
   const totalQueueSize = printerList.reduce((sum, p) => sum + (p.queue?.length || 0), 0);
+
+  const getInkLevel = (printer: Printer): number => {
+    if (printer.inkLevel !== undefined) return printer.inkLevel;
+    if (printer.supplies?.inkLevel) {
+      const { black, cyan, magenta, yellow } = printer.supplies.inkLevel;
+      const levels = [black, cyan, magenta, yellow].filter((level): level is number => level !== undefined);
+      return levels.length > 0 ? Math.min(...levels) : 0;
+    }
+    return 0;
+  };
+
+  const getPaperLevel = (printer: Printer): number => {
+    return printer.paperLevel ?? printer.supplies?.paperLevel ?? 0;
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -62,7 +143,7 @@ export default function PrinterManagement() {
             Monitor and manage all campus printers
           </p>
         </div>
-        <Button>
+        <Button onClick={handleAddPrinter}>
           <Plus className="h-4 w-4 mr-2" />
           Add Printer
         </Button>
@@ -102,7 +183,7 @@ export default function PrinterManagement() {
           <CardContent>
             <div className="text-2xl font-bold">
               {printerList.length > 0 ? 
-                Math.round(printerList.reduce((sum, p) => sum + (p.inkLevel || 0), 0) / printerList.length) : 0}%
+                Math.round(printerList.reduce((sum, p) => sum + getInkLevel(p), 0) / printerList.length) : 0}%
             </div>
             <p className="text-xs text-muted-foreground">Across all printers</p>
           </CardContent>
@@ -145,20 +226,25 @@ export default function PrinterManagement() {
                 <div className="text-right">
                   <div className="text-sm font-medium">Queue: {printer.queue?.length || 0}</div>
                   <div className="text-xs text-muted-foreground">
-                    Ink: {printer.inkLevel || 0}% | Paper: {printer.paperLevel || 0}%
+                    Ink: {getInkLevel(printer)}% | Paper: {getPaperLevel(printer)}%
                   </div>
                 </div>
                 
                 <div className="flex flex-col gap-1">
-                  <Progress value={printer.inkLevel || 0} className="w-20 h-2" />
-                  <Progress value={printer.paperLevel || 0} className="w-20 h-2" />
+                  <Progress value={getInkLevel(printer)} className="w-20 h-2" />
+                  <Progress value={getPaperLevel(printer)} className="w-20 h-2" />
                 </div>
                 
                 {getStatusBadge(printer.status)}
                 
-                <Button variant="outline" size="sm">
-                  <Settings className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleEditPrinter(printer)}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleDeletePrinter(printer)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
@@ -170,6 +256,28 @@ export default function PrinterManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog Components */}
+      <AddPrinterDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        onPrinterAdded={handlePrinterAdded}
+        existingPrinters={printerList.map(p => ({ name: p.name, _id: p._id }))}
+      />
+
+      <EditPrinterDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onPrinterUpdated={handlePrinterUpdated}
+        printer={selectedPrinter}
+      />
+
+      <DeletePrinterDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onPrinterDeleted={handlePrinterDeleted}
+        printer={selectedPrinter}
+      />
     </div>
   );
 }
