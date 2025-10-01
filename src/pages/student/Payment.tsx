@@ -121,6 +121,30 @@ export default function Payment() {
   const uploadFilesToCloudinary = async () => {
     setPaymentStatus("uploading");
     
+    console.log('🔍 uploadFilesToCloudinary called - DEBUGGING');
+    console.log('📁 Current files state:', files);
+    
+    // Add detailed debugging for each file
+    console.log('=== FILE DEBUGGING START ===');
+    files.forEach((file, index) => {
+      const sessionFile = getSessionFile(file.id);
+      console.log(`🔍 File ${index + 1}: ${file.name}`, {
+        id: file.id,
+        hasFileProperty: !!file.file,
+        hasSessionFile: !!sessionFile,
+        filePropertyType: file.file?.type,
+        sessionFileType: sessionFile?.type,
+        filePropertySize: file.file?.size,
+        sessionFileSize: sessionFile?.size,
+        cloudinaryUrl: file.cloudinaryUrl
+      });
+      
+      if (!file.file && !sessionFile) {
+        console.error(`❌ CRITICAL: File ${file.name} has NO file object and NO session file!`);
+      }
+    });
+    console.log('=== FILE DEBUGGING END ===');
+    
     try {
       const localFiles = files.filter(file => !file.cloudinaryUrl);
       
@@ -156,10 +180,21 @@ export default function Payment() {
         return;
       }
 
-      // Check if files have missing session files (the root cause we're fixing)
-      const filesWithoutSessionFile = localFiles.filter(f => !getSessionFile(f.id));
-      if (filesWithoutSessionFile.length > 0) {
-        console.error('❌ Missing session files detected:', filesWithoutSessionFile.map(f => f.name));
+      // Check if files have missing session files and try to recover from file property
+      const filesWithoutAnyFile = localFiles.filter(f => {
+        const sessionFile = getSessionFile(f.id);
+        const fileProperty = f.file;
+        console.log(`🔍 Checking file ${f.name}:`, {
+          hasSessionFile: !!sessionFile,
+          hasFileProperty: !!fileProperty,
+          sessionFileType: sessionFile?.type,
+          filePropertyType: fileProperty?.type
+        });
+        return !sessionFile && !fileProperty;
+      });
+      
+      if (filesWithoutAnyFile.length > 0) {
+        console.error('❌ Missing files detected (no session file or file property):', filesWithoutAnyFile.map(f => f.name));
         
         // In Dev Mode, show error message instead of failing silently
         if (selectedMethod === 'dev') {
@@ -176,6 +211,12 @@ export default function Payment() {
         }
       }
 
+      // Report which files are using fallback
+      const filesUsingFallback = localFiles.filter(f => !getSessionFile(f.id) && f.file);
+      if (filesUsingFallback.length > 0) {
+        console.log('⚠️ Using file property fallback for:', filesUsingFallback.map(f => f.name));
+      }
+
       console.log(`📤 Uploading ${localFiles.length} files to Cloudinary...`);
       
       const uploadedFilesInfo: Array<{
@@ -189,12 +230,19 @@ export default function Payment() {
       }> = [];
       
       for (const fileData of localFiles) {
-        const sessionFile = getSessionFile(fileData.id);
+        // Try session file first, then fallback to file property
+        let sessionFile = getSessionFile(fileData.id);
+        if (!sessionFile && fileData.file) {
+          sessionFile = fileData.file;
+          console.log(`🔄 Using file property fallback for ${fileData.name}`);
+        }
         
         console.log('🔍 Processing file:', {
           fileId: fileData.id,
           fileName: fileData.name,
-          hasSessionFile: !!sessionFile,
+          hasSessionFile: !!getSessionFile(fileData.id),
+          hasFileProperty: !!fileData.file,
+          usingFallback: !getSessionFile(fileData.id) && !!fileData.file,
           fileType: sessionFile?.type,
           fileSize: sessionFile?.size,
           fileLastModified: sessionFile?.lastModified,
@@ -458,7 +506,7 @@ export default function Payment() {
             <Card>
               <CardContent className="p-6">
                 <div className="space-y-4">
-                  {files.filter(file => getSessionFile(file.id)).map((file) => (
+                  {files.filter(file => getSessionFile(file.id) || file.file).map((file) => (
                     <div key={file.id} className="flex items-center justify-between">
                       <span className="text-sm font-medium">{file.name}</span>
                       <div className="flex items-center gap-2">

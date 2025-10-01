@@ -1,13 +1,13 @@
 import { Card, CardContent } from "@/components/ui/card";
-import MobileSidebar from "@/components/layout/MobileSidebar";
 import { Button } from "@/components/ui/button";
+import MobileSidebar from "@/components/layout/MobileSidebar";
 import { Badge } from "@/components/ui/badge";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { RefundStatus } from "@/components/RefundStatus";
-import { useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
 import { useUserPrintJobs } from "@/hooks/useDatabase";
-import { FileText, Calendar, Printer, Download, RotateCcw } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { FileText, Calendar, Printer } from "lucide-react";
 
 // Match the PrintJob type from useDatabase hook
 interface PrintJobType {
@@ -57,8 +57,8 @@ interface PrintJobType {
 }
 
 function History() {
-  const navigate = useNavigate();
   const { user } = useUser();
+  const navigate = useNavigate();
   const { data: printJobs, isLoading } = useUserPrintJobs(user?.id, { limit: 50 });
 
   if (isLoading) {
@@ -87,10 +87,6 @@ function History() {
   const formatDate = (dateString: string | Date) => {
     const date = new Date(dateString);
     return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const handleReprint = (job: PrintJobType) => {
-    navigate("/upload");
   };
 
   return (
@@ -138,7 +134,7 @@ function History() {
                               Printer{" "}
                               {typeof job.printerId === "string"
                                 ? job.printerId.substring(0, 8)
-                                : (job.printerId as any)?.name || "Unknown"}
+                                : (job.printerId as { name?: string })?.name || "Unknown"}
                             </span>
                             <span>{pages} pages</span>
                             <span>{job.settings?.copies || 1} copies</span>
@@ -163,24 +159,9 @@ function History() {
                         <Badge className={getStatusColor(job.status)}>{job.status}</Badge>
 
                         <div className="flex gap-2">
-                          {job.status === "completed" && (
-                            <>
-                              <Button variant="outline" size="sm">
-                                <Download className="h-4 w-4" />
-                              </Button>
-                              <Button variant="outline" size="sm" onClick={() => handleReprint(job)}>
-                                <RotateCcw className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-
                           {job.status === "failed" && (
                             <div className="flex gap-2">
                               <RefundStatus jobId={job._id} />
-                              <Button variant="outline" size="sm" onClick={() => handleReprint(job)}>
-                                <RotateCcw className="h-4 w-4 mr-2" />
-                                Retry
-                              </Button>
                             </div>
                           )}
                         </div>
