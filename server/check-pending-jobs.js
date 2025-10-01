@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 const PrintJob = require('./src/models/PrintJob');
+require('dotenv').config();
 
-mongoose.connect('mongodb://localhost:27017/PrintHub')
+mongoose.connect(process.env.MONGODB_URI)
   .then(async () => {
     console.log('Connected to MongoDB');
     
