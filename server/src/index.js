@@ -19,6 +19,8 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const queueRoutes = require('./routes/queueRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const webhookRoutes = require('./routes/webhookRoutes');
 
 // Import queue processor
 const queueProcessor = require('./services/queueProcessor');
@@ -115,6 +117,10 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/queue', queueRoutes);
+app.use('/api/payments', paymentRoutes);
+// Webhook routes (no rate limiting for webhooks)
+app.use('/webhooks', webhookRoutes);
+
 
 console.log('✅ All API routes registered successfully');
 console.log('📍 Admin routes available at: /api/admin/*');
