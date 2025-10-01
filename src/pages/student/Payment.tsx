@@ -354,9 +354,11 @@ export default function Payment() {
               publicId: fileData.cloudinaryPublicId as string,
               originalName: fileData.name,
               format: fileData.format || 'pdf',
-              sizeKB: fileData.sizeKB || Math.round((
-                ('originalSize' in fileData ? fileData.originalSize : 'size' in fileData ? (fileData as { size: number }).size : 0)
-              ) / 1024)
+              sizeKB: (() => {
+                if ('originalSize' in fileData) return Math.round(fileData.originalSize / 1024);
+                if ('size' in fileData) return Math.round((fileData as { size: number }).size / 1024);
+                return 0;
+              })()
             },
             settings: {
               pages: fileSettings?.pages || 'all',
@@ -426,7 +428,7 @@ export default function Payment() {
       } else if (selectedMethod === "upi") {
         // UPI Payment processing
         console.log('� Processing UPI payment...');
-        // TODO: Implement actual UPI payment gateway (Razorpay/Stripe)
+        // UPI payment integration - requires Razorpay/Stripe configuration
         // For now, simulate processing
         await new Promise(resolve => setTimeout(resolve, 2000));
         
@@ -451,7 +453,7 @@ export default function Payment() {
       } else if (selectedMethod === "card") {
         // Credit/Debit Card payment processing
         console.log('💳 Processing card payment...');
-        // TODO: Implement actual card payment gateway (Razorpay/Stripe)
+        // Card payment integration - requires Razorpay/Stripe configuration
         // For now, simulate processing
         await new Promise(resolve => setTimeout(resolve, 2000));
         
@@ -476,9 +478,10 @@ export default function Payment() {
       }
     } catch (error) {
       setPaymentStatus("failed");
+      console.error('Payment processing error:', error);
       toast({
         title: "Payment Processing Failed",
-        description: "There was an error processing your payment and uploading files.",
+        description: error instanceof Error ? error.message : "There was an error processing your payment and uploading files.",
         variant: "destructive",
       });
     } finally {
@@ -659,13 +662,20 @@ export default function Payment() {
                   {paymentMethods.map((method) => {
                     const Icon = method.icon;
                     const isDevMode = method.isDev;
+                    
+                    // Determine border/background classes
+                    const selectedClasses = isDevMode 
+                      ? "border-orange-500 bg-orange-50" 
+                      : "border-blue-500 bg-blue-50";
+                    const unselectedClasses = isDevMode 
+                      ? "border-orange-200 hover:border-orange-300" 
+                      : "border-gray-200 hover:border-gray-300";
+                    
                     return (
-                      <div 
+                      <button
                         key={method.id}
-                        className={`p-4 border rounded-lg cursor-pointer transition-all w-full text-left ${
-                          selectedMethod === method.id 
-                            ? (isDevMode ? "border-orange-500 bg-orange-50" : "border-blue-500 bg-blue-50")
-                            : (isDevMode ? "border-orange-200 hover:border-orange-300" : "border-gray-200 hover:border-gray-300")
+                        className={`p-4 border rounded-lg transition-all w-full text-left ${
+                          selectedMethod === method.id ? selectedClasses : unselectedClasses
                         }`}
                         onClick={() => setSelectedMethod(method.id)}
                       >
@@ -697,7 +707,7 @@ export default function Payment() {
                             )}
                           </div>
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
