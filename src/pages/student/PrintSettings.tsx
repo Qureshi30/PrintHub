@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,7 @@ import { Calculator, FileText, Copy } from "lucide-react";
 
 interface PrintSettings {
   pageRange: string;
+  customPages?: string;
   colorMode: "color" | "blackwhite";
   duplex: "single" | "double";
   copies: number;
@@ -56,6 +57,20 @@ export default function PrintSettings() {
     
     return initialSettings;
   });
+
+  // Debug: Log files when component mounts
+  useEffect(() => {
+    const currentFiles = files || [];
+    console.log('⚙️ PRINT SETTINGS PAGE: Component mounted, current files:', currentFiles.length);
+    currentFiles.forEach((file, index) => {
+      console.log(`📄 PRINT SETTINGS PAGE: File ${index + 1}: ${file.name}`, {
+        id: file.id,
+        hasFileProperty: !!file.file,
+        fileType: file.file?.type,
+        cloudinaryUrl: file.cloudinaryUrl
+      });
+    });
+  }, [files]);
 
   // Set the first file as active tab if not set
   if (!activeTab && selectedFiles.length > 0) {
@@ -116,8 +131,39 @@ export default function PrintSettings() {
       Legal: 1.2
     };
 
+    // Calculate pages to print based on page range selection
     let pagesToPrint = file.pages;
-    if (settings.pageRange === "current") pagesToPrint = 1;
+    if (settings.pageRange === "current") {
+      pagesToPrint = 1;
+    } else if (settings.pageRange === "custom" && settings.customPages) {
+      // Parse custom page range to estimate page count
+      const customPages = settings.customPages.trim();
+      try {
+        // Simple estimation: count ranges and individual pages
+        const ranges = customPages.split(',');
+        let estimatedPages = 0;
+        ranges.forEach(range => {
+          const trimmedRange = range.trim();
+          if (trimmedRange.includes('-')) {
+            const [start, end] = trimmedRange.split('-').map(n => parseInt(n.trim()));
+            if (!isNaN(start) && !isNaN(end) && end >= start) {
+              estimatedPages += (end - start + 1);
+            }
+          } else {
+            const page = parseInt(trimmedRange);
+            if (!isNaN(page)) {
+              estimatedPages += 1;
+            }
+          }
+        });
+        if (estimatedPages > 0) {
+          pagesToPrint = Math.min(estimatedPages, file.pages);
+        }
+      } catch (error) {
+        console.warn('Invalid custom page range, using all pages:', settings.customPages);
+        pagesToPrint = file.pages;
+      }
+    }
     
     const baseCost = baseCosts[settings.colorMode][settings.paperType as keyof typeof baseCosts.color];
     const sizeMultiplier = paperSizeMultiplier[settings.paperSize as keyof typeof paperSizeMultiplier];
@@ -143,8 +189,16 @@ export default function PrintSettings() {
     selectedFiles.forEach(file => {
       const settings = fileSettings[file.id];
       if (settings) {
+        // Determine the correct page range value
+        let pageValue = settings.pageRange;
+        if (settings.pageRange === 'custom' && settings.customPages) {
+          pageValue = settings.customPages;
+        } else if (settings.pageRange === 'current') {
+          pageValue = '1'; // Default to first page for current
+        }
+
         updateContextFileSettings(file.id, {
-          pages: settings.pageRange,
+          pages: pageValue,
           copies: settings.copies,
           color: settings.colorMode === 'color',
           duplex: settings.duplex === 'double',
@@ -234,7 +288,12 @@ export default function PrintSettings() {
                               </SelectContent>
                             </Select>
                             {settings.pageRange === "custom" && (
-                              <Input placeholder="e.g., 1-5, 8, 10-12" className="mt-2" />
+                              <Input 
+                                placeholder="e.g., 1-5, 8, 10-12" 
+                                className="mt-2"
+                                value={settings.customPages || ""}
+                                onChange={(e) => updateFileSettings(file.id, { customPages: e.target.value })}
+                              />
                             )}
                           </div>
 

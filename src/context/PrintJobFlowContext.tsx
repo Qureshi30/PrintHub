@@ -125,50 +125,142 @@ const DEFAULT_SETTINGS: PrintJobSettings = {
 
 const STORAGE_KEY = 'printJobFlow';
 
-// Load state from localStorage
-const loadStoredState = () => {
+// Load state from localStorage and restore files from base64
+const loadStoredState = (): {
+  currentStep: PrintJobStep;
+  files: PrintJobFile[];
+  settings: { [fileId: string]: PrintJobSettings };
+  selectedPrinter: SelectedPrinter | null;
+  payment: PaymentInfo | null;
+  restoredSessionFiles: { [fileId: string]: File };
+} => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
+      console.log('🔄 CONTEXT LOAD: Loading state from localStorage');
       const parsed = JSON.parse(stored);
+      console.log('📋 CONTEXT LOAD: Parsed data:', {
+        currentStep: parsed.currentStep,
+        filesCount: parsed.files?.length || 0,
+        hasSettings: !!parsed.settings,
+        hasSelectedPrinter: !!parsed.selectedPrinter
+      });
+      
+      // Restore files from base64
+      const restoredSessionFiles: { [fileId: string]: File } = {};
+      const restoredFiles = (parsed.files || []).map((file: PrintJobFile & { base64Data?: { base64: string; name: string; type: string; size: number } }) => {
+        console.log('📄 CONTEXT LOAD: Processing file:', file.name, {
+          hasBase64Data: !!file.base64Data,
+          hasFileProperty: !!file.file,
+          base64DataSize: file.base64Data?.size
+        });
+        
+        if (file.base64Data) {
+          try {
+            console.log('🔄 CONTEXT LOAD: Restoring file from base64:', file.name);
+            // Convert base64 back to File
+            const binaryString = atob(file.base64Data.base64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            const restoredFile = new File([bytes], file.base64Data.name, {
+              type: file.base64Data.type
+            });
+            
+            // Store in both session files and file property
+            restoredSessionFiles[file.id] = restoredFile;
+            
+            console.log('✅ CONTEXT LOAD: File restored successfully:', file.name, {
+              restoredFileSize: restoredFile.size,
+              restoredFileType: restoredFile.type
+            });
+            
+            return {
+              ...file,
+              file: restoredFile, // Restore file property
+              base64Data: undefined // Remove base64 after restoration
+            };
+          } catch (error) {
+            console.warn(`❌ CONTEXT LOAD: Failed to restore file ${file.name} from base64:`, error);
+          }
+        } else {
+          console.log('⚠️ CONTEXT LOAD: No base64 data for file:', file.name);
+        }
+        return file;
+      });
+      
+      console.log('📁 CONTEXT LOAD: Restoration complete:', {
+        totalFiles: restoredFiles.length,
+        restoredSessionFiles: Object.keys(restoredSessionFiles).length,
+        filesWithFileProperty: restoredFiles.filter(f => !!f.file).length
+      });
+      
       return {
         currentStep: parsed.currentStep || 'upload',
-        files: parsed.files || [],
+        files: restoredFiles,
         settings: parsed.settings || {},
         selectedPrinter: parsed.selectedPrinter || null,
         payment: parsed.payment || null,
+        restoredSessionFiles
       };
     }
   } catch (error) {
-    console.warn('Failed to load print job state from localStorage:', error);
+    console.warn('❌ CONTEXT LOAD: Failed to load print job state from localStorage:', error);
   }
+  
+  console.log('📭 CONTEXT LOAD: No stored state found, using defaults');
   return {
     currentStep: 'upload' as PrintJobStep,
     files: [],
     settings: {},
     selectedPrinter: null,
     payment: null,
+    restoredSessionFiles: {}
   };
 };
 
-// Save state to localStorage
-const saveStateToStorage = (state: {
+// Save state to localStorage with files as base64
+const saveStateToStorage = async (state: {
   currentStep: PrintJobStep;
   files: PrintJobFile[];
   settings: { [fileId: string]: PrintJobSettings };
   selectedPrinter: SelectedPrinter | null;
   payment: PaymentInfo | null;
-}) => {
+}, sessionFiles: { [fileId: string]: File }) => {
   try {
-    // Remove File objects before saving to localStorage (File objects can't be serialized)
-    const filesForStorage = state.files.map(file => ({
-      ...file,
-      file: undefined // Remove File object from localStorage
-    }));
+    // Convert files to base64 for storage
+    const filesWithBase64 = await Promise.all(
+      state.files.map(async (file) => {
+        const actualFile = sessionFiles[file.id] || file.file;
+        let base64Data = null;
+        
+        if (actualFile) {
+          try {
+            const arrayBuffer = await actualFile.arrayBuffer();
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            base64Data = {
+              base64,
+              name: actualFile.name,
+              type: actualFile.type,
+              size: actualFile.size
+            };
+          } catch (error) {
+            console.warn(`Failed to convert ${file.name} to base64:`, error);
+          }
+        }
+        
+        return {
+          ...file,
+          file: undefined, // Remove File object
+          base64Data // Store base64 representation
+        };
+      })
+    );
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       currentStep: state.currentStep,
-      files: filesForStorage,
+      files: filesWithBase64,
       settings: state.settings,
       selectedPrinter: state.selectedPrinter,
       payment: state.payment,
@@ -189,19 +281,27 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
   const [isCreatingJobs, setIsCreatingJobs] = useState(false);
   const [createdJobIds, setCreatedJobIds] = useState<string[]>([]);
   
-  // Separate session-based storage for File objects (never serialized)
-  const [sessionFiles, setSessionFiles] = useState<{ [fileId: string]: File }>({});
+  // Initialize session files with restored files from localStorage
+  const [sessionFiles, setSessionFiles] = useState<{ [fileId: string]: File }>(storedState.restoredSessionFiles);
 
   // Save to localStorage whenever state changes
   useEffect(() => {
+    console.log('💾 CONTEXT: Saving state to localStorage, files count:', files.length);
+    files.forEach((file, index) => {
+      console.log(`📄 CONTEXT SAVE: File ${index + 1}: ${file.name}`, {
+        hasFileProperty: !!file.file,
+        fileSize: file.file?.size
+      });
+    });
+    
     saveStateToStorage({
       currentStep,
       files,
       settings,
       selectedPrinter,
       payment,
-    });
-  }, [currentStep, files, settings, selectedPrinter, payment]);
+    }, sessionFiles);
+  }, [currentStep, files, settings, selectedPrinter, payment, sessionFiles]);
 
   // Calculate if we can proceed to the next step
   const canProceed = useMemo(() => {
@@ -307,7 +407,14 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
   const addLocalFile = useCallback(async (localFile: File) => {
     const fileId = crypto.randomUUID();
     
-    // Create initial file without the File object (to avoid localStorage serialization issues)
+    console.log('📥 CONTEXT: Adding local file:', localFile.name, {
+      fileId,
+      fileType: localFile.type,
+      fileSize: localFile.size,
+      lastModified: localFile.lastModified
+    });
+    
+    // Create initial file with the File object stored for payment access
     const initialFile: PrintJobFile = {
       id: fileId,
       name: localFile.name,
@@ -317,13 +424,18 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
       isImage: /\.(png|jpg|jpeg|gif|svg)$/i.test(localFile.name),
       format: localFile.name.split('.').pop()?.toLowerCase() || 'unknown',
       sizeKB: Math.round(localFile.size / 1024),
-      // Don't store file object directly - it will be stored separately
+      // Store file object for access during payment
+      file: localFile,
     };
     
     // Store File object in session state (not persisted to localStorage)
     setSessionFiles(prev => ({ ...prev, [fileId]: localFile }));
     
+    console.log('✅ CONTEXT: File added to context with both file property and session storage');
+    
     addFile(initialFile);
+    
+    console.log('📁 CONTEXT: File added to files array');
     
     // Parse document pages asynchronously
     try {

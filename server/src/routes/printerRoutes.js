@@ -4,6 +4,7 @@ const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
 const Printer = require('../models/Printer');
 const PrintJob = require('../models/PrintJob');
 const printerService = require('../services/printerService');
+const { getRealPrinterCapabilities } = require('../utils/printerCapabilities');
 
 const router = express.Router();
 
@@ -43,10 +44,39 @@ router.get('/test', async (req, res) => {
         // Estimate wait time (assuming 3 minutes per job on average)
         const estimatedWait = queueLength * 3;
 
-        // Convert to plain object and add queue data
+        // Get real printer capabilities from system
+        let realCapabilities;
+        try {
+          realCapabilities = await getRealPrinterCapabilities(printer.name);
+          console.log(`🔍 Real capabilities for ${printer.name}:`, realCapabilities);
+        } catch (error) {
+          console.warn(`⚠️  Could not detect real capabilities for ${printer.name}, using database defaults`);
+          realCapabilities = {
+            colorSupport: printer.specifications?.colorSupport || false,
+            duplexSupport: printer.specifications?.duplexSupport || false,
+            supportedPaperTypes: printer.specifications?.supportedPaperTypes || ['A4', 'Letter'],
+            detectionMethod: 'Database fallback'
+          };
+        }
+
+        // Convert to plain object and add queue data + real capabilities
         const printerObj = printer.toObject();
         printerObj.queueLength = queueLength;
         printerObj.estimatedWait = estimatedWait;
+        
+        // Override capabilities with real detected ones
+        printerObj.capabilities = {
+          color: realCapabilities.colorSupport,
+          duplex: realCapabilities.duplexSupport,
+          paperSizes: realCapabilities.supportedPaperTypes || ['A4', 'Letter']
+        };
+        
+        // Add detection metadata
+        printerObj.capabilityDetection = {
+          method: realCapabilities.detectionMethod,
+          systemStatus: realCapabilities.status,
+          isSystemDefault: realCapabilities.isDefault
+        };
         
         // Ensure pricing is in INR format
         printerObj.pricing = {
@@ -74,6 +104,112 @@ router.get('/test', async (req, res) => {
         message: error.message,
         code: 'TEST_FETCH_ERROR'
       }
+    });
+  }
+});
+
+// POST /api/printers/validate-compatibility - Check printer settings compatibility
+router.post('/validate-compatibility', async (req, res) => {
+  try {
+    const { printerId, settings } = req.body;
+    
+    if (!printerId || !settings) {
+      return res.status(400).json({
+        success: false,
+        message: 'Printer ID and settings are required'
+      });
+    }
+
+    // Get printer from database
+    const printer = await Printer.findById(printerId);
+    if (!printer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Printer not found'
+      });
+    }
+
+    // Get real printer capabilities
+    const realCapabilities = await getRealPrinterCapabilities(printer.name);
+    
+    // Check compatibility
+    const compatibility = {
+      isFullyCompatible: true,
+      warnings: [],
+      errors: [],
+      recommendations: []
+    };
+
+    // Check duplex compatibility
+    if (settings.duplex && !realCapabilities.duplexSupport) {
+      compatibility.isFullyCompatible = false;
+      compatibility.errors.push({
+        setting: 'duplex',
+        message: `${printer.name} does not support duplex (double-sided) printing`,
+        severity: 'error',
+        suggestion: 'Disable duplex printing or select a different printer'
+      });
+    }
+
+    // Check color compatibility
+    if (settings.color && !realCapabilities.colorSupport) {
+      compatibility.isFullyCompatible = false;
+      compatibility.errors.push({
+        setting: 'color',
+        message: `${printer.name} does not support color printing`,
+        severity: 'error',
+        suggestion: 'Switch to black & white or select a color printer'
+      });
+    }
+
+    // Check paper size compatibility
+    if (settings.paperType && !realCapabilities.supportedPaperTypes.includes(settings.paperType)) {
+      compatibility.warnings.push({
+        setting: 'paperType',
+        message: `${printer.name} may not support ${settings.paperType} paper size`,
+        severity: 'warning',
+        suggestion: `Try A4 or Letter paper sizes instead`
+      });
+    }
+
+    // Add recommendations based on printer
+    if (printer.name.toLowerCase().includes('pdf')) {
+      compatibility.recommendations.push({
+        message: 'PDF printer is best for digital copies and previews',
+        type: 'info'
+      });
+    }
+
+    if (!realCapabilities.duplexSupport) {
+      compatibility.recommendations.push({
+        message: 'For double-sided printing, manually flip pages or use a duplex-capable printer',
+        type: 'info'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        printer: {
+          name: printer.name,
+          location: printer.location
+        },
+        capabilities: {
+          color: realCapabilities.colorSupport,
+          duplex: realCapabilities.duplexSupport,
+          paperSizes: realCapabilities.supportedPaperTypes
+        },
+        compatibility,
+        detectionMethod: realCapabilities.detectionMethod
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error validating printer compatibility:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to validate printer compatibility',
+      error: error.message
     });
   }
 });
@@ -520,6 +656,100 @@ router.get('/:id/queue',
         error: {
           message: 'Failed to fetch printer queue',
           code: 'FETCH_ERROR'
+        }
+      });
+    }
+  }
+);
+
+// PUT /api/printers/:id/location - Update printer location only (Admin only)
+router.put('/:id/location',
+  [
+    param('id').isMongoId().withMessage('Valid printer ID is required'),
+    body('location').notEmpty().trim().withMessage('Location is required and cannot be empty'),
+    requireAdmin
+  ],
+  validateRequest,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { location } = req.body;
+
+      const printer = await Printer.findByIdAndUpdate(
+        id,
+        { $set: { location, lastChecked: new Date() } },
+        { new: true, runValidators: true }
+      );
+
+      if (!printer) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            message: 'Printer not found',
+            code: 'PRINTER_NOT_FOUND'
+          }
+        });
+      }
+
+      res.json({
+        success: true,
+        data: { id: printer._id, location: printer.location },
+        message: 'Printer location updated successfully'
+      });
+    } catch (error) {
+      console.error('❌ Update printer location error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to update printer location',
+          code: 'UPDATE_ERROR'
+        }
+      });
+    }
+  }
+);
+
+// PUT /api/printers/:id/status - Update printer status only (Admin only)
+router.put('/:id/status',
+  [
+    param('id').isMongoId().withMessage('Valid printer ID is required'),
+    body('status').isIn(['online', 'offline', 'maintenance', 'busy']).withMessage('Valid status is required'),
+    requireAdmin
+  ],
+  validateRequest,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      const printer = await Printer.findByIdAndUpdate(
+        id,
+        { $set: { status, lastChecked: new Date() } },
+        { new: true, runValidators: true }
+      );
+
+      if (!printer) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            message: 'Printer not found',
+            code: 'PRINTER_NOT_FOUND'
+          }
+        });
+      }
+
+      res.json({
+        success: true,
+        data: { id: printer._id, status: printer.status },
+        message: 'Printer status updated successfully'
+      });
+    } catch (error) {
+      console.error('❌ Update printer status error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to update printer status',
+          code: 'UPDATE_ERROR'
         }
       });
     }

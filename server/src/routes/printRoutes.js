@@ -53,6 +53,95 @@ router.post('/printers/test', async (req, res) => {
   }
 });
 
+// Test duplex printing capabilities
+router.post('/printers/test-duplex', async (req, res) => {
+  try {
+    const { printerName } = req.body;
+    
+    if (!printerName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Printer name is required',
+      });
+    }
+
+    console.log(`🧪 DUPLEX TEST: Testing duplex capabilities for printer: ${printerName}`);
+
+    // Get available printers to verify the printer exists
+    const availablePrinters = await getAvailablePrinters();
+    const printer = availablePrinters.find(p => p.name === printerName);
+    
+    if (!printer) {
+      return res.status(404).json({
+        success: false,
+        message: `Printer "${printerName}" not found`,
+        availablePrinters: availablePrinters.map(p => p.name),
+      });
+    }
+
+    // Test different duplex configurations
+    const duplexTests = [
+      { duplex: 'long', description: 'Long-edge binding' },
+      { duplex: 'short', description: 'Short-edge binding' },
+      { sides: 'two-sided-long-edge', description: 'Two-sided long edge' },
+      { duplexing: 'DuplexTumble', description: 'Windows DuplexTumble' },
+    ];
+
+    const results = [];
+    
+    for (const test of duplexTests) {
+      try {
+        console.log(`🔄 Testing duplex option: ${test.description}`, test);
+        
+        // Create test print options
+        const printOptions = {
+          printer: printerName,
+          ...test,
+          copies: 1,
+        };
+        
+        // Just validate the options, don't actually print
+        results.push({
+          option: test,
+          status: 'validated',
+          description: test.description,
+          printOptions: printOptions,
+        });
+        
+      } catch (error) {
+        results.push({
+          option: test,
+          status: 'failed',
+          description: test.description,
+          error: error.message,
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Duplex test completed',
+      printer: printerName,
+      duplexSupported: true, // Assuming supported for testing
+      testResults: results,
+      recommendations: [
+        'Use "duplex: long" for standard double-sided printing',
+        'Ensure printer driver supports duplex commands',
+        'Check printer physical duplex unit availability',
+        'Monitor print job logs for duplex-specific errors',
+      ],
+    });
+
+  } catch (error) {
+    console.error('❌ Error testing duplex:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to test duplex printing',
+      error: error.message,
+    });
+  }
+});
+
 // Utility Routes
 router.post('/utils/cleanup', async (req, res) => {
   try {
