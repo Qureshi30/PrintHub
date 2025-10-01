@@ -14,7 +14,7 @@ router.get('/dashboard-stats', requireAuth, async (req, res) => {
     const userId = req.user.id;
     console.log(`📊 Student dashboard stats requested by: ${req.user.fullName} (${req.user.email})`);
 // Get real stats from database
-const [pendingJobs, completedJobs, totalSpentResult, availablePrinters] = await Promise.all([
+const [pendingJobs, completedJobs, totalSpentResult, availablePrintersCount] = await Promise.all([
   // Count pending jobs for this user
   PrintJob.countDocuments({ 
     clerkUserId: userId, 
