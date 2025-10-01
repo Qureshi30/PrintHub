@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const { body, param, query, validationResult } = require('express-validator');
 const { requireAuth, requireAdmin, validateUserAccess } = require('../middleware/authMiddleware');
 const PrintJob = require('../models/PrintJob');
@@ -6,6 +7,7 @@ const Printer = require('../models/Printer');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { deleteFromCloudinary } = require('../config/cloudinary');
+const QueueManager = require('../services/queueManager');
 
 const router = express.Router();
 
@@ -100,40 +102,100 @@ router.post('/',
 
       await printJob.save();
 
-      // Add to printer queue
-      printer.addToQueue(printJob._id);
-      await printer.save();
+      // Add to print queue using QueueManager
+      let queuePosition = null;
+      let queueError = null;
+      
+      try {
+        const queueItem = await QueueManager.enqueue(printJob._id);
+        queuePosition = queueItem.position;
+        console.log(`✅ Print job ${printJob._id} added to queue at position ${queuePosition}`);
+      } catch (error) {
+        queueError = error.message;
+        console.error(`❌ Failed to add print job ${printJob._id} to queue:`, error.message);
+        // Don't fail the entire operation if queue addition fails
+      }
 
-      // Update user statistics
-      await User.findOneAndUpdate(
-        { clerkUserId },
-        { $inc: { 'statistics.totalJobs': 1 } }
-      );
+      // Update printer queue (legacy support)
+      try {
+        printer.addToQueue(printJob._id);
+        await printer.save();
+      } catch (printerError) {
+        console.warn('⚠️ Failed to update printer queue:', printerError);
+      }
 
-      // Create notification
-      await Notification.createNotification({
-        clerkUserId,
-        jobId: printJob._id,
-        type: 'queue_update',
-        title: 'Print Job Created',
-        message: `Your print job for "${file.originalName}" has been added to the queue`,
-        metadata: {
-          printerId,
-          queuePosition: printer.queueLength,
-          cost: estimatedCost
-        }
-      });
+      // Update user statistics (with timeout and error handling)
+      try {
+        await User.findOneAndUpdate(
+          { clerkUserId },
+          { $inc: { 'statistics.totalJobs': 1 } }
+        );
+      } catch (userUpdateError) {
+        console.warn('⚠️ Failed to update user statistics:', userUpdateError);
+        // Don't fail the entire operation if user stats update fails
+      }
+
+      // Create notification (with timeout and error handling)
+      try {
+        const queueMessage = queuePosition 
+          ? `Your print job for "${file.originalName}" has been added to the queue at position ${queuePosition}`
+          : `Your print job for "${file.originalName}" has been added to the queue`;
+          
+        await Notification.createNotification({
+          clerkUserId,
+          jobId: printJob._id,
+          type: 'queue_update',
+          title: 'Print Job Created',
+          message: queueMessage,
+          metadata: {
+            printerId,
+            queuePosition: queuePosition || printer.queueLength,
+            cost: estimatedCost
+          }
+        });
+      } catch (notificationError) {
+        console.warn('⚠️ Failed to create notification:', notificationError);
+        // Don't fail the entire operation if notification creation fails
+      }
 
       // Populate printer info for response
-      await printJob.populate('printerId', 'name location status');
+      try {
+        await printJob.populate('printerId', 'name location status');
+      } catch (populateError) {
+        console.warn('⚠️ Failed to populate printer info:', populateError);
+        // Continue without populated data
+      }
 
       res.status(201).json({
         success: true,
-        data: printJob,
-        message: 'Print job created successfully'
+        data: {
+          ...printJob.toObject(),
+          queue: {
+            position: queuePosition,
+            addedToQueue: queuePosition !== null,
+            queueError: queueError
+          }
+        },
+        message: queuePosition 
+          ? `Print job created and added to queue at position ${queuePosition}`
+          : 'Print job created (queue addition failed)'
       });
     } catch (error) {
       console.error('❌ Create print job error:', error);
+      
+      // Handle MongoDB connection errors
+      if (error.name === 'MongoTimeoutError' || error.name === 'MongoNetworkError' || 
+          error.message.includes('buffering timed out') || error.message.includes('ENOTFOUND') ||
+          error.message.includes('connection')) {
+        return res.status(503).json({
+          success: false,
+          error: {
+            message: 'Database connection issue. Please try again later.',
+            code: 'DATABASE_CONNECTION_ERROR'
+          }
+        });
+      }
+      
       res.status(500).json({
         success: false,
         error: {

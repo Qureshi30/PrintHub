@@ -31,6 +31,20 @@ const createPrintJob = async (req, res) => {
       });
     }
 
+    // Validate and sanitize settings
+    const sanitizedSettings = {
+      pages: settings?.pages || 'all',
+      copies: Math.max(1, Math.min(100, parseInt(settings?.copies) || 1)),
+      color: Boolean(settings?.color),
+      duplex: Boolean(settings?.duplex),
+      paperType: ['A4', 'A3', 'Letter', 'Legal', 'Certificate'].includes(settings?.paperType) 
+        ? settings.paperType 
+        : 'A4',
+    };
+
+    console.log(`🔧 SETTINGS VALIDATION: Original:`, settings);
+    console.log(`🔧 SETTINGS VALIDATION: Sanitized:`, sanitizedSettings);
+
     // Create new print job
     const newPrintJob = new PrintJob({
       clerkUserId,
@@ -44,13 +58,7 @@ const createPrintJob = async (req, res) => {
         format: file.format,
         sizeKB: file.sizeKB,
       },
-      settings: {
-        pages: settings?.pages || 'all',
-        copies: settings?.copies || 1,
-        color: settings?.color || false,
-        duplex: settings?.duplex || false,
-        paperType: settings?.paperType || 'A4',
-      },
+      settings: sanitizedSettings,
       payment: {
         status: 'paid',
         method: payment.method || 'card',

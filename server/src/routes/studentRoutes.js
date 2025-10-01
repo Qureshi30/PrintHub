@@ -1,41 +1,57 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/authMiddleware');
 const PrintJob = require('../models/PrintJob');
+const Printer = require('../models/Printer');
 const router = express.Router();
 
 /**
  * @route   GET /students/dashboard-stats
- * @desc    Get student dashboard statistics
+ * @desc    Get student dashboard statistics with real data
  * @access  Authenticated users
  */
 router.get('/dashboard-stats', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     console.log(`📊 Student dashboard stats requested by: ${req.user.fullName} (${req.user.email})`);
+// Get real stats from database
+const [pendingJobs, completedJobs, totalSpentResult, availablePrinters] = await Promise.all([
+  // Count pending jobs for this user
+  PrintJob.countDocuments({ 
+    clerkUserId: userId, 
+    status: { $in: ['pending', 'queued', 'printing', 'payment_verified'] } 
+  }),
 
-    // Get user's print jobs to calculate real statistics
-    const printJobs = await PrintJob.find({ clerkUserId: userId });
+  // Count completed jobs for this user
+  PrintJob.countDocuments({ 
+    clerkUserId: userId, 
+    status: 'completed' 
+  }),
 
-    // Calculate pending jobs (queued, printing, payment_verified)
-    const pendingJobs = printJobs.filter(job =>
-      ['queued', 'printing', 'payment_verified', 'pending'].includes(job.status)
-    ).length;
+  // Calculate total money spent by this user (only 'completed' payments)
+  PrintJob.aggregate([
+    { 
+      $match: { 
+        clerkUserId: userId, 
+        'payment.status': 'completed' 
+      } 
+    },
+    { 
+      $group: { 
+        _id: null, 
+        totalSpent: { $sum: { $ifNull: ['$payment.amount', 0] } } 
+      } 
+    }
+  ]),
 
-    // Calculate completed jobs
-    const completedJobs = printJobs.filter(job => job.status === 'completed').length;
+  // Count available (online & active) printers
+  Printer.countDocuments({ 
+    status: 'online', 
+    isActive: true 
+  })
+]);
 
-    // Calculate total spent from completed and paid jobs
-    const totalSpent = printJobs
-      .filter(job => job.payment && job.payment.status === 'completed')
-      .reduce((sum, job) => sum + (job.payment.amount || 0), 0);
-
-    // Get available printers count (this is system-wide, not user-specific)
-    const Printer = require('../models/Printer');
-    const availablePrintersCount = await Printer.countDocuments({
-      status: 'online',
-      isActive: true
-    });
-
+// Extract total spent value safely
+const totalSpent = totalSpentResult[0]?.totalSpent || 0;
     const stats = {
       pendingJobs,
       completedJobs,

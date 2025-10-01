@@ -43,6 +43,18 @@ export interface APIProvidedPrinter {
   isActive?: boolean;
 }
 
+export type PrinterStatus = 'online' | 'offline' | 'maintenance' | 'busy';
+
+export interface AddPrinterData {
+  name: string;
+  location: string;
+  status: PrinterStatus;
+  connection?: string;
+  type?: string;
+  ipAddress?: string;
+  model?: string;
+}
+
 class PrinterService {
   
   /**
@@ -209,6 +221,101 @@ class PrinterService {
     };
     
     return nameMap[printerName] || printerName.toLowerCase().replace(/\s+/g, '-');
+  }
+
+  /**
+   * Add a new printer to the system
+   */
+  async addPrinter(printerData: AddPrinterData, token: string | null): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/printers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` })
+        },
+        body: JSON.stringify(printerData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add printer');
+      }
+    } catch (error) {
+      console.error('Error adding printer:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update printer location
+   */
+  async updatePrinterLocation(printerId: string, location: string, token: string | null): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/printers/${printerId}/location`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` })
+        },
+        body: JSON.stringify({ location })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update printer location');
+      }
+    } catch (error) {
+      console.error('Error updating printer location:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update printer status
+   */
+  async updatePrinterStatus(printerId: string, status: PrinterStatus, token: string | null): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/printers/${printerId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` })
+        },
+        body: JSON.stringify({ status })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update printer status');
+      }
+    } catch (error) {
+      console.error('Error updating printer status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a printer from the system
+   */
+  async deletePrinter(printerId: string, token: string | null): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/printers/${printerId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` })
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete printer');
+      }
+    } catch (error) {
+      console.error('Error deleting printer:', error);
+      throw error;
+    }
   }
 }
 

@@ -49,7 +49,7 @@ const mockPageThumbnails = [
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='280' viewBox='0 0 200 280'%3E%3Crect width='200' height='280' fill='%23f8f9fa' stroke='%23dee2e6'/%3E%3Ctext x='100' y='140' text-anchor='middle' fill='%23495057' font-family='Arial' font-size='14'%3EPage 3%3C/text%3E%3C/svg%3E",
 ];
 
-export function FilePreview({ isOpen, onClose, file }: FilePreviewProps) {
+export function FilePreview({ isOpen, onClose, file }: Readonly<FilePreviewProps>) {
   const [currentPage, setCurrentPage] = useState(1);
   const [zoom, setZoom] = useState(100);
   const [rotation, setRotation] = useState(0);
@@ -83,7 +83,6 @@ export function FilePreview({ isOpen, onClose, file }: FilePreviewProps) {
 
   const isImage = file.type.includes('image');
   const isPDF = file.type.includes('pdf');
-  const isDocument = file.type.includes('document') || file.type.includes('docx');
   
   const maxPages = file.pages || (isImage ? 1 : 3); // Mock page count
 
@@ -256,7 +255,7 @@ export function FilePreview({ isOpen, onClose, file }: FilePreviewProps) {
               <span className="font-medium truncate max-w-xs">{file.name}</span>
             </div>
             <Badge variant="outline">{formatFileSize(file.size)}</Badge>
-            {file.pages && (
+            {Boolean(file.pages) && (
               <Badge variant="outline">{file.pages} pages</Badge>
             )}
           </div>

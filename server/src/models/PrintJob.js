@@ -229,39 +229,10 @@ printJobSchema.pre('save', function (next) {
   next();
 });
 
-// Virtual for estimated pages (simple calculation)
-printJobSchema.virtual('estimatedPages').get(function () {
-  if (this.settings.pages === 'all') {
-    return 1; // Default assumption, should be calculated from actual file
-  }
+// Virtual fields temporarily disabled to fix notification serialization errors
+// These can be re-enabled once proper error handling is implemented
 
-  const pages = this.settings.pages;
-  if (pages.includes('-')) {
-    const [start, end] = pages.split('-').map(Number);
-    return Math.max(0, end - start + 1);
-  }
-
-  if (pages.includes(',')) {
-    return pages.split(',').length;
-  }
-
-  return 1;
-});
-
-// Virtual for total estimated cost
-printJobSchema.virtual('estimatedTotalCost').get(function () {
-  const pages = this.estimatedPages;
-  const copies = this.settings.copies;
-
-  // Base cost calculation (these should come from printer settings)
-  const baseCostPerPage = 0.10; // $0.10 per page
-  const colorMultiplier = this.settings.color ? 3 : 1; // Color costs 3x more
-  const paperMultiplier = this.settings.paperType === 'A3' ? 2 : 1;
-
-  return pages * copies * baseCostPerPage * colorMultiplier * paperMultiplier;
-});
-
-// Ensure virtual fields are serialized
-printJobSchema.set('toJSON', { virtuals: true });
+// Ensure virtual fields are serialized when re-enabled
+// printJobSchema.set('toJSON', { virtuals: true });
 
 module.exports = mongoose.model('PrintJob', printJobSchema);

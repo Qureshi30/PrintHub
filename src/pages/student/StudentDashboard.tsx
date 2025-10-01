@@ -77,6 +77,7 @@ export default function StudentDashboard() {
                 icon: "⏳",
                 color: "text-yellow-600"
               },
+
               {
                 title: "Completed Jobs",
                 value: displayStats.completedJobs.toString(),

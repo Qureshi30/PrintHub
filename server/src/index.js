@@ -18,14 +18,21 @@ const adminLogRoutes = require('./routes/adminLogRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const studentRoutes = require('./routes/studentRoutes');
+const queueRoutes = require('./routes/queueRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const webhookRoutes = require('./routes/webhookRoutes');
+
+// Import queue processor
+const queueProcessor = require('./services/queueProcessor');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Connect to MongoDB
-connectDB();
+// Connect to MongoDB (non-blocking)
+connectDB().catch(err => {
+  console.error('Initial MongoDB connection failed:', err.message);
+  console.log('🚀 Server will start anyway. Database operations will retry automatically.');
+});
 
 // Security middleware
 app.use(helmet());
@@ -109,10 +116,11 @@ app.use('/api/admin-logs', adminLogRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/students', studentRoutes);
+app.use('/api/queue', queueRoutes);
 app.use('/api/payments', paymentRoutes);
-
 // Webhook routes (no rate limiting for webhooks)
 app.use('/webhooks', webhookRoutes);
+
 
 console.log('✅ All API routes registered successfully');
 console.log('📍 Admin routes available at: /api/admin/*');
@@ -142,9 +150,14 @@ app.listen(PORT, () => {
   console.log(`🌐 CORS Origins: Multiple localhost ports`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`📦 MongoDB Connected: localhost`);
+  console.log(`🔄 Queue API: http://localhost:${PORT}/api/queue`);
   
   // Start background schedulers for print job processing
   startAllSchedulers();
+  
+  // Start the print queue processor
+  queueProcessor.start();
+  console.log(`🖨️ Print queue processor started`);
 });
 
 module.exports = app;
