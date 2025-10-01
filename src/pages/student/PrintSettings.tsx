@@ -38,7 +38,7 @@ export default function PrintSettings() {
   
   // Get selected files from flow context
   const selectedFiles = files || [];
-  
+
   // Initialize settings for each file
   const [fileSettings, setFileSettings] = useState<FileSettings>(() => {
     const defaultSettings: PrintSettings = {
@@ -96,10 +96,34 @@ export default function PrintSettings() {
 
   // Update settings for a specific file
   const updateFileSettings = (fileId: string, newSettings: Partial<PrintSettings>) => {
-    setFileSettings(prev => ({
-      ...prev,
-      [fileId]: { ...prev[fileId], ...newSettings }
-    }));
+    setFileSettings(prev => {
+      const currentSettings = prev[fileId];
+      const updatedSettings = { ...currentSettings, ...newSettings };
+      
+      return {
+        ...prev,
+        [fileId]: updatedSettings
+      };
+    });
+    
+    // Update global context - convert string values to proper types
+    let pageValue: string;
+    if (newSettings.pageRange === 'custom' && newSettings.customPages) {
+      pageValue = newSettings.customPages;
+    } else if (newSettings.pageRange === 'current') {
+      pageValue = '1';
+    } else {
+      pageValue = 'all';
+    }
+    
+    const contextSettings = {
+      pages: pageValue,
+      copies: newSettings.copies,
+      color: newSettings.colorMode === 'color',
+      duplex: newSettings.duplex === 'double',
+      paperType: newSettings.paperSize as 'A4' | 'A3' | 'Letter' | 'Legal' | 'Certificate',
+    };
+    updateContextFileSettings(fileId, contextSettings);
   };
 
   // Copy settings from one file to all files
@@ -159,8 +183,8 @@ export default function PrintSettings() {
         if (estimatedPages > 0) {
           pagesToPrint = Math.min(estimatedPages, file.pages);
         }
-      } catch (error) {
-        console.warn('Invalid custom page range, using all pages:', settings.customPages);
+      } catch {
+        // Invalid custom page range, using all pages
         pagesToPrint = file.pages;
       }
     }
