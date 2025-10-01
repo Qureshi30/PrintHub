@@ -120,6 +120,10 @@ const printJobSchema = new mongoose.Schema({
   
   // Payment Status
   payment: {
+    amount: {
+      type: Number,
+      default: 0,
+    },
     status: {
       type: String,
       enum: ['unpaid', 'pending', 'paid', 'failed', 'refunded'],
@@ -134,8 +138,27 @@ const printJobSchema = new mongoose.Schema({
       type: String,
       trim: true,
     },
+    razorpayOrderId: {
+      type: String,
+      sparse: true, // Allow null values but create index for non-null values
+    },
+    razorpayPaymentId: {
+      type: String,
+      sparse: true,
+    },
+    razorpaySignature: {
+      type: String,
+      sparse: true,
+    },
     paidAt: {
       type: Date,
+    },
+    refundedAt: {
+      type: Date,
+    },
+    refundAmount: {
+      type: Number,
+      default: 0,
     },
   },
   
@@ -175,39 +198,6 @@ const printJobSchema = new mongoose.Schema({
   errorMessage: {
     type: String,
     trim: true,
-  },
-  payment: {
-    amount: {
-      type: Number,
-      default: 0,
-    },
-    status: {
-      type: String,
-      enum: ['pending', 'completed', 'failed', 'refunded'],
-      default: 'pending',
-    },
-    razorpayOrderId: {
-      type: String,
-      sparse: true, // Allow null values but create index for non-null values
-    },
-    razorpayPaymentId: {
-      type: String,
-      sparse: true,
-    },
-    razorpaySignature: {
-      type: String,
-      sparse: true,
-    },
-    paidAt: {
-      type: Date,
-    },
-    refundedAt: {
-      type: Date,
-    },
-    refundAmount: {
-      type: Number,
-      default: 0,
-    },
   },
 }, {
   timestamps: true,
