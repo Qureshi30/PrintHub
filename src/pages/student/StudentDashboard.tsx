@@ -68,14 +68,14 @@ export default function StudentDashboard() {
               { 
                 title: "Completed Jobs", 
                 value: displayStats.completedJobs.toString(), 
-                change: "This month", 
+                change: "Total completed", 
                 icon: "✅", 
                 color: "text-green-600" 
               },
               { 
                 title: "Total Spent", 
-                value: `$${displayStats.totalSpent.toFixed(2)}`,
-                change: "This semester", 
+                value: `₹${displayStats.totalSpent.toFixed(2)}`,
+                change: "Total spent", 
                 icon: "💰", 
                 color: "text-blue-600" 
               },

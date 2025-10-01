@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+require('dotenv').config();
 
 // Define a minimal PrintJob schema for querying
 const printJobSchema = new mongoose.Schema({}, { strict: false, collection: 'printjobs' });
@@ -6,7 +7,7 @@ const PrintJob = mongoose.model('PrintJob', printJobSchema);
 
 async function checkPrintJobs() {
   try {
-    await mongoose.connect('mongodb://localhost:27017/printhub');
+    await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB');
     
     const jobs = await PrintJob.find().sort({ createdAt: -1 }).limit(5);

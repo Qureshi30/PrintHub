@@ -1,11 +1,12 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/authMiddleware');
 const PrintJob = require('../models/PrintJob');
+const Printer = require('../models/Printer');
 const router = express.Router();
 
 /**
  * @route   GET /students/dashboard-stats
- * @desc    Get student dashboard statistics
+ * @desc    Get student dashboard statistics with real data
  * @access  Authenticated users
  */
 router.get('/dashboard-stats', requireAuth, async (req, res) => {
@@ -13,13 +14,48 @@ router.get('/dashboard-stats', requireAuth, async (req, res) => {
     const userId = req.user.id;
     console.log(`📊 Student dashboard stats requested by: ${req.user.fullName} (${req.user.email})`);
     
-    // In a real app, you'd fetch actual stats from your database based on userId
+    // Get real stats from database
+    const [pendingJobs, completedJobs, totalSpentResult, availablePrinters] = await Promise.all([
+      // Count pending jobs for this user
+      PrintJob.countDocuments({ 
+        clerkUserId: userId, 
+        status: { $in: ['pending', 'queued', 'printing'] } 
+      }),
+      
+      // Count completed jobs for this user
+      PrintJob.countDocuments({ 
+        clerkUserId: userId, 
+        status: 'completed' 
+      }),
+      
+      // Calculate total money spent by this user
+      PrintJob.aggregate([
+        { 
+          $match: { 
+            clerkUserId: userId, 
+            'payment.status': 'paid' 
+          } 
+        },
+        { 
+          $group: { 
+            _id: null, 
+            totalSpent: { $sum: '$pricing.totalCost' } 
+          } 
+        }
+      ]),
+      
+      // Count available (online) printers
+      Printer.countDocuments({ status: 'online' })
+    ]);
+
     const stats = {
-      pendingJobs: 2,
-      completedJobs: 15,
-      totalSpent: 47.25,
-      availablePrinters: 6
+      pendingJobs,
+      completedJobs,
+      totalSpent: totalSpentResult.length > 0 ? totalSpentResult[0].totalSpent : 0,
+      availablePrinters
     };
+
+    console.log(`📊 Dashboard stats for ${req.user.fullName}:`, stats);
 
     res.json({
       success: true,
