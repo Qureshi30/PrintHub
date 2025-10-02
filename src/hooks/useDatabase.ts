@@ -41,6 +41,7 @@ interface UserPrintJobsOptions {
 
 interface User {
   _id: string;
+  id?: string;
   clerkUserId: string;
   role: 'student' | 'admin' | 'staff';
   profile: {
@@ -49,6 +50,11 @@ interface User {
     email?: string;
     phone?: string;
   };
+  // Enhanced fields from backend
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  email?: string;
   preferences: {
     emailNotifications: boolean;
     defaultPaperType: string;

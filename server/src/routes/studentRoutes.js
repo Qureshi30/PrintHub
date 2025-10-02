@@ -2,6 +2,7 @@ const express = require('express');
 const { requireAuth } = require('../middleware/authMiddleware');
 const PrintJob = require('../models/PrintJob');
 const Printer = require('../models/Printer');
+const Revenue = require('../models/Revenue');
 const router = express.Router();
 
 /**
@@ -27,18 +28,17 @@ const [pendingJobs, completedJobs, totalSpentResult, availablePrintersCount] = a
     status: 'completed' 
   }),
 
-  // Calculate total money spent by this user (only 'completed' payments)
-  PrintJob.aggregate([
+  // Calculate total money spent by this user from Revenue collection
+  Revenue.aggregate([
     { 
       $match: { 
-        clerkUserId: userId, 
-        'payment.status': 'completed' 
+        clerkUserId: userId
       } 
     },
     { 
       $group: { 
         _id: null, 
-        totalSpent: { $sum: { $ifNull: ['$payment.amount', 0] } } 
+        totalSpent: { $sum: '$price' } 
       } 
     }
   ]),
@@ -50,7 +50,7 @@ const [pendingJobs, completedJobs, totalSpentResult, availablePrintersCount] = a
   })
 ]);
 
-// Extract total spent value safely
+// Extract total spent value safely from Revenue collection
 const totalSpent = totalSpentResult[0]?.totalSpent || 0;
     const stats = {
       pendingJobs,
