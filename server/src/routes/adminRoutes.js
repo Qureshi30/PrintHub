@@ -3,6 +3,9 @@ const { requireAdmin } = require('../middleware/authMiddleware');
 const { clerkClient } = require('@clerk/clerk-sdk-node');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
+const PrintJob = require('../models/PrintJob');
+const Printer = require('../models/Printer');
+const Revenue = require('../models/Revenue');
 const router = express.Router();
 
 console.log('🔧 Loading admin routes...');
@@ -166,6 +169,62 @@ router.get('/users', requireAdmin, async (req, res) => {
 });
 
 /**
+ * @route   DELETE /admin/users/:clerkUserId
+ * @desc    Delete a user from both Clerk and MongoDB
+ * @access  Admin only
+ */
+router.delete('/users/:clerkUserId', requireAdmin, async (req, res) => {
+  try {
+    const { clerkUserId } = req.params;
+    console.log(`🗑️ Admin ${req.user.fullName} deleting user: ${clerkUserId}`);
+
+    // First, delete from MongoDB
+    const deletedUser = await User.findOneAndDelete({ clerkUserId });
+
+    if (!deletedUser) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'User not found in database',
+          code: 'USER_NOT_FOUND'
+        }
+      });
+    }
+
+    // Then delete from Clerk
+    try {
+      const clerkClient = require('@clerk/clerk-sdk-node').default;
+      await clerkClient.users.deleteUser(clerkUserId);
+      console.log(`✅ User deleted from Clerk: ${clerkUserId}`);
+    } catch (clerkError) {
+      console.warn(`⚠️ Failed to delete from Clerk (user may already be deleted): ${clerkError.message}`);
+      // Continue even if Clerk deletion fails (user might already be deleted there)
+    }
+
+    console.log(`✅ User deleted successfully: ${deletedUser.profile?.email}`);
+
+    res.json({
+      success: true,
+      message: 'User deleted successfully',
+      data: {
+        clerkUserId: deletedUser.clerkUserId,
+        email: deletedUser.profile?.email
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Delete user error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to delete user',
+        code: 'DELETE_USER_ERROR'
+      }
+    });
+  }
+});
+
+/**
  * @route   GET /admin/test
  * @desc    Test endpoint to verify admin routes are working
  * @access  Public (for testing)
@@ -321,55 +380,137 @@ router.get('/dashboard-stats', requireAdmin, async (req, res) => {
 
 /**
  * @route   GET /admin/analytics
- * @desc    Get detailed analytics data for admin dashboard
+ * @desc    Get detailed analytics data for admin dashboard (Dynamic)
  * @access  Admin only
  */
 router.get('/analytics', requireAdmin, async (req, res) => {
   try {
     console.log(`📊 Analytics accessed by: ${req.user.fullName} (${req.user.email})`);
 
-    // In a real app, you'd fetch actual analytics from your database
-    const analytics = {
-      totalPrintJobs: 1247,
-      totalRevenue: 3456.78,
-      totalUsers: 542,
-      activePrinters: 8,
-      lastMonthGrowth: {
-        jobs: 15.2,
-        revenue: 12.8,
-        users: 8.5
+    // 1. Total Print Jobs - Count completed jobs
+    const totalPrintJobs = await PrintJob.countDocuments({ status: 'completed' });
+    console.log(`📄 Total completed print jobs: ${totalPrintJobs}`);
+
+    // 2. Total Revenue - Sum all prices from Revenue collection
+    const revenueResult = await Revenue.aggregate([
+      { $group: { _id: null, total: { $sum: '$price' } } }
+    ]);
+    const totalRevenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
+    console.log(`💰 Total revenue: $${totalRevenue.toFixed(2)}`);
+
+    // 3. Total Users - Count all users
+    const totalUsers = await User.countDocuments();
+    console.log(`👥 Total users: ${totalUsers}`);
+
+    // 4. Active Printers - Count online printers
+    const activePrinters = await Printer.countDocuments({ status: 'online' });
+    console.log(`🖨️ Active printers: ${activePrinters}`);
+
+    // Additional analytics data for dashboard
+
+    // Popular Paper Types
+    const paperTypesAgg = await PrintJob.aggregate([
+      { $match: { status: 'completed' } },
+      { $group: { _id: '$settings.paperType', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 }
+    ]);
+    const totalCompleted = totalPrintJobs || 1; // Avoid division by zero
+    const popularPaperTypes = paperTypesAgg.map(item => ({
+      type: item._id || 'Unknown',
+      count: item.count,
+      percentage: ((item.count / totalCompleted) * 100).toFixed(1)
+    }));
+
+    // Printer Usage Statistics
+    const printerUsageAgg = await PrintJob.aggregate([
+      { $match: { status: 'completed' } },
+      { 
+        $group: { 
+          _id: '$printerId',
+          jobCount: { $sum: 1 }
+        } 
       },
-      popularPaperTypes: [
-        { type: 'A4', count: 856, percentage: 68.7 },
-        { type: 'A3', count: 234, percentage: 18.8 },
-        { type: 'Letter', count: 157, percentage: 12.5 }
-      ],
-      dailyStats: [
-        { date: '2025-08-23', jobs: 45, revenue: 123.50 },
-        { date: '2025-08-24', jobs: 52, revenue: 145.20 },
-        { date: '2025-08-25', jobs: 38, revenue: 98.75 },
-        { date: '2025-08-26', jobs: 61, revenue: 178.90 },
-        { date: '2025-08-27', jobs: 49, revenue: 134.60 },
-        { date: '2025-08-28', jobs: 55, revenue: 156.80 },
-        { date: '2025-08-29', jobs: 47, revenue: 128.45 }
-      ],
-      monthlyStats: [
-        { month: 'Jan', jobs: 1123, revenue: 3245.67 },
-        { month: 'Feb', jobs: 1045, revenue: 2987.43 },
-        { month: 'Mar', jobs: 1189, revenue: 3456.12 },
-        { month: 'Apr', jobs: 1267, revenue: 3678.90 },
-        { month: 'May', jobs: 1345, revenue: 3890.45 },
-        { month: 'Jun', jobs: 1423, revenue: 4123.78 },
-        { month: 'Jul', jobs: 1389, revenue: 4045.32 },
-        { month: 'Aug', jobs: 1247, revenue: 3456.78 }
-      ],
-      printerUsage: [
-        { printer: 'HP LaserJet Pro 1', usage: 87, status: 'online' },
-        { printer: 'Canon PIXMA 2', usage: 65, status: 'online' },
-        { printer: 'Epson EcoTank 3', usage: 92, status: 'maintenance' },
-        { printer: 'Brother HL-L2350DW', usage: 78, status: 'online' }
-      ]
+      {
+        $lookup: {
+          from: 'printers',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'printerInfo'
+        }
+      },
+      { $unwind: { path: '$printerInfo', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          printer: '$printerInfo.name',
+          status: '$printerInfo.status',
+          jobCount: 1
+        }
+      }
+    ]);
+
+    // Calculate usage percentage (relative to max jobs)
+    const maxJobs = Math.max(...printerUsageAgg.map(p => p.jobCount), 1);
+    const printerUsage = printerUsageAgg.map(item => ({
+      printer: item.printer || 'Unknown Printer',
+      usage: Math.round((item.jobCount / maxJobs) * 100),
+      status: item.status || 'offline'
+    }));
+
+    // Daily Stats (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const dailyJobsAgg = await PrintJob.aggregate([
+      { 
+        $match: { 
+          status: 'completed',
+          createdAt: { $gte: sevenDaysAgo }
+        } 
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          jobs: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    const dailyRevenueAgg = await Revenue.aggregate([
+      { 
+        $match: { 
+          paidAt: { $gte: sevenDaysAgo }
+        } 
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$paidAt' } },
+          revenue: { $sum: '$price' }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Merge daily stats
+    const dailyRevenueMap = new Map(dailyRevenueAgg.map(item => [item._id, item.revenue]));
+    const dailyStats = dailyJobsAgg.map(item => ({
+      date: item._id,
+      jobs: item.jobs,
+      revenue: dailyRevenueMap.get(item._id) || 0
+    }));
+
+    const analytics = {
+      totalPrintJobs,
+      totalRevenue: parseFloat(totalRevenue.toFixed(2)),
+      totalUsers,
+      activePrinters,
+      popularPaperTypes,
+      printerUsage,
+      dailyStats
     };
+
+    console.log('✅ Analytics data generated successfully');
 
     res.json({
       success: true,
@@ -381,7 +522,8 @@ router.get('/analytics', requireAdmin, async (req, res) => {
       success: false,
       error: {
         message: 'Failed to load analytics',
-        code: 'ANALYTICS_ERROR'
+        code: 'ANALYTICS_ERROR',
+        details: error.message
       }
     });
   }
