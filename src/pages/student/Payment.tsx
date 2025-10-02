@@ -41,7 +41,8 @@ export default function Payment() {
     updateFileWithCloudinaryData,
     getSessionFile,
     goToNextStep,
-    setPaymentInfo
+    setPaymentInfo,
+    cleanupLocalFiles
   } = usePrintJobContext();
 
   // Hooks for backend operations
@@ -382,6 +383,9 @@ export default function Payment() {
 
       const createdJobs = await Promise.all(printJobPromises);
       console.log('✅ Successfully created print jobs:', createdJobs.length);
+      
+      // Cleanup local files after successful completion
+      cleanupLocalFiles();
       
       toast({
         title: "Success!",

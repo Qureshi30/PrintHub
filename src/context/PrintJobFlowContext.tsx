@@ -105,6 +105,9 @@ export interface PrintJobContextActions {
   setIsCreatingJobs: (creating: boolean) => void;
   addCreatedJobId: (jobId: string) => void;
   
+  // File cleanup
+  cleanupLocalFiles: () => void;
+  
   // Reset
   resetFlow: () => void;
 }
@@ -283,8 +286,9 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
   
   // Initialize session files with restored files from localStorage
   const [sessionFiles, setSessionFiles] = useState<{ [fileId: string]: File }>(storedState.restoredSessionFiles);
+  const [isCleanedUp, setIsCleanedUp] = useState(false);
 
-  // Save to localStorage whenever state changes
+  // Save to localStorage whenever state changes (but not if files have been cleaned up)
   useEffect(() => {
     console.log('💾 CONTEXT: Saving state to localStorage, files count:', files.length);
     files.forEach((file, index) => {
@@ -294,14 +298,31 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
       });
     });
     
-    saveStateToStorage({
-      currentStep,
-      files,
-      settings,
-      selectedPrinter,
-      payment,
-    }, sessionFiles);
-  }, [currentStep, files, settings, selectedPrinter, payment, sessionFiles]);
+    // If cleanup has been done, don't save file/base64 data
+    if (isCleanedUp) {
+      console.log('⚠️ CONTEXT SAVE: Files cleaned up, saving without file data');
+      const cleanedFiles = files.map(f => ({
+        ...f,
+        file: undefined,
+        base64Data: undefined
+      }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        currentStep,
+        files: cleanedFiles,
+        settings,
+        selectedPrinter,
+        payment,
+      }));
+    } else {
+      saveStateToStorage({
+        currentStep,
+        files,
+        settings,
+        selectedPrinter,
+        payment,
+      }, sessionFiles);
+    }
+  }, [currentStep, files, settings, selectedPrinter, payment, sessionFiles, isCleanedUp]);
 
   // Calculate if we can proceed to the next step
   const canProceed = useMemo(() => {
@@ -529,6 +550,60 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
     // The actual implementation will be in the Payment component using useBackendUpload hook
   }, [files]);
 
+  // Cleanup local files after successful payment (free memory and session storage)
+  const cleanupLocalFiles = useCallback(() => {
+    console.log('🧹 Context: Cleaning up local files after successful payment...');
+    
+    // Set cleanup flag to prevent saving base64 data
+    setIsCleanedUp(true);
+    
+    // First, revoke any blob URLs to prevent memory leaks
+    files.forEach(file => {
+      if (file.cloudinaryUrl?.startsWith('blob:')) {
+        console.log(`🗑️ Context: Revoking blob URL for: ${file.name}`);
+        URL.revokeObjectURL(file.cloudinaryUrl);
+      }
+    });
+    
+    // Clear session storage files
+    files.forEach(file => {
+      const storageKey = `file_${file.id}`;
+      if (sessionStorage.getItem(storageKey)) {
+        console.log(`🗑️ Context: Removing from session storage: ${file.name}`);
+        sessionStorage.removeItem(storageKey);
+      }
+    });
+    
+    // Clear session files map
+    setSessionFiles({});
+    
+    // Completely clear the files array - payment complete, start fresh
+    console.log('🗑️ Context: Clearing all files from state');
+    setFiles([]);
+    
+    // Clear localStorage to prevent restoration
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        // Clear files array completely in localStorage
+        parsed.files = [];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+        console.log('🗑️ Context: Cleared all files from localStorage');
+      } catch (error) {
+        console.warn('⚠️ Context: Failed to clean localStorage:', error);
+      }
+    }
+    
+    // Force garbage collection if available (development only)
+    if (typeof window !== 'undefined' && 'gc' in window) {
+      console.log('🗑️ Context: Triggering garbage collection');
+      (window as typeof window & { gc: () => void }).gc();
+    }
+    
+    console.log('✅ Context: Local file cleanup completed - all files cleared');
+  }, [files]);
+
   const resetFlow = () => {
     setCurrentStep('upload');
     setFiles([]);
@@ -567,6 +642,7 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
     setPaymentInfo: (paymentInfo) => setPayment(paymentInfo),
     setIsCreatingJobs,
     addCreatedJobId,
+    cleanupLocalFiles,
     resetFlow,
   }), [
     currentStep,
@@ -583,6 +659,7 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
     updateFileWithCloudinaryData,
     getSessionFile,
     uploadFilesToCloudinary,
+    cleanupLocalFiles,
   ]);
 
   return (
