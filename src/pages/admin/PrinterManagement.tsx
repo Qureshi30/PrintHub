@@ -7,6 +7,8 @@ import { usePrinters } from "@/hooks/useDatabase";
 import { AddPrinterDialog } from "@/components/admin/AddPrinterDialog";
 import { EditPrinterDialog } from "@/components/admin/EditPrinterDialog";
 import { DeletePrinterDialog } from "@/components/admin/DeletePrinterDialog";
+import { useAuth } from "@clerk/clerk-react";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Printer, 
   Plus, 
@@ -18,7 +20,8 @@ import {
   Wrench,
   MapPin,
   Edit,
-  Trash2
+  Trash2,
+  Power
 } from "lucide-react";
 
 interface Printer {
@@ -44,12 +47,15 @@ interface Printer {
 
 export default function PrinterManagement() {
   const { printers, loading } = usePrinters();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
   
   // Dialog states
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedPrinter, setSelectedPrinter] = useState<Printer | null>(null);
+  const [togglingPrinter, setTogglingPrinter] = useState<string | null>(null);
 
   // Event handlers
   const handleAddPrinter = () => {
@@ -83,6 +89,46 @@ export default function PrinterManagement() {
 
   const handlePrinterDeleted = () => {
     refreshData();
+  };
+
+  const handleToggleStatus = async (printer: Printer) => {
+    const newStatus = printer.status === 'online' ? 'offline' : 'online';
+    setTogglingPrinter(printer._id);
+
+    try {
+      const token = await getToken();
+      const response = await fetch(`http://localhost:3001/api/printers/${printer._id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          status: newStatus
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Status Updated",
+          description: `${printer.name} is now ${newStatus}.`
+        });
+        refreshData();
+      } else {
+        throw new Error(result.error?.message || 'Failed to update printer status');
+      }
+    } catch (error) {
+      console.error('Error toggling printer status:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update printer status",
+        variant: "destructive"
+      });
+    } finally {
+      setTogglingPrinter(null);
+    }
   };
   
   if (loading) {
@@ -238,6 +284,15 @@ export default function PrinterManagement() {
                 {getStatusBadge(printer.status)}
                 
                 <div className="flex gap-2">
+                  <Button 
+                    variant={printer.status === 'online' ? 'default' : 'outline'}
+                    size="sm" 
+                    onClick={() => handleToggleStatus(printer)}
+                    disabled={togglingPrinter === printer._id}
+                    className={printer.status === 'online' ? 'bg-green-600 hover:bg-green-700' : ''}
+                  >
+                    <Power className="h-4 w-4" />
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => handleEditPrinter(printer)}>
                     <Edit className="h-4 w-4" />
                   </Button>
