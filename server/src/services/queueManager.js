@@ -1,6 +1,7 @@
 const Queue = require('../models/Queue');
 const PrintJob = require('../models/PrintJob');
 const Notification = require('../models/Notification');
+const emailService = require('./unifiedEmailService');
 const mongoose = require('mongoose');
 
 class QueueManager {
@@ -201,6 +202,18 @@ class QueueManager {
           // Create notification within the same transaction
           await Notification.create([notificationData], { session });
           console.log(`📧 ${finalStatus === 'completed' ? '✅' : '❌'} Notification created for user ${printJob.clerkUserId}`);
+
+          // Send email notification (only for completed jobs for now)
+          if (finalStatus === 'completed') {
+            try {
+              // Send email notification using the unified email service
+              await emailService.sendPrintCompletionNotification(printJob);
+              console.log(`📧 ✅ Email notification sent for completed job ${printJobId}`);
+            } catch (emailError) {
+              console.error('📧 ❌ Failed to send email notification:', emailError.message);
+              // Don't throw error - email failure shouldn't prevent job completion
+            }
+          }
         }
       }
 
