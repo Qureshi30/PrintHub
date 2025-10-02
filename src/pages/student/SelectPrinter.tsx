@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { Printer, Clock, Users, CheckCircle, Loader2 } from "lucide-react";
 import { printerService, type PrinterStation } from "@/services/printerService";
 import { usePrintJobContext } from "@/hooks/usePrintJobContext";
+import { type PrintJobFile, type PrintJobSettings } from "@/context/PrintJobFlowContext";
 import { 
   validatePrinterCompatibility, 
   type PrinterCapabilities,
@@ -29,7 +30,45 @@ export default function SelectPrinter() {
   const [hasIncompatibleSettings, setHasIncompatibleSettings] = useState(false);
   
   // Use PrintJob context
-  const { selectPrinter, setCurrentStep } = usePrintJobContext();
+  const { files, settings, selectPrinter, setCurrentStep } = usePrintJobContext();
+
+  // Helper function to check files compatibility
+  const checkFilesCompatibility = (
+    files: PrintJobFile[], 
+    settings: { [fileId: string]: PrintJobSettings }, 
+    capabilities: PrinterCapabilities
+  ): CompatibilityResult | null => {
+    if (files && files.length > 0) {
+      for (const file of files) {
+        const fileSettings = settings[file.id];
+        const userSettings: CompatibilityPrintSettings = {
+          color: fileSettings?.color ?? false,
+          duplex: fileSettings?.duplex ?? false,
+          paperType: fileSettings?.paperType ?? 'A4',
+          copies: fileSettings?.copies ?? 1,
+        };
+
+        const result = validatePrinterCompatibility(userSettings, capabilities);
+        if (result && !result.isCompatible) {
+          return result;
+        }
+      }
+    } else {
+      // Fallback for no files
+      const defaultSettings: CompatibilityPrintSettings = {
+        color: false,
+        duplex: false,
+        paperType: 'A4',
+        copies: 1,
+      };
+
+      const result = validatePrinterCompatibility(defaultSettings, capabilities);
+      if (result && !result.isCompatible) {
+        return result;
+      }
+    }
+    return null;
+  };
 
   // Set current step and fetch printers from backend
   useEffect(() => {
@@ -70,18 +109,11 @@ export default function SelectPrinter() {
 
         setPrinterCapabilities(capabilities);
 
-        // Check if any files have incompatible default settings
-        const defaultSettings: CompatibilityPrintSettings = {
-          color: true, // Default to color
-          duplex: false, // Default to single-sided
-          paperType: 'A4', // Default paper type
-          copies: 1,
-        };
-
-        const result = validatePrinterCompatibility(defaultSettings, capabilities);
+        // Check compatibility
+        const incompatibleResult = checkFilesCompatibility(files, settings, capabilities);
         
-        if (result && !result.isCompatible) {
-          setCompatibilityResult(result);
+        if (incompatibleResult) {
+          setCompatibilityResult(incompatibleResult);
           setShowCompatibilityAlert(true);
           setHasIncompatibleSettings(true);
         } else {
@@ -94,7 +126,7 @@ export default function SelectPrinter() {
     };
 
     validateCompatibility();
-  }, [selectedPrinterId, printers]);
+  }, [selectedPrinterId, printers, files, settings]);
 
   const handleContinue = () => {
     if (selectedPrinterId && !hasIncompatibleSettings) {
@@ -174,10 +206,10 @@ export default function SelectPrinter() {
                 compatibilityResult={compatibilityResult}
                 printerName={printers.find(p => p.id === selectedPrinterId)?.name || "Selected Printer"}
                 currentSettings={{
-                  color: true,
-                  duplex: false, 
-                  paperType: 'A4',
-                  copies: 1,
+                  color: files?.[0] ? (settings[files[0].id]?.color ?? false) : false,
+                  duplex: files?.[0] ? (settings[files[0].id]?.duplex ?? false) : false,
+                  paperType: files?.[0] ? (settings[files[0].id]?.paperType ?? 'A4') : 'A4',
+                  copies: files?.[0] ? (settings[files[0].id]?.copies ?? 1) : 1,
                 }}
                 capabilities={printerCapabilities}
               />
