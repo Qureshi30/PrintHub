@@ -44,14 +44,15 @@ app.use(cors({
     'http://localhost:8080',
     'http://localhost:8081',
     'http://localhost:8082',
-    // Add your Vercel deployment URL here
-    'https://printhub.vercel.app',           // Replace with your actual Vercel URL
-    'https://printhub-*.vercel.app',         // Preview deployments
-    /https:\/\/.*\.vercel\.app$/             // All Vercel preview URLs
+    // Add your Vercel deployment URLs
+    'https://printhub.vercel.app',
+    'https://printhub1.vercel.app',          // Your actual deployment
+    'https://printhub-*.vercel.app',
+    /https:\/\/printhub.*\.vercel\.app$/     // All PrintHub Vercel URLs
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'ngrok-skip-browser-warning']
 }));
 
 // Rate limiting
