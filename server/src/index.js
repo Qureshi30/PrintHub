@@ -43,7 +43,11 @@ app.use(cors({
     'http://localhost:5173',
     'http://localhost:8080',
     'http://localhost:8081',
-    'http://localhost:8082'
+    'http://localhost:8082',
+    // Add your Vercel deployment URL here
+    'https://printhub.vercel.app',           // Replace with your actual Vercel URL
+    'https://printhub-*.vercel.app',         // Preview deployments
+    /https:\/\/.*\.vercel\.app$/             // All Vercel preview URLs
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
