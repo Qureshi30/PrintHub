@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-
-// API base URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+import apiClient, { API_BASE_URL } from '@/lib/apiClient';
 
 // Types
 interface PrinterLevels {
@@ -153,26 +151,25 @@ interface Printer {
   }>;
 }
 
-// HTTP Client with auth
+// HTTP Client with auth - uses apiClient which includes ngrok headers
 const createAuthenticatedFetch = (getToken: () => Promise<string | null>) => {
   return async (url: string, options: RequestInit = {}) => {
     const token = await getToken();
-    const headers = {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
-    };
-
-    const response = await fetch(`${API_BASE_URL}${url}`, {
-      ...options,
+    
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    
+    // Use apiClient instead of fetch to get ngrok headers automatically
+    const response = await apiClient.request({
+      url,
+      method: (options.method || 'GET') as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
       headers,
+      data: options.body ? JSON.parse(options.body as string) : undefined,
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return response.json();
+    return response.data;
   };
 };
 
