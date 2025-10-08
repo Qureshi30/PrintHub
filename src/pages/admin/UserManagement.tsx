@@ -9,6 +9,7 @@ import { useAllUsers } from "@/hooks/useDatabase";
 import { useAuth } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import apiClient from "@/lib/apiClient";
 import {
   Users,
   Search,
@@ -57,22 +58,19 @@ export default function UserManagement() {
       const token = await getToken();
 
       // Create user via your backend endpoint that will use Clerk Admin API
-      const response = await fetch('http://localhost:3001/api/admin/create-user', {
-        method: 'POST',
+      const response = await apiClient.post('/admin/create-user', {
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email,
+        role: newUser.role,
+        password: newUser.password
+      }, {
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          firstName: newUser.firstName,
-          lastName: newUser.lastName,
-          email: newUser.email,
-          role: newUser.role,
-          password: newUser.password
-        })
+        }
       });
 
-      const result = await response.json();
+      const result = response.data;
 
       if (result.success) {
         toast({
@@ -129,14 +127,13 @@ export default function UserManagement() {
       const token = await getToken();
 
       // Delete user via backend endpoint
-      const response = await fetch(`http://localhost:3001/api/admin/users/${userToDelete.clerkUserId}`, {
-        method: 'DELETE',
+      const response = await apiClient.delete(`/admin/users/${userToDelete.clerkUserId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
-      const result = await response.json();
+      const result = response.data;
 
       if (result.success) {
         toast({

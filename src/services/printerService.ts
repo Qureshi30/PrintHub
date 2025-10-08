@@ -3,7 +3,9 @@
  * Connects to backend API to fetch real printer data
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import apiClient from '@/lib/apiClient';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 export interface PrinterCapabilities {
   color: boolean;
@@ -62,19 +64,9 @@ class PrinterService {
    */
   async getAvailablePrinters(): Promise<PrinterStation[]> {
     try {
-      // Use test endpoint for now (no auth required)
-      const response = await fetch(`${API_BASE_URL}/api/printers/test`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
+      // Use apiClient to get ngrok headers automatically
+      const response = await apiClient.get('/printers/test');
+      const result = response.data;
       
       if (result.success && result.data) {
         return result.data.map((printer: APIProvidedPrinter) => ({
@@ -101,18 +93,8 @@ class PrinterService {
    */
   async getPrinterDetails(printerId: string) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/printers/${printerId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
+      const response = await apiClient.get(`/printers/${printerId}`);
+      const result = response.data;
       return result.success ? result.data : null;
     } catch (error) {
       console.error('Error fetching printer details:', error);
@@ -125,18 +107,8 @@ class PrinterService {
    */
   async getPrinterQueue(printerId: string) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/printers/${printerId}/queue`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
+      const response = await apiClient.get(`/printers/${printerId}/queue`);
+      const result = response.data;
       return result.success ? result.data : null;
     } catch (error) {
       console.error('Error fetching printer queue:', error);
@@ -228,22 +200,13 @@ class PrinterService {
    */
   async addPrinter(printerData: AddPrinterData, token: string | null): Promise<void> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/printers`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` })
-        },
-        body: JSON.stringify(printerData)
+      await apiClient.post('/printers', printerData, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to add printer');
-      }
     } catch (error) {
       console.error('Error adding printer:', error);
-      throw error;
+      const errorMessage = (error as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to add printer';
+      throw new Error(errorMessage);
     }
   }
 
@@ -252,22 +215,13 @@ class PrinterService {
    */
   async updatePrinterLocation(printerId: string, location: string, token: string | null): Promise<void> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/printers/${printerId}/location`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` })
-        },
-        body: JSON.stringify({ location })
+      await apiClient.put(`/printers/${printerId}/location`, { location }, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update printer location');
-      }
     } catch (error) {
       console.error('Error updating printer location:', error);
-      throw error;
+      const errorMessage = (error as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to update printer location';
+      throw new Error(errorMessage);
     }
   }
 
@@ -276,22 +230,13 @@ class PrinterService {
    */
   async updatePrinterStatus(printerId: string, status: PrinterStatus, token: string | null): Promise<void> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/printers/${printerId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` })
-        },
-        body: JSON.stringify({ status })
+      await apiClient.put(`/printers/${printerId}/status`, { status }, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update printer status');
-      }
     } catch (error) {
       console.error('Error updating printer status:', error);
-      throw error;
+      const errorMessage = (error as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to update printer status';
+      throw new Error(errorMessage);
     }
   }
 
@@ -300,21 +245,13 @@ class PrinterService {
    */
   async deletePrinter(printerId: string, token: string | null): Promise<void> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/printers/${printerId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` })
-        }
+      await apiClient.delete(`/printers/${printerId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete printer');
-      }
     } catch (error) {
       console.error('Error deleting printer:', error);
-      throw error;
+      const errorMessage = (error as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to delete printer';
+      throw new Error(errorMessage);
     }
   }
 }
