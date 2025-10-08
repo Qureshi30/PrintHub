@@ -72,7 +72,7 @@ export default function NotificationFeatures() {
       title: "Print Job Delayed",
       message: "Your print job has been delayed due to printer maintenance. New ETA: 3:30 PM.",
       time: "1 hour ago",
-      read: true
+      read: false
     },
     {
       id: 4,
@@ -80,7 +80,7 @@ export default function NotificationFeatures() {
       title: "Schedule Confirmation",
       message: "Your print job has been scheduled for pickup tomorrow at 10:00 AM.",
       time: "2 hours ago",
-      read: true
+      read: false
     }
   ];
 
