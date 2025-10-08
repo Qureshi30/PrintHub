@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import apiClient, { API_BASE_URL } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 
 // Types
 interface PrinterLevels {
