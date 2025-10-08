@@ -382,7 +382,7 @@ export default function Upload() {
               </Button>
             ) : (
               <Button 
-                onClick={() => navigate("/student/history")} 
+                onClick={() => navigate("/history")} 
                 size="lg" 
                 className="bg-gradient-hero px-8"
               >
