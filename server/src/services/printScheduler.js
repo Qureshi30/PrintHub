@@ -38,16 +38,12 @@ const startAutoPrintProcessor = () => {
             // Mark as in progress
             await QueueManager.markInProgress(queueItem._id);
             
-            // Simulate processing time (in real implementation, this would call actual printer)
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            
-            // Complete the job
-            await QueueManager.completeJob(queueItem.printJobId._id);
-            
-            console.log(`✅ Backup processor completed: ${queueItem.printJobId.file.originalName}`);
+            // Let the main queueProcessor handle actual printing
+            // This backup processor only handles stuck jobs
+            console.log(`⏭️ Backup processor skipping - main processor should handle printing`);
             
             // Small delay between jobs to prevent overwhelming the system
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 1000));
             
           } catch (error) {
             console.error(`❌ Backup processor error for queue item ${queueItem._id}:`, error.message);
