@@ -1,9 +1,4 @@
 {
-  "version": 2,
-  "buildCommand": "cd PrintHub && npm install && npm run build",
-  "outputDirectory": "PrintHub/dist",
-  "installCommand": "cd PrintHub && npm install",
-  "framework": "vite",
   "rewrites": [
     {
       "source": "/(.*)",
