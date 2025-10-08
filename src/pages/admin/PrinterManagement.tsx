@@ -9,6 +9,7 @@ import { EditPrinterDialog } from "@/components/admin/EditPrinterDialog";
 import { DeletePrinterDialog } from "@/components/admin/DeletePrinterDialog";
 import { useAuth } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
+import apiClient from "@/lib/apiClient";
 import { 
   Printer, 
   Plus, 
@@ -97,18 +98,15 @@ export default function PrinterManagement() {
 
     try {
       const token = await getToken();
-      const response = await fetch(`http://localhost:3001/api/printers/${printer._id}/status`, {
-        method: 'PUT',
+      const response = await apiClient.put(`/printers/${printer._id}/status`, {
+        status: newStatus
+      }, {
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          status: newStatus
-        })
+        }
       });
 
-      const result = await response.json();
+      const result = response.data;
 
       if (result.success) {
         toast({
