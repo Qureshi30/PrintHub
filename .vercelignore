@@ -1,0 +1,10 @@
+# Ignore backend server folder during frontend deployment
+server/
+
+# Ignore backend/system files
+*.log
+.env.local
+.DS_Store
+
+# Already in dist folder
+node_modules/
