@@ -19,9 +19,6 @@ apiClient.interceptors.request.use(
     // Add ngrok skip warning header for all requests
     config.headers['ngrok-skip-browser-warning'] = 'true';
     
-    // Also add a custom user agent to help bypass ngrok warnings
-    config.headers['User-Agent'] = 'PrintHub-Frontend';
-    
     return config;
   },
   (error) => {

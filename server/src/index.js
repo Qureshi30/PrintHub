@@ -103,6 +103,24 @@ app.get('/health', (req, res) => {
 });
 
 // Public routes
+app.get('/api', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'PrintHub API',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      users: '/api/users',
+      printJobs: '/api/print-jobs',
+      printers: '/api/printers',
+      queue: '/api/queue',
+      payments: '/api/payments'
+    }
+  });
+});
+
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'OK',

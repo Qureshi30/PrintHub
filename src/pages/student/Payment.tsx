@@ -73,7 +73,7 @@ export default function Payment() {
     files.forEach(file => {
       const fileSettings = settings[file.id];
       if (fileSettings) {
-        const baseCost = 0.10; // $0.10 per page
+        const baseCost = 1.00; // ₹1.00 per page
         const colorMultiplier = fileSettings.color ? 2 : 1;
         const pages = file.pages;
         const copies = fileSettings.copies;
@@ -561,7 +561,7 @@ export default function Payment() {
                   </div>
                   <div className="flex justify-between">
                     <span>Amount Paid:</span>
-                    <span className="font-medium text-green-600">${paymentInfo.amount.toFixed(2)}</span>
+                    <span className="font-medium text-green-600">₹{paymentInfo.amount.toFixed(2)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -639,7 +639,7 @@ export default function Payment() {
                 <Separator />
                 <div className="space-y-2">
                   <div className="text-sm text-muted-foreground">Cost Breakdown:</div>
-                  <div className="text-sm bg-gray-50 p-2 rounded">
+                  <div className="text-sm bg-gray-100 dark:bg-gray-800 p-2 rounded">
                     {paymentInfo.breakdown}
                   </div>
                 </div>
@@ -647,7 +647,7 @@ export default function Payment() {
                 <div className="flex justify-between items-center">
                   <span className="font-medium text-lg">Total Amount:</span>
                   <span className="text-2xl font-bold text-green-600">
-                    ${paymentInfo.amount.toFixed(2)}
+                    ₹{paymentInfo.amount.toFixed(2)}
                   </span>
                 </div>
               </CardContent>
@@ -774,7 +774,7 @@ export default function Payment() {
               ) : (
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-4 w-4" />
-                  Pay ${paymentInfo.amount.toFixed(2)}
+                  Pay ₹{paymentInfo.amount.toFixed(2)}
                 </div>
               )}
             </Button>
