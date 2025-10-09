@@ -11,11 +11,12 @@ import { useBackendUpload } from "@/hooks/useBackendUpload";
 import { useCreatePrintJob } from "@/hooks/useDatabase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@clerk/clerk-react";
-import { 
-  CreditCard, 
-  Smartphone, 
-  Shield, 
-  CheckCircle, 
+import { usePayment } from "@/hooks/usePayment";
+import {
+  CreditCard,
+  Smartphone,
+  Shield,
+  CheckCircle,
   Clock,
   AlertCircle,
   FileText,
@@ -24,9 +25,16 @@ import {
   Settings
 } from "lucide-react";
 
+// Razorpay interface
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
 export default function Payment() {
   const navigate = useNavigate();
-  const { userId } = useAuth();
+  const { userId, getToken } = useAuth();
   const { toast } = useToast();
   const [selectedMethod, setSelectedMethod] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -34,19 +42,21 @@ export default function Payment() {
   const [paymentStatus, setPaymentStatus] = useState<"pending" | "processing" | "uploading" | "success" | "failed">("pending");
 
   // Get data from print job flow context
-  const { 
-    files, 
-    settings, 
-    selectedPrinter, 
+  const {
+    files,
+    settings,
+    selectedPrinter,
     updateFileWithCloudinaryData,
     getSessionFile,
     goToNextStep,
     setPaymentInfo,
-    cleanupLocalFiles
+    cleanupLocalFiles,
+    payment
   } = usePrintJobContext();
 
   // Hooks for backend operations
   const { mutateAsync: createPrintJob } = useCreatePrintJob();
+  const { createPaymentOrder, verifyPayment } = usePayment();
 
   // Upload hook for Cloudinary upload
   const { uploadFile } = useBackendUpload({
@@ -121,10 +131,16 @@ export default function Payment() {
   // Upload files to Cloudinary after payment
   const uploadFilesToCloudinary = async () => {
     setPaymentStatus("uploading");
-    
+
     console.log('🔍 uploadFilesToCloudinary called - DEBUGGING');
     console.log('📁 Current files state:', files);
-    
+    console.log('📁 Session files check:', files.map(f => ({
+      id: f.id,
+      name: f.name,
+      hasSessionFile: !!getSessionFile(f.id),
+      hasFileProperty: !!f.file
+    })));
+
     // Add detailed debugging for each file
     console.log('=== FILE DEBUGGING START ===');
     files.forEach((file, index) => {
@@ -139,42 +155,42 @@ export default function Payment() {
         sessionFileSize: sessionFile?.size,
         cloudinaryUrl: file.cloudinaryUrl
       });
-      
+
       if (!file.file && !sessionFile) {
         console.error(`❌ CRITICAL: File ${file.name} has NO file object and NO session file!`);
       }
     });
     console.log('=== FILE DEBUGGING END ===');
-    
+
     try {
       const localFiles = files.filter(file => !file.cloudinaryUrl);
-      
+
       console.log('📋 Upload Context Debug:', {
         totalFiles: files.length,
         localFilesCount: localFiles.length,
         allFiles: files.map(f => {
           const sessionFile = getSessionFile(f.id);
-          return { 
-            id: f.id, 
-            name: f.name, 
+          return {
+            id: f.id,
+            name: f.name,
             hasSessionFile: !!sessionFile,
             hasCloudinaryUrl: !!f.cloudinaryUrl,
             fileType: sessionFile?.type,
-            fileSize: sessionFile?.size 
+            fileSize: sessionFile?.size
           };
         }),
         localFiles: localFiles.map(f => {
           const sessionFile = getSessionFile(f.id);
-          return { 
-            id: f.id, 
-            name: f.name, 
+          return {
+            id: f.id,
+            name: f.name,
             hasSessionFile: !!sessionFile,
             fileType: sessionFile?.type,
-            fileSize: sessionFile?.size 
+            fileSize: sessionFile?.size
           };
         })
       });
-      
+
       if (localFiles.length === 0) {
         console.log('ℹ️ All files already uploaded or no files to upload');
         await createPrintJobsInDatabase();
@@ -191,25 +207,27 @@ export default function Payment() {
           sessionFileType: sessionFile?.type,
           filePropertyType: fileProperty?.type
         });
+
+        // If we have a file property but no session file, try to recover
+        if (!sessionFile && fileProperty) {
+          console.log(`🔄 Attempting to recover file ${f.name} from file property`);
+          // This will be handled in the upload loop
+          return false; // Don't consider this as missing
+        }
+
         return !sessionFile && !fileProperty;
       });
-      
+
       if (filesWithoutAnyFile.length > 0) {
         console.error('❌ Missing files detected (no session file or file property):', filesWithoutAnyFile.map(f => f.name));
-        
-        // In Dev Mode, show error message instead of failing silently
-        if (selectedMethod === 'dev') {
-          console.log('🔄 Dev Mode: Files missing, showing error');
-          toast({
-            title: "Files Missing",
-            description: "Some files were lost during upload. Please go back and re-upload your files.",
-            variant: "destructive",
-          });
-          setPaymentStatus("failed");
-          return;
-        } else {
-          throw new Error('Files were corrupted during state management. Please refresh the page and re-upload your files.');
-        }
+
+        toast({
+          title: "Files Missing",
+          description: "Some files were lost during upload. Please go back and re-upload your files.",
+          variant: "destructive",
+        });
+        setPaymentStatus("failed");
+        return;
       }
 
       // Report which files are using fallback
@@ -219,7 +237,7 @@ export default function Payment() {
       }
 
       console.log(`📤 Uploading ${localFiles.length} files to Cloudinary...`);
-      
+
       const uploadedFilesInfo: Array<{
         id: string;
         name: string;
@@ -229,7 +247,7 @@ export default function Payment() {
         sizeKB: number;
         originalSize: number;
       }> = [];
-      
+
       for (const fileData of localFiles) {
         // Try session file first, then fallback to file property
         let sessionFile = getSessionFile(fileData.id);
@@ -237,7 +255,7 @@ export default function Payment() {
           sessionFile = fileData.file;
           console.log(`🔄 Using file property fallback for ${fileData.name}`);
         }
-        
+
         console.log('🔍 Processing file:', {
           fileId: fileData.id,
           fileName: fileData.name,
@@ -249,10 +267,10 @@ export default function Payment() {
           fileLastModified: sessionFile?.lastModified,
           fileConstructor: sessionFile?.constructor?.name
         });
-        
+
         if (sessionFile) {
           setUploadProgress(prev => ({ ...prev, [fileData.id]: 0 }));
-          
+
           try {
             console.log(`📤 About to upload file:`, sessionFile);
             console.log('🔍 File object detailed check in Payment.tsx:', {
@@ -263,7 +281,7 @@ export default function Payment() {
               keys: Object.keys(sessionFile)
             });
             const response = await uploadFile(sessionFile);
-            
+
             // Store uploaded file info
             uploadedFilesInfo.push({
               id: fileData.id,
@@ -274,12 +292,12 @@ export default function Payment() {
               sizeKB: response.sizeKB,
               originalSize: fileData.size
             });
-            
+
             // Update file with Cloudinary data including format and size
             updateFileWithCloudinaryData(fileData.id, response.url, response.publicId, response.format, response.sizeKB);
-            
+
             setUploadProgress(prev => ({ ...prev, [fileData.id]: 100 }));
-            
+
             console.log(`✅ Uploaded ${fileData.name}:`, response.url);
           } catch (error) {
             console.error(`❌ Failed to upload ${fileData.name}:`, error);
@@ -289,10 +307,10 @@ export default function Payment() {
           console.error(`❌ No session file found for ${fileData.name}`);
         }
       }
-      
+
       // Now create print jobs in the backend
       await createPrintJobsInDatabase(uploadedFilesInfo);
-      
+
     } catch (error) {
       setPaymentStatus("failed");
       throw error;
@@ -311,7 +329,7 @@ export default function Payment() {
   }>) => {
     try {
       console.log('📝 Creating print jobs in database...');
-      
+
       // Debug: Check current files state
       console.log('🔍 Files state for print job creation:', {
         totalFiles: files.length,
@@ -325,7 +343,7 @@ export default function Payment() {
           sizeKB: f.sizeKB
         }))
       });
-      
+
       if (!userId) {
         throw new Error('User ID not found');
       }
@@ -337,13 +355,13 @@ export default function Payment() {
       // Create a print job for each file that was uploaded
       const filesToProcess = uploadedFiles || files.filter(file => file.cloudinaryUrl);
       console.log('📋 Files eligible for print job creation:', filesToProcess.length);
-      
+
       if (uploadedFiles) {
         console.log('🔄 Using directly passed uploaded files info');
       } else {
         console.log('🔄 Using files from React state');
       }
-      
+
       const printJobPromises = filesToProcess
         .map(async (fileData) => {
           const fileSettings = settings[fileData.id];
@@ -371,10 +389,16 @@ export default function Payment() {
             payment: {
               status: 'paid' as const,
               method: selectedMethod,
-              transactionId: selectedMethod === 'dev' ? `dev_txn_${Date.now()}_${Math.random().toString(36).substring(2, 11)}` : `txn_${Date.now()}`,
+              transactionId: payment?.transactionId || (selectedMethod === 'dev' ? `dev_txn_${Date.now()}_${Math.random().toString(36).substring(2, 11)}` : `txn_${Date.now()}`),
+              amount: payment?.totalCost || calculateTotalCost(),
               paidAt: new Date().toISOString()
             },
-            cost: calculateTotalCost()
+            cost: {
+              totalCost: payment?.totalCost || calculateTotalCost(),
+              baseCost: payment?.breakdown?.baseCost || (calculateTotalCost() * 0.8),
+              colorCost: payment?.breakdown?.colorCost || 0,
+              paperCost: payment?.breakdown?.paperCost || (calculateTotalCost() * 0.2)
+            }
           };
 
           console.log('📄 Creating print job for:', fileData.name);
@@ -383,15 +407,15 @@ export default function Payment() {
 
       const createdJobs = await Promise.all(printJobPromises);
       console.log('✅ Successfully created print jobs:', createdJobs.length);
-      
+
       // Cleanup local files after successful completion
       cleanupLocalFiles();
-      
+
       toast({
         title: "Success!",
         description: `${createdJobs.length} print job(s) created successfully`,
       });
-      
+
       goToNextStep(); // Move to queue step
     } catch (error) {
       console.error('❌ Failed to create print jobs:', error);
@@ -404,92 +428,242 @@ export default function Payment() {
     }
   };
 
+  // Handle Razorpay payment flow - No DB operations before payment
+  const handleRazorpayPayment = async (amount: number) => {
+    try {
+      // Create a temporary order for payment (no print jobs created yet)
+      const temporaryOrderData = {
+        amount: amount,
+        currency: 'INR',
+        receipt: `temp_order_${Date.now()}`,
+        notes: {
+          fileCount: files.length.toString(),
+          totalPages: files.reduce((sum, file) => sum + file.pages, 0).toString(),
+          printerName: selectedPrinter?.name || 'Unknown'
+        }
+      };
+
+      // Create Razorpay order directly (without print job dependency)
+      const order = await createTemporaryPaymentOrder(temporaryOrderData);
+
+      const options = {
+        key: order.key,
+        amount: order.amount,
+        currency: order.currency,
+        name: "PrintHub",
+        description: `Print Job Payment - ${files.length} file(s)`,
+        order_id: order.orderId,
+        handler: async (response: any) => {
+          try {
+            console.log('💳 Payment successful, verifying...', response);
+            setPaymentStatus("processing");
+
+            // Verify payment first
+            await verifyTemporaryPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            });
+
+            console.log('✅ Payment verified, now processing files...');
+            setPaymentStatus("uploading");
+
+            // Store payment info
+            setPaymentInfo({
+              method: selectedMethod as 'upi' | 'card' | 'dev',
+              totalCost: amount,
+              transactionId: response.razorpay_payment_id,
+              breakdown: {
+                baseCost: amount * 0.8,
+                colorCost: 0,
+                paperCost: amount * 0.2
+              }
+            });
+
+            // Now upload files to Cloudinary and create print jobs
+            await uploadFilesToCloudinary();
+            setPaymentStatus("success");
+            setIsProcessing(false);
+
+            toast({
+              title: "Payment Successful!",
+              description: "Your payment has been processed and files are being uploaded.",
+            });
+          } catch (error) {
+            console.error('Post-payment processing failed:', error);
+            setPaymentStatus("failed");
+            setIsProcessing(false);
+            toast({
+              title: "Processing Failed",
+              description: "Payment was successful but verification failed. Please contact support.",
+              variant: "destructive",
+            });
+          }
+        },
+        prefill: {
+          name: "Student",
+          email: "student@example.com",
+        },
+        notes: temporaryOrderData.notes,
+        theme: {
+          color: "#3b82f6"
+        },
+        modal: {
+          ondismiss: () => {
+            console.log('Payment cancelled by user');
+            setPaymentStatus("pending");
+            setIsProcessing(false);
+            toast({
+              title: "Payment Cancelled",
+              description: "You can try again when ready.",
+              variant: "destructive",
+            });
+          }
+        }
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+    } catch (error) {
+      console.error('Razorpay payment error:', error);
+      throw error;
+    }
+  };
+
+  // Create temporary payment order without print job dependency
+  const createTemporaryPaymentOrder = async (orderData: any) => {
+    try {
+      const token = await getToken();
+
+      if (!token) {
+        throw new Error('Authentication token not available');
+      }
+
+      const response = await fetch('http://localhost:3001/api/payments/create-temp-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          amount: orderData.amount,
+          currency: orderData.currency,
+          notes: orderData.notes
+        })
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error?.message || 'Failed to create payment order');
+      }
+
+      console.log('💳 Temporary payment order created successfully:', data.data.orderId);
+      return data.data;
+    } catch (error) {
+      console.error('Failed to create temporary payment order:', error);
+      throw error;
+    }
+  };
+
+  // Verify temporary payment without requiring print job ID
+  const verifyTemporaryPayment = async (paymentData: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }) => {
+    try {
+      const token = await getToken();
+
+      if (!token) {
+        throw new Error('Authentication token not available');
+      }
+
+      console.log('🔍 Verifying temporary payment:', paymentData.razorpay_payment_id);
+
+      const response = await fetch('http://localhost:3001/api/payments/verify-temp-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(paymentData)
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error?.message || 'Payment verification failed');
+      }
+
+      console.log('✅ Temporary payment verified successfully:', data.data);
+      return data.data;
+    } catch (error) {
+      console.error('Failed to verify temporary payment:', error);
+      throw error;
+    }
+  };
+
   const handlePayment = async () => {
     if (!selectedMethod) return;
-    
+
     setIsProcessing(true);
     setPaymentStatus("processing");
-    
+
     try {
+      const totalAmount = calculateTotalCost();
+
       if (selectedMethod === "dev") {
         // Dev Mode: Always succeed immediately
         console.log('🔧 Dev Mode: Payment automatically successful, uploading files...');
         await new Promise(resolve => setTimeout(resolve, 500)); // Short delay for UX
-        
+
         // Store payment info
         setPaymentInfo({
           method: 'dev',
-          totalCost: calculateTotalCost(),
+          totalCost: totalAmount,
+          transactionId: `dev_txn_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
           breakdown: {
-            baseCost: calculateTotalCost() * 0.8,
+            baseCost: totalAmount * 0.8,
             colorCost: 0,
-            paperCost: calculateTotalCost() * 0.2
+            paperCost: totalAmount * 0.2
           }
         });
-        
+
         await uploadFilesToCloudinary();
         setPaymentStatus("success");
       } else if (selectedMethod === "upi") {
         // UPI Payment processing
         console.log('� Processing UPI payment...');
-        // UPI payment integration - requires Razorpay/Stripe configuration
-        // For now, simulate processing
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Simulate payment result (currently always fails until .env is configured)
-        const success = false; // Will be true when payment gateway is properly configured
-        
-        if (success) {
-          setPaymentInfo({
-            method: 'upi',
-            totalCost: calculateTotalCost(),
-            breakdown: {
-              baseCost: calculateTotalCost() * 0.8,
-              colorCost: 0,
-              paperCost: calculateTotalCost() * 0.2
-            }
-          });
-          await uploadFilesToCloudinary();
-          setPaymentStatus("success");
-        } else {
-          throw new Error("UPI payment not configured. Please set up payment gateway in .env or use Dev Mode for testing.");
+        // Real UPI payment processing via Razorpay
+        if (!window.Razorpay) {
+          throw new Error("Razorpay SDK not loaded. Please refresh the page and try again.");
         }
+
+        await handleRazorpayPayment(totalAmount);
       } else if (selectedMethod === "card") {
-        // Credit/Debit Card payment processing
-        console.log('💳 Processing card payment...');
-        // Card payment integration - requires Razorpay/Stripe configuration
-        // For now, simulate processing
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Simulate payment result (currently always fails until .env is configured)
-        const success = false; // Will be true when payment gateway is properly configured
-        
-        if (success) {
-          setPaymentInfo({
-            method: 'card',
-            totalCost: calculateTotalCost(),
-            breakdown: {
-              baseCost: calculateTotalCost() * 0.8,
-              colorCost: 0,
-              paperCost: calculateTotalCost() * 0.2
-            }
-          });
-          await uploadFilesToCloudinary();
-          setPaymentStatus("success");
-        } else {
-          throw new Error("Card payment not configured. Please set up payment gateway in .env or use Dev Mode for testing.");
+        // Real card payment processing via Razorpay
+        console.log('💳 Processing card payment via Razorpay...');
+
+        if (!window.Razorpay) {
+          throw new Error("Razorpay SDK not loaded. Please refresh the page and try again.");
         }
+
+        await handleRazorpayPayment(totalAmount);
       }
     } catch (error) {
       setPaymentStatus("failed");
       console.error('Payment processing error:', error);
       toast({
         title: "Payment Processing Failed",
-        description: error instanceof Error ? error.message : "There was an error processing your payment and uploading files.",
+        description: error instanceof Error ? error.message : "There was an error processing your payment.",
         variant: "destructive",
       });
     } finally {
-      setIsProcessing(false);
+      if (selectedMethod === "dev") {
+        setIsProcessing(false);
+      }
+      // For Razorpay payments, setIsProcessing(false) is handled in the success/failure callbacks
     }
   };
 
@@ -606,7 +780,7 @@ export default function Payment() {
       <div className="container mx-auto py-8 px-4">
         <div className="max-w-4xl mx-auto space-y-6">
           <PrintFlowBreadcrumb currentStep="/payment" />
-          
+
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold tracking-tight text-blue-600">
               Payment
@@ -666,21 +840,20 @@ export default function Payment() {
                   {paymentMethods.map((method) => {
                     const Icon = method.icon;
                     const isDevMode = method.isDev;
-                    
+
                     // Determine border/background classes
-                    const selectedClasses = isDevMode 
-                      ? "border-orange-500 bg-orange-50" 
+                    const selectedClasses = isDevMode
+                      ? "border-orange-500 bg-orange-50"
                       : "border-blue-500 bg-blue-50";
-                    const unselectedClasses = isDevMode 
-                      ? "border-orange-200 hover:border-orange-300" 
+                    const unselectedClasses = isDevMode
+                      ? "border-orange-200 hover:border-orange-300"
                       : "border-gray-200 hover:border-gray-300";
-                    
+
                     return (
                       <button
                         key={method.id}
-                        className={`p-4 border rounded-lg transition-all w-full text-left ${
-                          selectedMethod === method.id ? selectedClasses : unselectedClasses
-                        }`}
+                        className={`p-4 border rounded-lg transition-all w-full text-left ${selectedMethod === method.id ? selectedClasses : unselectedClasses
+                          }`}
                         onClick={() => setSelectedMethod(method.id)}
                       >
                         <div className="flex items-center justify-between">
@@ -701,11 +874,10 @@ export default function Payment() {
                               </div>
                             </div>
                           </div>
-                          <div className={`w-4 h-4 rounded-full border-2 ${
-                            selectedMethod === method.id 
-                              ? "border-blue-500 bg-blue-500" 
+                          <div className={`w-4 h-4 rounded-full border-2 ${selectedMethod === method.id
+                              ? "border-blue-500 bg-blue-500"
                               : "border-gray-300"
-                          }`}>
+                            }`}>
                             {selectedMethod === method.id && (
                               <div className="w-full h-full rounded-full bg-white scale-50"></div>
                             )}
@@ -742,7 +914,7 @@ export default function Payment() {
                   </span>
                 </div>
                 <p className={`text-sm ${selectedMethod === "dev" ? "text-orange-700" : "text-blue-700"}`}>
-                  {selectedMethod === "dev" 
+                  {selectedMethod === "dev"
                     ? "Using development mode for testing. Payment will automatically succeed."
                     : "Please wait while we process your payment. Do not close this window."
                   }
@@ -753,16 +925,16 @@ export default function Payment() {
 
           {/* Action Buttons */}
           <div className="flex gap-4">
-            <Button 
-              variant="outline" 
-              onClick={() => navigate(-1)} 
+            <Button
+              variant="outline"
+              onClick={() => navigate(-1)}
               className="flex-1"
               disabled={isProcessing}
             >
               Back
             </Button>
-            <Button 
-              onClick={handlePayment} 
+            <Button
+              onClick={handlePayment}
               className="flex-1 bg-gradient-hero"
               disabled={!selectedMethod || isProcessing}
             >

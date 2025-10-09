@@ -18,7 +18,7 @@ const printJobSchema = new mongoose.Schema({
     trim: true,
     lowercase: true,
   },
-  
+
   // Printer Details
   printerId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -26,7 +26,7 @@ const printJobSchema = new mongoose.Schema({
     required: true,
     index: true,
   },
-  
+
   // File Details
   file: {
     cloudinaryUrl: {
@@ -51,7 +51,7 @@ const printJobSchema = new mongoose.Schema({
       required: true,
     },
   },
-  
+
   // Print Settings
   settings: {
     pages: {
@@ -79,7 +79,7 @@ const printJobSchema = new mongoose.Schema({
       default: 'A4',
     },
   },
-  
+
   // Queue & Status
   status: {
     type: String,
@@ -97,7 +97,7 @@ const printJobSchema = new mongoose.Schema({
   actualCompletionTime: {
     type: Date,
   },
-  
+
   // Cost Details
   cost: {
     baseCost: {
@@ -117,7 +117,7 @@ const printJobSchema = new mongoose.Schema({
       default: 0,
     },
   },
-  
+
   // Payment Status
   payment: {
     amount: {
@@ -131,7 +131,7 @@ const printJobSchema = new mongoose.Schema({
     },
     method: {
       type: String,
-      enum: ['student_credit', 'card', 'campus_card', 'cash', 'dev'],
+      enum: ['student_credit', 'card', 'upi', 'campus_card', 'cash', 'dev'],
       default: 'student_credit',
     },
     transactionId: {
@@ -161,7 +161,7 @@ const printJobSchema = new mongoose.Schema({
       default: 0,
     },
   },
-  
+
   // Job History
   timing: {
     submittedAt: {
@@ -188,7 +188,7 @@ const printJobSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'PrintJob',
   },
-  
+
   // Additional Fields
   notes: {
     type: String,
