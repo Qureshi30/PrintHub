@@ -14,10 +14,10 @@ export interface PrintJobFile {
   isImage: boolean;
   format: string;
   sizeKB: number;
-  
+
   // Local file data (present during upload -> payment flow)
   file?: File;
-  
+
   // Cloudinary data (present after successful upload)
   cloudinaryUrl?: string;
   cloudinaryPublicId?: string;
@@ -46,6 +46,7 @@ export interface SelectedPrinter {
 export interface PaymentInfo {
   method: 'student_credit' | 'card' | 'upi' | 'dev' | 'campus_card';
   totalCost: number;
+  transactionId?: string;
   breakdown: {
     baseCost: number;
     colorCost: number;
@@ -57,21 +58,21 @@ export interface PaymentInfo {
 export interface PrintJobContextData {
   // Current step
   currentStep: PrintJobStep;
-  
+
   // Files and settings
   files: PrintJobFile[];
   settings: { [fileId: string]: PrintJobSettings };
-  
+
   // Printer selection
   selectedPrinter: SelectedPrinter | null;
-  
+
   // Payment information
   payment: PaymentInfo | null;
-  
+
   // Job creation status
   isCreatingJobs: boolean;
   createdJobIds: string[];
-  
+
   // Navigation
   canProceed: boolean;
 }
@@ -81,38 +82,38 @@ export interface PrintJobContextActions {
   setCurrentStep: (step: PrintJobStep) => void;
   goToNextStep: () => void;
   goToPreviousStep: () => void;
-  
+
   // File management
   addFile: (file: PrintJobFile) => void;
   addLocalFile: (localFile: File) => Promise<void>;
   removeFile: (fileId: string) => void;
   updateFileSettings: (fileId: string, settings: Partial<PrintJobSettings>) => void;
-  
+
   // Cloudinary upload (after payment)
   uploadFilesToCloudinary: () => Promise<void>;
   updateFileWithCloudinaryData: (fileId: string, cloudinaryUrl: string, cloudinaryPublicId: string, format?: string, sizeKB?: number) => void;
-  
+
   // Session file access (not persisted)
   getSessionFile: (fileId: string) => File | undefined;
-  
+
   // Printer selection
   selectPrinter: (printer: SelectedPrinter) => void;
-  
+
   // Payment
   setPaymentInfo: (payment: PaymentInfo) => void;
-  
+
   // Job creation
   setIsCreatingJobs: (creating: boolean) => void;
   addCreatedJobId: (jobId: string) => void;
-  
+
   // File cleanup
   cleanupLocalFiles: () => void;
-  
+
   // Reset
   resetFlow: () => void;
 }
 
-export interface PrintJobContextType extends PrintJobContextData, PrintJobContextActions {}
+export interface PrintJobContextType extends PrintJobContextData, PrintJobContextActions { }
 
 export const PrintJobContext = createContext<PrintJobContextType | undefined>(undefined);
 
@@ -148,7 +149,7 @@ const loadStoredState = (): {
         hasSettings: !!parsed.settings,
         hasSelectedPrinter: !!parsed.selectedPrinter
       });
-      
+
       // Restore files from base64
       const restoredSessionFiles: { [fileId: string]: File } = {};
       const restoredFiles = (parsed.files || []).map((file: PrintJobFile & { base64Data?: { base64: string; name: string; type: string; size: number } }) => {
@@ -157,7 +158,7 @@ const loadStoredState = (): {
           hasFileProperty: !!file.file,
           base64DataSize: file.base64Data?.size
         });
-        
+
         if (file.base64Data) {
           try {
             console.log('🔄 CONTEXT LOAD: Restoring file from base64:', file.name);
@@ -170,15 +171,15 @@ const loadStoredState = (): {
             const restoredFile = new File([bytes], file.base64Data.name, {
               type: file.base64Data.type
             });
-            
+
             // Store in both session files and file property
             restoredSessionFiles[file.id] = restoredFile;
-            
+
             console.log('✅ CONTEXT LOAD: File restored successfully:', file.name, {
               restoredFileSize: restoredFile.size,
               restoredFileType: restoredFile.type
             });
-            
+
             return {
               ...file,
               file: restoredFile, // Restore file property
@@ -192,13 +193,13 @@ const loadStoredState = (): {
         }
         return file;
       });
-      
+
       console.log('📁 CONTEXT LOAD: Restoration complete:', {
         totalFiles: restoredFiles.length,
         restoredSessionFiles: Object.keys(restoredSessionFiles).length,
         filesWithFileProperty: restoredFiles.filter(f => !!f.file).length
       });
-      
+
       return {
         currentStep: parsed.currentStep || 'upload',
         files: restoredFiles,
@@ -211,7 +212,7 @@ const loadStoredState = (): {
   } catch (error) {
     console.warn('❌ CONTEXT LOAD: Failed to load print job state from localStorage:', error);
   }
-  
+
   console.log('📭 CONTEXT LOAD: No stored state found, using defaults');
   return {
     currentStep: 'upload' as PrintJobStep,
@@ -237,7 +238,15 @@ const saveStateToStorage = async (state: {
       state.files.map(async (file) => {
         const actualFile = sessionFiles[file.id] || file.file;
         let base64Data = null;
-        
+
+        console.log(`📦 CONTEXT SAVE: Processing file ${file.name}`, {
+          hasSessionFile: !!sessionFiles[file.id],
+          hasFileProperty: !!file.file,
+          actualFileFound: !!actualFile,
+          sessionFileSize: sessionFiles[file.id]?.size,
+          filePropertySize: file.file?.size
+        });
+
         if (actualFile) {
           try {
             const arrayBuffer = await actualFile.arrayBuffer();
@@ -248,11 +257,14 @@ const saveStateToStorage = async (state: {
               type: actualFile.type,
               size: actualFile.size
             };
+            console.log(`✅ CONTEXT SAVE: Successfully converted ${file.name} to base64 (${base64Data.size} bytes)`);
           } catch (error) {
-            console.warn(`Failed to convert ${file.name} to base64:`, error);
+            console.warn(`❌ CONTEXT SAVE: Failed to convert ${file.name} to base64:`, error);
           }
+        } else {
+          console.warn(`⚠️ CONTEXT SAVE: No file data found for ${file.name}`);
         }
-        
+
         return {
           ...file,
           file: undefined, // Remove File object
@@ -275,7 +287,7 @@ const saveStateToStorage = async (state: {
 
 export function PrintJobProvider({ children }: { readonly children: ReactNode }) {
   const storedState = loadStoredState();
-  
+
   const [currentStep, setCurrentStep] = useState<PrintJobStep>(storedState.currentStep);
   const [files, setFiles] = useState<PrintJobFile[]>(storedState.files);
   const [settings, setSettings] = useState<{ [fileId: string]: PrintJobSettings }>(storedState.settings);
@@ -283,7 +295,7 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
   const [payment, setPayment] = useState<PaymentInfo | null>(storedState.payment);
   const [isCreatingJobs, setIsCreatingJobs] = useState(false);
   const [createdJobIds, setCreatedJobIds] = useState<string[]>([]);
-  
+
   // Initialize session files with restored files from localStorage
   const [sessionFiles, setSessionFiles] = useState<{ [fileId: string]: File }>(storedState.restoredSessionFiles);
   const [isCleanedUp, setIsCleanedUp] = useState(false);
@@ -297,7 +309,7 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
         fileSize: file.file?.size
       });
     });
-    
+
     // If cleanup has been done, don't save file/base64 data
     if (isCleanedUp) {
       console.log('⚠️ CONTEXT SAVE: Files cleaned up, saving without file data');
@@ -399,7 +411,7 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
 
       const baseCostPerPage = 0.10;
       const paperMultiplier = fileSettings.paperType === 'A3' ? 2 : 1;
-      
+
       const pages = file.pages;
       const copies = fileSettings.copies;
       const totalPages = pages * copies;
@@ -427,14 +439,14 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
   // Add local file (stores File object for later Cloudinary upload)
   const addLocalFile = useCallback(async (localFile: File) => {
     const fileId = crypto.randomUUID();
-    
+
     console.log('📥 CONTEXT: Adding local file:', localFile.name, {
       fileId,
       fileType: localFile.type,
       fileSize: localFile.size,
       lastModified: localFile.lastModified
     });
-    
+
     // Create initial file with the File object stored for payment access
     const initialFile: PrintJobFile = {
       id: fileId,
@@ -448,24 +460,24 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
       // Store file object for access during payment
       file: localFile,
     };
-    
+
     // Store File object in session state (not persisted to localStorage)
     setSessionFiles(prev => ({ ...prev, [fileId]: localFile }));
-    
+
     console.log('✅ CONTEXT: File added to context with both file property and session storage');
-    
+
     addFile(initialFile);
-    
+
     console.log('📁 CONTEXT: File added to files array');
-    
+
     // Parse document pages asynchronously
     try {
       const documentInfo = await parseDocumentPages(localFile);
       console.log(`Parsed ${localFile.name}: ${documentInfo.pages} pages (${documentInfo.type})`);
-      
+
       // Update the file with accurate page count
-      setFiles(prev => prev.map(file => 
-        file.id === initialFile.id 
+      setFiles(prev => prev.map(file =>
+        file.id === initialFile.id
           ? { ...file, pages: documentInfo.pages }
           : file
       ));
@@ -473,8 +485,8 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
       console.error(`Failed to parse ${localFile.name}:`, error);
       // Keep the fallback estimation
       const fallbackPages = estimatePages(localFile);
-      setFiles(prev => prev.map(file => 
-        file.id === initialFile.id 
+      setFiles(prev => prev.map(file =>
+        file.id === initialFile.id
           ? { ...file, pages: fallbackPages }
           : file
       ));
@@ -484,11 +496,11 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
   // Estimate pages for local file
   const estimatePages = (file: File): number => {
     const ext = file.name.toLowerCase().split('.').pop();
-    
+
     if (ext === 'jpg' || ext === 'jpeg' || ext === 'png' || ext === 'gif') {
       return 1; // Images are typically 1 page
     }
-    
+
     if (ext === 'pdf') {
       // For PDFs, use a more conservative estimation
       // Small PDFs (<1MB) = assume 1 page
@@ -502,7 +514,7 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
         return Math.max(1, Math.round(file.size / (100 * 1024)));
       }
     }
-    
+
     // For other documents, use original estimation
     return Math.max(1, Math.round(file.size / (500 * 1024)));
   };
@@ -514,19 +526,19 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
 
   // Update file with Cloudinary data after upload
   const updateFileWithCloudinaryData = useCallback((fileId: string, cloudinaryUrl: string, cloudinaryPublicId: string, format?: string, sizeKB?: number) => {
-    setFiles(prev => prev.map(file => 
-      file.id === fileId 
-        ? { 
-            ...file, 
-            cloudinaryUrl, 
-            cloudinaryPublicId, 
-            format: format || file.format,
-            sizeKB: sizeKB || file.sizeKB
-            // Keep session file separate - don't modify it here
-          }
+    setFiles(prev => prev.map(file =>
+      file.id === fileId
+        ? {
+          ...file,
+          cloudinaryUrl,
+          cloudinaryPublicId,
+          format: format || file.format,
+          sizeKB: sizeKB || file.sizeKB
+          // Keep session file separate - don't modify it here
+        }
         : file
     ));
-    
+
     // Remove session file after successful upload since it's no longer needed
     setSessionFiles(prev => {
       const newFiles = { ...prev };
@@ -538,7 +550,7 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
   // Upload all local files to Cloudinary (called after payment)
   const uploadFilesToCloudinary = useCallback(async (): Promise<void> => {
     const localFiles = files.filter(file => file.file && !file.cloudinaryUrl);
-    
+
     if (localFiles.length === 0) {
       return; // No local files to upload
     }
@@ -546,17 +558,17 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
     // This would integrate with the upload hook
     // For now, we'll set up the structure - actual implementation will use useBackendUpload
     console.log(`📤 Uploading ${localFiles.length} files to Cloudinary after payment...`);
-    
+
     // The actual implementation will be in the Payment component using useBackendUpload hook
   }, [files]);
 
   // Cleanup local files after successful payment (free memory and session storage)
   const cleanupLocalFiles = useCallback(() => {
     console.log('🧹 Context: Cleaning up local files after successful payment...');
-    
+
     // Set cleanup flag to prevent saving base64 data
     setIsCleanedUp(true);
-    
+
     // First, revoke any blob URLs to prevent memory leaks
     files.forEach(file => {
       if (file.cloudinaryUrl?.startsWith('blob:')) {
@@ -564,7 +576,7 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
         URL.revokeObjectURL(file.cloudinaryUrl);
       }
     });
-    
+
     // Clear session storage files
     files.forEach(file => {
       const storageKey = `file_${file.id}`;
@@ -573,14 +585,14 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
         sessionStorage.removeItem(storageKey);
       }
     });
-    
+
     // Clear session files map
     setSessionFiles({});
-    
+
     // Completely clear the files array - payment complete, start fresh
     console.log('🗑️ Context: Clearing all files from state');
     setFiles([]);
-    
+
     // Clear localStorage to prevent restoration
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
@@ -594,13 +606,13 @@ export function PrintJobProvider({ children }: { readonly children: ReactNode })
         console.warn('⚠️ Context: Failed to clean localStorage:', error);
       }
     }
-    
+
     // Force garbage collection if available (development only)
     if (typeof window !== 'undefined' && 'gc' in window) {
       console.log('🗑️ Context: Triggering garbage collection');
       (window as typeof window & { gc: () => void }).gc();
     }
-    
+
     console.log('✅ Context: Local file cleanup completed - all files cleared');
   }, [files]);
 
