@@ -6,30 +6,31 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAllUsers } from "@/hooks/useDatabase";
-import { useUser, useAuth } from "@clerk/clerk-react";
+import { useAuth } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import apiClient from "@/lib/apiClient";
 import {
   Users,
   Search,
-  Edit,
   Trash2,
   Shield,
   Mail,
-  Calendar,
   BookOpen,
   UserPlus
 } from "lucide-react";
 
 export default function UserManagement() {
   const { users, loading, error } = useAllUsers();
-  const { user } = useUser();
   const { getToken } = useAuth();
   const { toast } = useToast();
 
   // Modal state
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<typeof users[0] | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   // Form state
   const [newUser, setNewUser] = useState({
@@ -57,22 +58,19 @@ export default function UserManagement() {
       const token = await getToken();
 
       // Create user via your backend endpoint that will use Clerk Admin API
-      const response = await fetch('http://localhost:3001/api/admin/create-user', {
-        method: 'POST',
+      const response = await apiClient.post('/admin/create-user', {
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email,
+        role: newUser.role,
+        password: newUser.password
+      }, {
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          firstName: newUser.firstName,
-          lastName: newUser.lastName,
-          email: newUser.email,
-          role: newUser.role,
-          password: newUser.password
-        })
+        }
       });
 
-      const result = await response.json();
+      const result = response.data;
 
       if (result.success) {
         toast({
@@ -118,6 +116,53 @@ export default function UserManagement() {
     } finally {
       setIsCreatingUser(false);
     }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    setIsDeletingUser(true);
+
+    try {
+      const token = await getToken();
+
+      // Delete user via backend endpoint
+      const response = await apiClient.delete(`/admin/users/${userToDelete.clerkUserId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const result = response.data;
+
+      if (result.success) {
+        toast({
+          title: "User Deleted Successfully",
+          description: `${userToDelete.fullName || userToDelete.email} has been removed.`,
+        });
+
+        // Close dialog and refresh
+        setIsDeleteDialogOpen(false);
+        setUserToDelete(null);
+        window.location.reload();
+      } else {
+        throw new Error(result.error?.message || 'Failed to delete user');
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "Error Deleting User",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeletingUser(false);
+    }
+  };
+
+  const openDeleteDialog = (user: typeof users[0]) => {
+    setUserToDelete(user);
+    setIsDeleteDialogOpen(true);
   };
 
   if (loading) {
@@ -350,16 +395,20 @@ export default function UserManagement() {
         <CardContent>
           <div className="space-y-4">
             {userList.map((user) => (
-              <div key={user._id} className="flex items-center justify-between p-4 border rounded-lg">
+              <div key={user._id || user.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium">
-                    {user.clerkUserId.substring(0, 2).toUpperCase()}
+                    {user.firstName?.charAt(0).toUpperCase() || 'U'}{user.lastName?.charAt(0).toUpperCase() || 'S'}
                   </div>
                   <div>
-                    <div className="font-medium">User {user.clerkUserId.substring(0, 8)}</div>
+                    <div className="font-medium">
+                      {user.fullName || (user.firstName && user.lastName 
+                        ? `${user.firstName} ${user.lastName}`
+                        : `User ${user.clerkUserId.substring(0, 8)}`)}
+                    </div>
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
                       <Mail className="h-3 w-3" />
-                      Clerk ID: {user.clerkUserId}
+                      {user.email || 'No email'}
                     </div>
                   </div>
                 </div>
@@ -377,10 +426,12 @@ export default function UserManagement() {
                   {getRoleBadge(user.role)}
 
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => openDeleteDialog(user)}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -396,6 +447,55 @@ export default function UserManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Delete User Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this user? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {userToDelete && (
+            <div className="py-4">
+              <div className="flex items-center gap-4 p-4 border rounded-lg bg-red-50 dark:bg-red-950/20">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium">
+                  {userToDelete.firstName?.charAt(0).toUpperCase() || 'U'}{userToDelete.lastName?.charAt(0).toUpperCase() || 'S'}
+                </div>
+                <div>
+                  <div className="font-medium">
+                    {userToDelete.fullName || `${userToDelete.firstName} ${userToDelete.lastName}`}
+                  </div>
+                  <div className="text-sm text-muted-foreground">{userToDelete.email}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Role: {userToDelete.role} • Clerk ID: {userToDelete.clerkUserId}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setUserToDelete(null);
+              }}
+              disabled={isDeletingUser}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteUser}
+              disabled={isDeletingUser}
+            >
+              {isDeletingUser ? "Deleting..." : "Delete User"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

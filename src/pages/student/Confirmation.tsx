@@ -66,6 +66,20 @@ export default function Confirmation() {
     console.log('🔍 Loading confirmation data from context...');
     console.log('📄 Context data:', { files, settings, selectedPrinter });
     
+    // Debug: Detailed file analysis
+    console.log('📂 CONFIRMATION PAGE: Detailed file analysis:');
+    files.forEach((file, index) => {
+      console.log(`📄 CONFIRMATION PAGE: File ${index + 1}: ${file.name}`, {
+        id: file.id,
+        hasFileProperty: !!file.file,
+        fileType: file.file?.type,
+        fileSize: file.file?.size,
+        cloudinaryUrl: file.cloudinaryUrl,
+        pages: file.pages,
+        size: file.size
+      });
+    });
+    
     // Check if we have the minimum required data
     if (files.length > 0 && selectedPrinter) {
       // Normal flow with selected files
