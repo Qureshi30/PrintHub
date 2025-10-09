@@ -343,24 +343,78 @@ router.get('/overview', requireAdmin, async (req, res) => {
  */
 router.get('/dashboard-stats', requireAdmin, async (req, res) => {
   try {
-    // In a real app, you'd fetch actual stats from your database
+    // Fetch actual stats from database
+    
+    // Count active students (users with role 'student' and status 'active')
+    const activeStudents = await User.countDocuments({ 
+      role: 'student',
+      status: 'active'
+    });
+
+    // Get today's date range
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Count print jobs submitted today
+    const printJobsToday = await PrintJob.countDocuments({
+      'timing.submittedAt': { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    // Calculate revenue today
+    const revenueTodayResult = await Revenue.aggregate([
+      { 
+        $match: { 
+          createdAt: { $gte: startOfDay, $lte: endOfDay } 
+        } 
+      },
+      { 
+        $group: { 
+          _id: null, 
+          total: { $sum: '$price' } 
+        } 
+      }
+    ]);
+    const revenueToday = revenueTodayResult.length > 0 ? revenueTodayResult[0].total : 0;
+
+    // Count active printers
+    const activePrinters = await Printer.countDocuments({ status: 'online' });
+
+    // Count maintenance printers
+    const maintenancePrinters = await Printer.countDocuments({ status: 'maintenance' });
+
+    // Count total printers
+    const totalPrinters = await Printer.countDocuments();
+
+    // Calculate total revenue
+    const totalRevenueResult = await Revenue.aggregate([
+      { $group: { _id: null, total: { $sum: '$price' } } }
+    ]);
+    const totalRevenue = totalRevenueResult.length > 0 ? totalRevenueResult[0].total : 0;
+
+    // Count total users
+    const totalUsers = await User.countDocuments();
+
     const stats = {
-      totalUsers: 142,
-      activePrintJobs: 23,
-      totalPrinters: 8,
-      onlinePrinters: 6,
-      todaysPrintJobs: 34,
-      weeklyRevenue: 1250.75,
-      systemUptime: '99.8%',
-      avgProcessingTime: '2.3 minutes',
+      totalUsers,
+      activePrintJobs: await PrintJob.countDocuments({ status: { $in: ['queued', 'printing'] } }),
+      totalPrinters,
+      onlinePrinters: activePrinters,
+      todaysPrintJobs: printJobsToday,
+      weeklyRevenue: 1250.75, // TODO: Calculate actual weekly revenue
+      systemUptime: '99.8%', // TODO: Calculate actual uptime
+      avgProcessingTime: '2.3 minutes', // TODO: Calculate actual avg processing time
       // Additional stats for AdminDashboard component
-      activeStudents: 128,
-      printJobsToday: 34,
-      revenueToday: 245.75,
-      activePrinters: 6,
-      maintenancePrinters: 2,
-      totalRevenue: 12450.75
+      activeStudents,
+      printJobsToday,
+      revenueToday,
+      activePrinters,
+      maintenancePrinters,
+      totalRevenue
     };
+
+    console.log('📊 Dashboard stats:', stats);
 
     res.json({
       success: true,
@@ -449,11 +503,13 @@ router.get('/analytics', requireAdmin, async (req, res) => {
       }
     ]);
 
-    // Calculate usage percentage (relative to max jobs)
-    const maxJobs = Math.max(...printerUsageAgg.map(p => p.jobCount), 1);
+    // Calculate usage percentage (relative to total print jobs)
+    // This shows what percentage of all print jobs were sent to each printer
+    const totalJobsForPercentage = totalPrintJobs || 1; // Avoid division by zero
     const printerUsage = printerUsageAgg.map(item => ({
       printer: item.printer || 'Unknown Printer',
-      usage: Math.round((item.jobCount / maxJobs) * 100),
+      usage: parseFloat(((item.jobCount / totalJobsForPercentage) * 100).toFixed(1)),
+      jobCount: item.jobCount,
       status: item.status || 'offline'
     }));
 

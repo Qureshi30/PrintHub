@@ -430,13 +430,21 @@ router.get('/',
         .select('name status location isActive capabilities costPerPage queue')
         .sort({ name: 1 });
 
-      // Calculate real queue data from Queue collection
+      // Calculate real queue data from Queue collection for each printer
       const printersWithQueueData = await Promise.all(
         printers.map(async (printer) => {
-          // Get active queue items from Queue collection (global queue, not per-printer)
-          const queueLength = await Queue.countDocuments({
+          // Get active queue items for this specific printer by joining Queue -> PrintJob -> Printer
+          const queueItems = await Queue.find({
             status: { $in: ['pending', 'in-progress'] }
-          });
+          }).populate('printJobId');
+
+          // Filter queue items by this printer's ID
+          const printerQueueItems = queueItems.filter(item => 
+            item.printJobId && item.printJobId.printerId && 
+            item.printJobId.printerId.toString() === printer._id.toString()
+          );
+          
+          const queueLength = printerQueueItems.length;
 
           // Estimate wait time (assuming 3 minutes per job on average)
           const estimatedWait = queueLength * 3;
