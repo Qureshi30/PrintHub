@@ -23,8 +23,70 @@ const validateRequest = (req, res, next) => {
 };
 
 /**
+ * @route   POST /payments/create-temp-order
+ * @desc    Create a temporary Razorpay order before print job creation
+ * @access  Private
+ */
+router.post('/create-temp-order',
+    [
+        body('amount').isNumeric().withMessage('Amount must be a number'),
+        body('currency').optional().isString().withMessage('Currency must be a string'),
+        body('notes').optional().isObject().withMessage('Notes must be an object'),
+        requireAuth
+    ],
+    validateRequest,
+    async (req, res) => {
+        try {
+            const { amount, currency = 'INR', notes = {} } = req.body;
+            const userId = req.user.id;
+
+            // Create Razorpay order
+            // Generate short receipt (max 40 chars for Razorpay)
+            const timestamp = Date.now().toString().slice(-8); // Last 8 digits
+            const userIdShort = userId.slice(-8); // Last 8 chars of user ID
+            const receipt = `temp_${userIdShort}_${timestamp}`;
+
+            const orderOptions = {
+                amount: Math.round(amount * 100), // Amount in paise
+                currency: currency,
+                receipt: receipt,
+                notes: {
+                    ...notes,
+                    userId: userId,
+                    type: 'temp_print_payment'
+                }
+            };
+
+            const order = await razorpay.orders.create(orderOptions);
+
+            console.log(`💳 Temporary payment order created: ${order.id} for user: ${req.user.fullName}`);
+
+            res.json({
+                success: true,
+                data: {
+                    orderId: order.id,
+                    amount: order.amount,
+                    currency: order.currency,
+                    key: process.env.RAZORPAY_KEY_ID
+                }
+            });
+
+        } catch (error) {
+            console.error('❌ Create temp order error:', error);
+            res.status(500).json({
+                success: false,
+                error: {
+                    message: 'Failed to create payment order',
+                    code: 'CREATE_ORDER_ERROR'
+                }
+            });
+        }
+    }
+);
+
+/**
  * @route   POST /payments/create-order
- * @desc    Create a Razorpay order for print job payment
+ * @desc    Create a Razorpay order for print job payment (legacy)
  * @access  Private
  */
 router.post('/create-order',
@@ -42,7 +104,7 @@ router.post('/create-order',
             // Verify the print job belongs to the user
             const printJob = await PrintJob.findOne({
                 _id: printJobId,
-                userId: userId
+                clerkUserId: userId
             });
 
             if (!printJob) {
@@ -56,10 +118,15 @@ router.post('/create-order',
             }
 
             // Create Razorpay order
+            // Generate short receipt (max 40 chars for Razorpay)
+            const timestamp = Date.now().toString().slice(-8); // Last 8 digits
+            const jobIdShort = printJobId.toString().slice(-8); // Last 8 chars
+            const receipt = `print_${jobIdShort}_${timestamp}`;
+
             const orderOptions = {
                 amount: Math.round(amount * 100), // Amount in paise
                 currency: 'INR',
-                receipt: `print_${printJobId}_${Date.now()}`,
+                receipt: receipt,
                 notes: {
                     printJobId: printJobId.toString(),
                     userId: userId,
@@ -105,8 +172,72 @@ router.post('/create-order',
 );
 
 /**
+ * @route   POST /payments/verify-temp-payment
+ * @desc    Verify Razorpay payment signature for temporary orders
+ * @access  Private
+ */
+router.post('/verify-temp-payment',
+    [
+        body('razorpay_order_id').notEmpty().withMessage('Order ID is required'),
+        body('razorpay_payment_id').notEmpty().withMessage('Payment ID is required'),
+        body('razorpay_signature').notEmpty().withMessage('Signature is required'),
+        requireAuth
+    ],
+    validateRequest,
+    async (req, res) => {
+        try {
+            const {
+                razorpay_order_id,
+                razorpay_payment_id,
+                razorpay_signature
+            } = req.body;
+
+            // Verify signature
+            const body = razorpay_order_id + "|" + razorpay_payment_id;
+            const expectedSignature = crypto
+                .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+                .update(body.toString())
+                .digest('hex');
+
+            if (expectedSignature !== razorpay_signature) {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        message: 'Invalid payment signature',
+                        code: 'INVALID_SIGNATURE'
+                    }
+                });
+            }
+
+            console.log(`✅ Temporary payment verified successfully: ${razorpay_payment_id}`);
+
+            res.json({
+                success: true,
+                message: 'Payment verified successfully',
+                data: {
+                    paymentId: razorpay_payment_id,
+                    orderId: razorpay_order_id,
+                    verified: true,
+                    timestamp: new Date().toISOString()
+                }
+            });
+
+        } catch (error) {
+            console.error('❌ Temporary payment verification error:', error);
+            res.status(500).json({
+                success: false,
+                error: {
+                    message: 'Payment verification failed',
+                    code: 'VERIFICATION_ERROR'
+                }
+            });
+        }
+    }
+);
+
+/**
  * @route   POST /payments/verify-payment
- * @desc    Verify Razorpay payment signature and update print job
+ * @desc    Verify Razorpay payment signature and update print job (legacy)
  * @access  Private
  */
 router.post('/verify-payment',
@@ -148,7 +279,7 @@ router.post('/verify-payment',
             const printJob = await PrintJob.findOneAndUpdate(
                 {
                     _id: printJobId,
-                    userId: req.user.id,
+                    clerkUserId: req.user.id,
                     'payment.razorpayOrderId': razorpay_order_id
                 },
                 {
@@ -209,7 +340,7 @@ router.get('/:printJobId/status', requireAuth, async (req, res) => {
 
         const printJob = await PrintJob.findOne({
             _id: printJobId,
-            userId: req.user.id
+            clerkUserId: req.user.id
         }).select('payment status');
 
         if (!printJob) {
