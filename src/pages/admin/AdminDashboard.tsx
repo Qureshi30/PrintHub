@@ -173,51 +173,6 @@ export default function AdminDashboard() {
             </Button>
           </CardContent>
         </Card>
-
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              System Settings
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Configure system settings, pricing, and global preferences
-            </p>
-            <Button className="w-full">System Config</Button>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Financial Management
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Manage pricing, refunds, and financial reporting
-            </p>
-            <Button className="w-full">Manage Finance</Button>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              System Alerts
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Monitor system health, alerts, and error notifications
-            </p>
-            <Button className="w-full">View Alerts</Button>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Recent Activity */}
