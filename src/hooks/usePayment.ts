@@ -29,6 +29,11 @@ export const usePayment = () => {
 
         try {
             const token = await getToken();
+
+            if (!token) {
+                throw new Error('Authentication token not available');
+            }
+
             const response = await apiClient.post('/payments/create-order', {
                 printJobId,
                 amount
@@ -44,11 +49,20 @@ export const usePayment = () => {
                 throw new Error(data.error?.message || 'Failed to create payment order');
             }
 
+            console.log('💳 Payment order created successfully:', data.data.orderId);
             return data.data;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to create payment order';
+        } catch (err: any) {
+            let errorMessage = 'Failed to create payment order';
+
+            if (err.response?.data?.error?.message) {
+                errorMessage = err.response.data.error.message;
+            } else if (err.message) {
+                errorMessage = err.message;
+            }
+
+            console.error('❌ Create payment order error:', errorMessage);
             setError(errorMessage);
-            throw err;
+            throw new Error(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -65,6 +79,13 @@ export const usePayment = () => {
 
         try {
             const token = await getToken();
+
+            if (!token) {
+                throw new Error('Authentication token not available');
+            }
+
+            console.log('🔍 Verifying payment:', paymentData.razorpay_payment_id);
+
             const response = await apiClient.post('/payments/verify-payment', paymentData, {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -77,11 +98,20 @@ export const usePayment = () => {
                 throw new Error(data.error?.message || 'Payment verification failed');
             }
 
+            console.log('✅ Payment verified successfully:', data.data);
             return data.data;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Payment verification failed';
+        } catch (err: any) {
+            let errorMessage = 'Payment verification failed';
+
+            if (err.response?.data?.error?.message) {
+                errorMessage = err.response.data.error.message;
+            } else if (err.message) {
+                errorMessage = err.message;
+            }
+
+            console.error('❌ Payment verification error:', errorMessage);
             setError(errorMessage);
-            throw err;
+            throw new Error(errorMessage);
         } finally {
             setLoading(false);
         }
