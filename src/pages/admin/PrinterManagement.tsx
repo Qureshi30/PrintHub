@@ -31,6 +31,7 @@ interface Printer {
   location: string;
   status: string;
   queue?: Array<unknown>;
+  queueLength?: number; // Actual queue count from Queue collection
   supplies?: {
     inkLevel?: {
       black?: number;
@@ -268,7 +269,7 @@ export default function PrinterManagement() {
               
               <div className="flex items-center gap-4">
                 <div className="text-right">
-                  <div className="text-sm font-medium">Queue: {printer.queue?.length || 0}</div>
+                  <div className="text-sm font-medium">Queue: {printer.queueLength ?? 0}</div>
                   <div className="text-xs text-muted-foreground">
                     Ink: {getInkLevel(printer)}% | Paper: {getPaperLevel(printer)}%
                   </div>

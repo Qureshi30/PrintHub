@@ -118,7 +118,9 @@ export default function Analytics() {
                   </div>
                   <div className="text-right">
                     <p className="font-medium">{printer.usage}% usage</p>
-                    <p className="text-sm text-muted-foreground">Utilization</p>
+                    <p className="text-sm text-muted-foreground">
+                      {printer.jobCount ? `${printer.jobCount} jobs` : 'Utilization'}
+                    </p>
                   </div>
                 </div>
                 <Progress value={printer.usage} className="h-2" />
