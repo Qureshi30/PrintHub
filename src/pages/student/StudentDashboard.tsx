@@ -69,50 +69,55 @@ export default function StudentDashboard() {
 
           {/* Stats Grid */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {[
-              {
-                title: "Pending Jobs",
-                value: displayStats.pendingJobs.toString(),
-                change: "Jobs in queue",
-                icon: "⏳",
-                color: "text-yellow-600"
-              },
-
-              {
-                title: "Completed Jobs",
-                value: displayStats.completedJobs.toString(),
-                change: "Successfully printed",
-                icon: "✅",
-                color: "text-green-600"
-              },
-              {
-                title: "Total Spent",
-                value: `₹${displayStats.totalSpent.toFixed(2)}`,
-                change: "All time total",
-                icon: "💰",
-                color: "text-blue-600"
-              },
-              {
-                title: "Available Printers",
-                value: displayStats.availablePrinters.toString(),
-                change: "Online now",
-                icon: "🖨️",
-                color: "text-purple-600"
-              }
-            ].map((stat, index) => (
+            {[{
+              title: "Pending Jobs",
+              value: displayStats.pendingJobs.toString(),
+              change: "Jobs in queue",
+              icon: "⏳",
+              color: "text-yellow-700 dark:text-yellow-400",
+              bgColor: "bg-yellow-50 dark:bg-yellow-900/30",
+              borderColor: "border-yellow-200 dark:border-yellow-700"
+            },
+            {
+              title: "Completed Jobs",
+              value: displayStats.completedJobs.toString(),
+              change: "Successfully printed",
+              icon: "✅",
+              color: "text-green-700 dark:text-green-400",
+              bgColor: "bg-green-50 dark:bg-green-900/30",
+              borderColor: "border-green-200 dark:border-green-700"
+            },
+            {
+              title: "Total Spent",
+              value: `₹${displayStats.totalSpent.toFixed(2)}`,
+              change: "All time total",
+              icon: "💰",
+              color: "text-blue-700 dark:text-blue-400",
+              bgColor: "bg-blue-50 dark:bg-blue-900/30",
+              borderColor: "border-blue-200 dark:border-blue-700"
+            },
+            {
+              title: "Available Printers",
+              value: displayStats.availablePrinters.toString(),
+              change: "Online now",
+              icon: "🖨️",
+              color: "text-purple-700 dark:text-purple-400",
+              bgColor: "bg-purple-50 dark:bg-purple-900/30",
+              borderColor: "border-purple-200 dark:border-purple-700"
+            }].map((stat, index) => (
               <div
                 key={stat.title}
-                className="group relative rounded-xl border bg-card/50 backdrop-blur-sm text-card-foreground shadow-sm p-6 hover-glow transition-all duration-300 hover:scale-105 bg-gradient-card"
+                className={`group relative rounded-xl border-2 ${stat.borderColor} ${stat.bgColor} shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:scale-105`}
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <div className="absolute inset-0 bg-gradient-hero opacity-0 group-hover:opacity-5 rounded-xl transition-opacity duration-300"></div>
+                <div className="absolute inset-0 bg-gradient-hero opacity-0 group-hover:opacity-10 rounded-xl transition-opacity duration-300"></div>
                 <div className="relative">
-                  <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <h3 className="tracking-tight text-sm font-medium text-muted-foreground">{stat.title}</h3>
+                  <div className="flex flex-row items-center justify-between space-y-0 pb-3">
+                    <h3 className="tracking-tight text-sm font-bold text-gray-700 dark:text-gray-300">{stat.title}</h3>
                     <span className="text-2xl animate-bounce-gentle">{stat.icon}</span>
                   </div>
-                  <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
-                  <p className="text-xs text-muted-foreground">{stat.change}</p>
+                  <div className={`text-3xl font-bold ${stat.color}`}>{stat.value}</div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mt-1">{stat.change}</p>
                 </div>
               </div>
             ))}

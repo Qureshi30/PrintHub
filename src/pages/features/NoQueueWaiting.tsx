@@ -143,17 +143,17 @@ export default function NoQueueWaiting() {
             {traditionalProblems.map((problem, index) => {
               const IconComponent = problem.icon;
               return (
-                <Card key={problem.title} className="group hover:shadow-lg transition-all duration-300 border-2 border-red-100 bg-red-50/30">
-                  <CardHeader>
+                <Card key={problem.title} className="group hover:shadow-xl transition-all duration-300 border-2 border-red-200 bg-white dark:bg-gray-800 shadow-lg">
+                  <CardHeader className="bg-red-50 dark:bg-red-900/30">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
-                        <IconComponent className="w-6 h-6 text-red-600" />
+                      <div className="w-12 h-12 rounded-lg bg-red-500 flex items-center justify-center shadow-md">
+                        <IconComponent className="w-6 h-6 text-white" />
                       </div>
-                      <CardTitle className="text-xl text-red-700">{problem.title}</CardTitle>
+                      <CardTitle className="text-xl text-red-800 dark:text-red-200 font-bold">{problem.title}</CardTitle>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-red-600/80">{problem.description}</p>
+                  <CardContent className="pt-6">
+                    <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{problem.description}</p>
                   </CardContent>
                 </Card>
               );
@@ -176,17 +176,17 @@ export default function NoQueueWaiting() {
             {printHubSolutions.map((solution, index) => {
               const IconComponent = solution.icon;
               return (
-                <Card key={solution.title} className="group hover:shadow-lg transition-all duration-300 border-2 border-green-100 bg-green-50/30">
-                  <CardHeader>
+                <Card key={solution.title} className="group hover:shadow-xl transition-all duration-300 border-2 border-green-200 bg-white dark:bg-gray-800 shadow-lg">
+                  <CardHeader className="bg-green-50 dark:bg-green-900/30">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-lg bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
-                        <IconComponent className="w-6 h-6 text-green-600" />
+                      <div className="w-12 h-12 rounded-lg bg-green-500 flex items-center justify-center shadow-md">
+                        <IconComponent className="w-6 h-6 text-white" />
                       </div>
-                      <CardTitle className="text-xl text-green-700">{solution.title}</CardTitle>
+                      <CardTitle className="text-xl text-green-800 dark:text-green-200 font-bold">{solution.title}</CardTitle>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-green-600/80">{solution.description}</p>
+                  <CardContent className="pt-6">
+                    <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{solution.description}</p>
                   </CardContent>
                 </Card>
               );
@@ -207,23 +207,23 @@ export default function NoQueueWaiting() {
 
           <div className="space-y-6">
             {comparisonData.map((item, index) => (
-              <Card key={item.aspect} className="overflow-hidden">
+              <Card key={item.aspect} className="overflow-hidden shadow-lg border-2">
                 <CardContent className="p-0">
                   <div className="grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x">
-                    <div className="p-6 bg-gray-50 dark:bg-gray-900/20">
-                      <h3 className="font-semibold text-lg mb-2">{item.aspect}</h3>
+                    <div className="p-6 bg-gray-100 dark:bg-gray-800">
+                      <h3 className="font-bold text-lg mb-2 text-gray-800 dark:text-gray-200">{item.aspect}</h3>
                     </div>
-                    <div className="p-6 bg-red-50/50 dark:bg-red-950/10">
-                      <div className="text-sm text-red-600 font-medium mb-1">Traditional Way</div>
-                      <div className="text-red-700">{item.traditional}</div>
+                    <div className="p-6 bg-red-100 dark:bg-red-900/30">
+                      <div className="text-sm text-red-700 dark:text-red-300 font-bold mb-2">Traditional Way</div>
+                      <div className="text-red-800 dark:text-red-200 font-medium">{item.traditional}</div>
                     </div>
-                    <div className="p-6 bg-green-50/50 dark:bg-green-950/10">
-                      <div className="text-sm text-green-600 font-medium mb-1">PrintHub Way</div>
-                      <div className="text-green-700">{item.printHub}</div>
+                    <div className="p-6 bg-green-100 dark:bg-green-900/30">
+                      <div className="text-sm text-green-700 dark:text-green-300 font-bold mb-2">PrintHub Way</div>
+                      <div className="text-green-800 dark:text-green-200 font-medium">{item.printHub}</div>
                     </div>
-                    <div className="p-6 bg-blue-50/50 dark:bg-blue-950/10">
-                      <div className="text-sm text-blue-600 font-medium mb-1">Improvement</div>
-                      <div className="text-blue-700 font-semibold">{item.improvement}</div>
+                    <div className="p-6 bg-blue-100 dark:bg-blue-900/30">
+                      <div className="text-sm text-blue-700 dark:text-blue-300 font-bold mb-2">Improvement</div>
+                      <div className="text-blue-800 dark:text-blue-200 font-bold">{item.improvement}</div>
                     </div>
                   </div>
                 </CardContent>
