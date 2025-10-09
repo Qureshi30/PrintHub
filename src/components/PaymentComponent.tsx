@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@clerk/clerk-react';
 import { useToast } from '@/hooks/use-toast';
 import { CreditCard, Loader2 } from 'lucide-react';
+import apiClient from '@/lib/apiClient';
 
 interface PaymentProps {
     printJobId: string;
@@ -14,9 +15,19 @@ interface PaymentProps {
     onError?: (error: string) => void;
 }
 
+interface RazorpayResponse {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+}
+
 declare global {
     interface Window {
-        Razorpay: any;
+        Razorpay: {
+            new(options: Record<string, unknown>): {
+                open(): void;
+            };
+        };
     }
 }
 
@@ -62,19 +73,16 @@ export const PaymentComponent: React.FC<PaymentProps> = ({
             const token = await getToken();
 
             // Create order
-            const orderResponse = await fetch('http://localhost:3001/api/payments/create-order', {
-                method: 'POST',
+            const orderResponse = await apiClient.post('/payments/create-order', {
+                printJobId,
+                amount
+            }, {
                 headers: {
-                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    printJobId,
-                    amount
-                })
+                }
             });
 
-            const orderData = await orderResponse.json();
+            const orderData = orderResponse.data;
 
             if (!orderData.success) {
                 throw new Error(orderData.error?.message || 'Failed to create payment order');
@@ -88,24 +96,21 @@ export const PaymentComponent: React.FC<PaymentProps> = ({
                 name: 'PrintHub',
                 description: description,
                 order_id: orderData.data.orderId,
-                handler: async function (response: any) {
+                handler: async function (response: RazorpayResponse) {
                     try {
                         // Verify payment
-                        const verifyResponse = await fetch('http://localhost:3001/api/payments/verify-payment', {
-                            method: 'POST',
+                        const verifyResponse = await apiClient.post('/payments/verify-payment', {
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature,
+                            printJobId: printJobId
+                        }, {
                             headers: {
-                                'Content-Type': 'application/json',
                                 'Authorization': `Bearer ${token}`
-                            },
-                            body: JSON.stringify({
-                                razorpay_order_id: response.razorpay_order_id,
-                                razorpay_payment_id: response.razorpay_payment_id,
-                                razorpay_signature: response.razorpay_signature,
-                                printJobId: printJobId
-                            })
+                            }
                         });
 
-                        const verifyData = await verifyResponse.json();
+                        const verifyData = verifyResponse.data;
 
                         if (verifyData.success) {
                             toast({

@@ -48,17 +48,35 @@ export default function Upload() {
 
   // Ensure we're on the upload step when this component mounts
   useEffect(() => {
+    console.log('📂 UPLOAD PAGE: Component mounted, current files:', files.length);
+    files.forEach((file, index) => {
+      console.log(`📄 UPLOAD PAGE: File ${index + 1}: ${file.name}`, {
+        id: file.id,
+        hasFileProperty: !!file.file,
+        fileType: file.file?.type,
+        cloudinaryUrl: file.cloudinaryUrl
+      });
+    });
+    
     if (currentStep !== 'upload') {
       setCurrentStep('upload');
     }
-  }, [currentStep, setCurrentStep]);
+  }, [currentStep, setCurrentStep, files]);
 
   const readyFiles = files; // All files in context are ready
 
   // Callback to add newly selected local files
   const handleLocalFileAdded = async (localFile: File) => {
     try {
+      console.log('📤 UPLOAD PAGE: Adding file:', localFile.name, {
+        fileType: localFile.type,
+        fileSize: localFile.size,
+        lastModified: localFile.lastModified
+      });
+      
       await addLocalFile(localFile);
+      
+      console.log('✅ UPLOAD PAGE: File added successfully, current files count:', files.length + 1);
       
       // Show success notification
       toast({
@@ -364,7 +382,7 @@ export default function Upload() {
               </Button>
             ) : (
               <Button 
-                onClick={() => navigate("/student/history")} 
+                onClick={() => navigate("/history")} 
                 size="lg" 
                 className="bg-gradient-hero px-8"
               >

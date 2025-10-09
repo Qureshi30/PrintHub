@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-
-// API base URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+import apiClient from '@/lib/apiClient';
 
 // Types
 interface PrinterLevels {
@@ -41,6 +39,7 @@ interface UserPrintJobsOptions {
 
 interface User {
   _id: string;
+  id?: string;
   clerkUserId: string;
   role: 'student' | 'admin' | 'staff';
   profile: {
@@ -49,6 +48,11 @@ interface User {
     email?: string;
     phone?: string;
   };
+  // Enhanced fields from backend
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  email?: string;
   preferences: {
     emailNotifications: boolean;
     defaultPaperType: string;
@@ -116,6 +120,7 @@ interface Printer {
   location: string;
   status: 'online' | 'offline' | 'maintenance' | 'error';
   queue: string[];
+  queueLength?: number; // Actual queue count from Queue collection
   supportedPaperTypes: string[];
   resources: {
     inkLevel: number;
@@ -147,26 +152,25 @@ interface Printer {
   }>;
 }
 
-// HTTP Client with auth
+// HTTP Client with auth - uses apiClient which includes ngrok headers
 const createAuthenticatedFetch = (getToken: () => Promise<string | null>) => {
   return async (url: string, options: RequestInit = {}) => {
     const token = await getToken();
-    const headers = {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
-    };
-
-    const response = await fetch(`${API_BASE_URL}${url}`, {
-      ...options,
+    
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    
+    // Use apiClient instead of fetch to get ngrok headers automatically
+    const response = await apiClient.request({
+      url,
+      method: (options.method || 'GET') as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
       headers,
+      data: options.body ? JSON.parse(options.body as string) : undefined,
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return response.json();
+    return response.data;
   };
 };
 
@@ -367,7 +371,22 @@ export const useCreatePrintJob = () => {
       });
       return response.data;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create print job';
+      let errorMessage = 'Failed to create print job';
+      
+      if (err instanceof Error) {
+        if (err.message.includes('Failed to fetch') || err.message.includes('ECONNREFUSED')) {
+          errorMessage = 'Cannot connect to server. Please check if the backend is running.';
+        } else if (err.message.includes('503') || err.message.includes('DATABASE_CONNECTION_ERROR')) {
+          errorMessage = 'Database connection issue. Please try again in a moment.';
+        } else if (err.message.includes('403')) {
+          errorMessage = 'Permission denied. Please check your authentication.';
+        } else if (err.message.includes('404')) {
+          errorMessage = 'Printer not found. Please select a different printer.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {

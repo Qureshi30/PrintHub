@@ -189,6 +189,50 @@ const cleanupTempFiles = async () => {
 };
 
 /**
+ * Configure duplex options
+ * @param {Object} options - Print options object to modify
+ * @param {boolean} isDuplex - Whether duplex is enabled
+ */
+const configureDuplexOptions = (options, isDuplex) => {
+  if (isDuplex) {
+    options.duplex = 'long';
+    options.sides = 'two-sided-long-edge';
+    options.duplexing = 'DuplexTumble';
+    options.printOnBothSidesOfPaper = true;
+    options.win32 = {
+      duplex: 'DMDUP_VERTICAL',
+      orientation: 'DMORIENT_PORTRAIT'
+    };
+    console.log(`🔄 DUPLEX: Enabled double-sided printing with long-edge binding`);
+  } else {
+    options.duplex = false;
+    options.sides = 'one-sided';
+    options.duplexing = 'Simplex';
+    options.printOnBothSidesOfPaper = false;
+    console.log(`📄 SIMPLEX: Enabled single-sided printing`);
+  }
+};
+
+/**
+ * Validate and format page range
+ * @param {string} pageRange - Raw page range input
+ * @returns {string|null} - Formatted page range or null if invalid
+ */
+const validatePageRange = (pageRange) => {
+  const cleanRange = pageRange.toString().trim();
+  
+  if (cleanRange.match(/^\d+(-\d+)?(,\s*\d+(-\d+)?)*$/)) {
+    return cleanRange;
+  } else if (cleanRange === 'current' || cleanRange === '1') {
+    return '1';
+  } else if (cleanRange.match(/^\d+$/)) {
+    return cleanRange;
+  }
+  
+  return null;
+};
+
+/**
  * Maps PrintJob settings to pdf-to-printer options
  * @param {Object} settings - PrintJob settings
  * @returns {Object} - pdf-to-printer options
@@ -196,9 +240,13 @@ const cleanupTempFiles = async () => {
 const mapPrintSettings = (settings) => {
   const options = {};
   
+  console.log(`⚙️ MAPPING: Converting print settings:`, settings);
+  
   // Copies
   if (settings.copies && settings.copies > 1) {
-    options.copies = settings.copies;
+    const copies = Math.max(1, Math.min(100, parseInt(settings.copies)));
+    options.copies = copies;
+    console.log(`📋 COPIES: Set to ${copies}`);
   }
   
   // Paper size mapping
@@ -212,30 +260,53 @@ const mapPrintSettings = (settings) => {
   
   if (settings.paperType && paperSizeMap[settings.paperType]) {
     options.paperSize = paperSizeMap[settings.paperType];
+    console.log(`📄 PAPER SIZE: Set to ${options.paperSize}`);
+    
+    // Warn about special paper types
+    if (settings.paperType === 'Certificate') {
+      console.log(`📋 SPECIAL PAPER: Certificate paper mapped to A4`);
+    }
+  } else if (settings.paperType) {
+    console.warn(`⚠️ UNSUPPORTED PAPER TYPE: "${settings.paperType}" - using default A4`);
+    options.paperSize = 'A4';
   }
   
   // Duplex (double-sided printing)
-  if (settings.duplex) {
-    options.duplex = 'long'; // Long-edge binding
-  }
+  configureDuplexOptions(options, settings.duplex);
   
   // Page range
   if (settings.pages && settings.pages !== 'all') {
-    options.pages = settings.pages;
+    const validatedRange = validatePageRange(settings.pages);
+    if (validatedRange) {
+      options.pages = validatedRange;
+      console.log(`📋 PAGE RANGE: Set to ${validatedRange}`);
+    } else {
+      console.warn(`⚠️ INVALID PAGE RANGE: "${settings.pages}" - falling back to all pages`);
+    }
   }
   
   // Color vs Black & White
   if (settings.color) {
     options.color = true;
+    console.log(`🎨 COLOR: Enabled color printing`);
   } else {
     options.monochrome = true;
+    console.log(`⚫ MONOCHROME: Enabled black & white printing`);
   }
   
   // Additional print options
   options.scale = 'fit'; // Fit to page
   options.orientation = 'portrait'; // Default orientation
   
-  console.log(`🖨️ Print settings mapped:`, options);
+  // Add Windows-specific printer options for better duplex support
+  if (settings.duplex) {
+    options.win32 = {
+      duplex: 'DMDUP_VERTICAL', // Windows duplex constant for long-edge binding
+      orientation: 'DMORIENT_PORTRAIT'
+    };
+  }
+  
+  console.log(`🖨️ Print settings mapped:`, JSON.stringify(options, null, 2));
   return options;
 };
 
@@ -245,4 +316,6 @@ module.exports = {
   deleteTempFile,
   cleanupTempFiles,
   mapPrintSettings,
+  validatePageRange,
+  configureDuplexOptions,
 };

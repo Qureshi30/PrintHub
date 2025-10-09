@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '@clerk/clerk-react';
+import apiClient from '@/lib/apiClient';
 
 export interface PaymentStatus {
     printJobId: string;
@@ -28,19 +29,16 @@ export const usePayment = () => {
 
         try {
             const token = await getToken();
-            const response = await fetch('http://localhost:3001/api/payments/create-order', {
-                method: 'POST',
+            const response = await apiClient.post('/payments/create-order', {
+                printJobId,
+                amount
+            }, {
                 headers: {
-                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    printJobId,
-                    amount
-                })
+                }
             });
 
-            const data = await response.json();
+            const data = response.data;
 
             if (!data.success) {
                 throw new Error(data.error?.message || 'Failed to create payment order');
@@ -67,16 +65,13 @@ export const usePayment = () => {
 
         try {
             const token = await getToken();
-            const response = await fetch('http://localhost:3001/api/payments/verify-payment', {
-                method: 'POST',
+            const response = await apiClient.post('/payments/verify-payment', paymentData, {
                 headers: {
-                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(paymentData)
+                }
             });
 
-            const data = await response.json();
+            const data = response.data;
 
             if (!data.success) {
                 throw new Error(data.error?.message || 'Payment verification failed');
@@ -98,13 +93,13 @@ export const usePayment = () => {
 
         try {
             const token = await getToken();
-            const response = await fetch(`http://localhost:3001/api/payments/${printJobId}/status`, {
+            const response = await apiClient.get(`/payments/${printJobId}/status`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
 
-            const data = await response.json();
+            const data = response.data;
 
             if (!data.success) {
                 throw new Error(data.error?.message || 'Failed to get payment status');

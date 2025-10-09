@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Printer = require('../models/Printer');
+const Queue = require('../models/Queue');
 require('dotenv').config();
 
 /**
@@ -179,7 +180,7 @@ const initializePrinters = async () => {
 };
 
 /**
- * Get all available printers from database
+ * Get all available printers from database with real queue data
  */
 const getAvailablePrintersFromDB = async () => {
   try {
@@ -188,19 +189,24 @@ const getAvailablePrintersFromDB = async () => {
       'settings.allowStudentAccess': true 
     }).select('-queue -systemInfo').lean();
     
+    // Get global queue length from Queue collection
+    const globalQueueLength = await Queue.countDocuments({
+      status: { $in: ['pending', 'in-progress'] }
+    });
+    
     return printers.map(printer => ({
       id: printer._id,
       name: printer.name,
       location: printer.location,
       status: printer.status,
-      queueLength: printer.queue?.length || 0,
+      queueLength: globalQueueLength, // All printers share the same global queue
       capabilities: {
         color: printer.specifications.colorSupport,
         duplex: printer.specifications.duplexSupport,
         paperSizes: printer.specifications.supportedPaperTypes
       },
       pricing: printer.pricing,
-      estimatedWait: (printer.queue?.length || 0) * 3 // 3 minutes per job estimate
+      estimatedWait: globalQueueLength * 3 // 3 minutes per job estimate
     }));
   } catch (error) {
     console.error('❌ Error fetching printers from database:', error);
@@ -209,25 +215,16 @@ const getAvailablePrintersFromDB = async () => {
 };
 
 /**
- * Add job to printer queue
+ * Add job to queue - DEPRECATED: Use QueueManager instead
+ * This function is kept for backward compatibility
  */
 const addJobToQueue = async (printerId, jobId) => {
+  console.warn('⚠️ addJobToQueue is deprecated. Use QueueManager.enqueue() instead');
   try {
-    const printer = await Printer.findById(printerId);
-    if (!printer) {
-      throw new Error(`Printer ${printerId} not found`);
-    }
-
-    if (printer.queue.length >= printer.settings.maxQueueSize) {
-      throw new Error(`Printer queue is full (max: ${printer.settings.maxQueueSize})`);
-    }
-
-    printer.queue.push(jobId);
-    printer.status = printer.queue.length > 0 ? 'busy' : 'online';
-    await printer.save();
-
-    console.log(`📋 Added job ${jobId} to ${printer.name} queue (position: ${printer.queue.length})`);
-    return { success: true, queuePosition: printer.queue.length };
+    const QueueManager = require('./queueManager');
+    const result = await QueueManager.enqueue(jobId);
+    console.log(`📋 Job ${jobId} added to global queue at position ${result.position}`);
+    return { success: true, queuePosition: result.position };
   } catch (error) {
     console.error('❌ Error adding job to queue:', error);
     throw error;
@@ -235,21 +232,16 @@ const addJobToQueue = async (printerId, jobId) => {
 };
 
 /**
- * Remove job from printer queue
+ * Remove job from queue - DEPRECATED: Use QueueManager instead
+ * This function is kept for backward compatibility
  */
 const removeJobFromQueue = async (printerId, jobId) => {
+  console.warn('⚠️ removeJobFromQueue is deprecated. Queue items are auto-removed when completed');
   try {
-    const printer = await Printer.findById(printerId);
-    if (!printer) {
-      throw new Error(`Printer ${printerId} not found`);
-    }
-
-    printer.queue = printer.queue.filter(id => id.toString() !== jobId.toString());
-    printer.status = printer.queue.length > 0 ? 'busy' : 'online';
-    await printer.save();
-
-    console.log(`📋 Removed job ${jobId} from ${printer.name} queue`);
-    return { success: true, remainingJobs: printer.queue.length };
+    // In the new system, jobs are automatically removed when completed
+    // This function now just logs the action
+    console.log(`📋 Job ${jobId} removal handled by QueueManager`);
+    return { success: true, remainingJobs: 'managed by QueueManager' };
   } catch (error) {
     console.error('❌ Error removing job from queue:', error);
     throw error;
@@ -257,16 +249,15 @@ const removeJobFromQueue = async (printerId, jobId) => {
 };
 
 /**
- * Get next job in queue for a printer
+ * Get next job in queue - DEPRECATED: Use QueueManager instead
+ * This function is kept for backward compatibility
  */
 const getNextJobInQueue = async (printerId) => {
+  console.warn('⚠️ getNextJobInQueue is deprecated. Use QueueManager.getNextJob() instead');
   try {
-    const printer = await Printer.findById(printerId).populate('queue');
-    if (!printer || printer.queue.length === 0) {
-      return null;
-    }
-
-    return printer.queue[0]; // First job in queue
+    const QueueManager = require('./queueManager');
+    const nextJob = await QueueManager.getNextJob();
+    return nextJob?.printJobId || null;
   } catch (error) {
     console.error('❌ Error getting next job in queue:', error);
     return null;

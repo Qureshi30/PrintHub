@@ -105,6 +105,7 @@ const printFile = async (filePath, printSettings = {}, printerName = null, print
   
   try {
     console.log(`🖨️ Starting print job for: ${filePath}`);
+    console.log(`🔧 Print settings received:`, printSettings);
     
     // Get printer name - use mapping if printerId provided, otherwise use printerName or default
     let targetPrinter;
@@ -114,6 +115,17 @@ const printFile = async (filePath, printSettings = {}, printerName = null, print
       targetPrinter = printerName || await getDefaultPrinter();
     }
     console.log(`🖨️ Using printer: ${targetPrinter}`);
+    
+    // Validate duplex capability for physical printers
+    if (printSettings.duplex && !targetPrinter.toLowerCase().includes('pdf')) {
+      console.log(`🔄 DUPLEX CHECK: Validating duplex support for printer: ${targetPrinter}`);
+      // Most HP LaserJet Pro models support duplex, but warn if it's not a known model
+      if (!targetPrinter.toLowerCase().includes('laserjet') && 
+          !targetPrinter.toLowerCase().includes('m201') && 
+          !targetPrinter.toLowerCase().includes('m202')) {
+        console.warn(`⚠️ DUPLEX WARNING: Printer "${targetPrinter}" may not support duplex printing`);
+      }
+    }
     
     // Map print settings to pdf-to-printer options
     const printOptions = mapPrintSettings(printSettings);

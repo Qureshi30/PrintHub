@@ -4,35 +4,36 @@ require('dotenv').config();
 class UnifiedEmailService {
   constructor() {
     this.transporter = null;
+    this.isConfigured = false;
     this.init();
   }
 
   init() {
-    // Only initialize if email credentials are provided
-    if (process.env.EMAIL_USER && (process.env.EMAIL_APP_PASSWORD || process.env.EMAIL_PASS)) {
-      this.transporter = nodemailer.createTransport({
-        service: 'gmail', // Preferred service
+    // Email functionality temporarily disabled - keeping code structure
+    this.isConfigured = false;
+    console.log('📧 Email service disabled - notifications will be logged only');
+    
+    /* EMAIL SETUP CODE (DISABLED)
+    // For backend, we'll use SMTP with your EmailJS email account
+    // This requires an app password from your Gmail account
+    const emailUser = 'zaheensiddiqui71@gmail.com'; // Your EmailJS sender email
+    const emailPassword = process.env.EMAIL_APP_PASSWORD; // App password needed
+
+    if (emailPassword) {
+      this.transporter = nodemailer.createTransporter({
+        service: 'gmail',
         auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_APP_PASSWORD || process.env.EMAIL_PASS
+          user: emailUser,
+          pass: emailPassword
         }
       });
-      console.log('✅ Unified email service initialized successfully');
-    } else if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      // Fallback to custom SMTP
-      this.transporter = nodemailer.createTransport({
-        host: process.env.EMAIL_HOST,
-        port: process.env.EMAIL_PORT || 587,
-        secure: false,
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-      });
-      console.log('✅ Unified email service initialized with custom SMTP');
+      this.isConfigured = true;
+      console.log('✅ Email service initialized with Gmail SMTP');
     } else {
       console.log('📧 Email service not configured - notifications will be logged only');
+      console.log('💡 To enable emails, add EMAIL_APP_PASSWORD to your .env file');
     }
+    */
   }
 
   // ADMIN NOTIFICATIONS
@@ -82,28 +83,29 @@ Check your PrintHub dashboard for more details.
     });
   }
 
-  // USER NOTIFICATIONS (Rich HTML)
+  // USER NOTIFICATIONS (SMTP)
   async sendPrintCompletionNotification(printJob) {
     try {
-      const emailTemplate = this.generatePrintCompletionEmail(printJob);
-      
-      const mailOptions = {
-        from: `"PrintHub System" <${process.env.EMAIL_USER}>`,
-        to: printJob.userEmail,
-        subject: `Print Job Completed - ${printJob.fileName}`,
-        html: emailTemplate,
-        text: this.generatePlainTextEmail(printJob)
-      };
-
-      if (this.transporter) {
-        const result = await this.transporter.sendMail(mailOptions);
-        console.log('📧 Print completion email sent successfully:', result.messageId);
-        return { success: true, messageId: result.messageId };
-      } else {
+      if (!this.isConfigured) {
         console.log('📧 Print Completion Notification (Email not configured):');
         console.log(this.generatePlainTextEmail(printJob));
         return { success: false, error: 'Email not configured' };
       }
+
+      const emailHtml = this.generatePrintCompletionEmail(printJob);
+      const emailText = this.generatePlainTextEmail(printJob);
+
+      const mailOptions = {
+        from: `"PrintHub System" <zaheensiddiqui71@gmail.com>`,
+        to: printJob.userEmail,
+        subject: `Print Job Completed - ${printJob.file?.originalName || printJob.fileName}`,
+        html: emailHtml,
+        text: emailText
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log('📧 Print completion email sent successfully:', result.messageId);
+      return { success: true, messageId: result.messageId };
     } catch (error) {
       console.error('❌ Failed to send print completion email:', error);
       return { success: false, error: error.message };
@@ -112,23 +114,23 @@ Check your PrintHub dashboard for more details.
 
   async sendPrintErrorNotification(printJob, errorMessage) {
     try {
-      const mailOptions = {
-        from: `"PrintHub System" <${process.env.EMAIL_USER}>`,
-        to: printJob.userEmail,
-        subject: `Print Job Failed - ${printJob.fileName}`,
-        html: this.generateErrorEmail(printJob, errorMessage),
-        text: `Print Job Failed\n\nYour print job for ${printJob.fileName} failed to complete.\nError: ${errorMessage}\n\nPlease try again or contact support.`
-      };
-
-      if (this.transporter) {
-        const result = await this.transporter.sendMail(mailOptions);
-        console.log('📧 Print error email sent successfully:', result.messageId);
-        return { success: true, messageId: result.messageId };
-      } else {
+      if (!this.isConfigured) {
         console.log('📧 Print Error Notification (Email not configured):');
-        console.log(mailOptions.text);
+        console.log(`Print Job Failed: ${printJob.fileName} - ${errorMessage}`);
         return { success: false, error: 'Email not configured' };
       }
+
+      const mailOptions = {
+        from: `"PrintHub System" <zaheensiddiqui71@gmail.com>`,
+        to: printJob.userEmail,
+        subject: `Print Job Failed - ${printJob.file?.originalName || printJob.fileName}`,
+        html: this.generateErrorEmail(printJob, errorMessage),
+        text: `Print Job Failed\n\nYour print job for ${printJob.file?.originalName || printJob.fileName} failed to complete.\nError: ${errorMessage}\n\nPlease try again or contact support.`
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log('📧 Print error email sent successfully:', result.messageId);
+      return { success: true, messageId: result.messageId };
     } catch (error) {
       console.error('❌ Failed to send print error email:', error);
       return { success: false, error: error.message };
@@ -137,25 +139,27 @@ Check your PrintHub dashboard for more details.
 
   // UTILITY METHODS
   async sendEmail({ to, subject, text, html, logMessage }) {
-    if (this.transporter) {
-      try {
-        await this.transporter.sendMail({
-          from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-          to,
-          subject,
-          text,
-          html
-        });
-        console.log(logMessage || '📧 Email sent successfully');
-        return { success: true };
-      } catch (error) {
-        console.error('❌ Failed to send email:', error);
-        return { success: false, error: error.message };
-      }
-    } else {
+    if (!this.isConfigured) {
       console.log('📧 Email Notification (Email not configured):');
       console.log(text);
       return { success: false, error: 'Email not configured' };
+    }
+
+    try {
+      const mailOptions = {
+        from: `"PrintHub System" <zaheensiddiqui71@gmail.com>`,
+        to,
+        subject,
+        text,
+        html
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log(logMessage || '📧 Email sent successfully:', result.messageId);
+      return { success: true, messageId: result.messageId };
+    } catch (error) {
+      console.error('❌ Failed to send email:', error);
+      return { success: false, error: error.message };
     }
   }
 

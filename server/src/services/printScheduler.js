@@ -1,59 +1,62 @@
 const cron = require('node-cron');
 const PrintJob = require('../models/PrintJob');
-const { printJobById } = require('../controllers/printJobController');
+const Queue = require('../models/Queue');
+const QueueManager = require('./queueManager');
 const { cleanupTempFiles } = require('../utils/fileUtils');
 
 /**
- * Auto-process pending print jobs every 30 seconds
+ * Auto-process pending print jobs from Queue collection every 30 seconds
+ * This is a backup processor in case the main queueProcessor fails
  */
 const startAutoPrintProcessor = () => {
-  console.log('🤖 Starting auto-print processor...');
+  console.log('🤖 Starting backup auto-print processor...');
   
-  // Process pending jobs every 30 seconds
+  // Process pending jobs from Queue collection every 30 seconds
   cron.schedule('*/30 * * * * *', async () => {
     try {
-      const pendingJobs = await PrintJob.find({
-        status: { $in: ['pending', 'queued'] }
+      // Get pending jobs from Queue collection (not PrintJob collection)
+      const pendingQueueItems = await Queue.find({
+        status: 'pending'
       })
-      .sort({ 'timing.submittedAt': 1 }) // FIFO order
+      .populate('printJobId')
+      .sort({ position: 1 }) // FIFO order by position
       .limit(5); // Process max 5 jobs at a time
 
-      if (pendingJobs.length > 0) {
-        console.log(`🔄 Auto-processing ${pendingJobs.length} pending jobs...`);
+      if (pendingQueueItems.length > 0) {
+        console.log(`🔄 Backup processor: Processing ${pendingQueueItems.length} pending queue items...`);
         
-        for (const job of pendingJobs) {
+        for (const queueItem of pendingQueueItems) {
           try {
-            // Create mock request/response objects for controller
-            const mockReq = {
-              params: { id: job._id.toString() },
-              body: {}, // Use default printer
-            };
+            if (!queueItem.printJobId) {
+              console.warn(`⚠️ Queue item ${queueItem._id} has no associated PrintJob`);
+              continue;
+            }
+
+            // Use QueueManager to properly process the job
+            console.log(`🖨️ Backup processing: ${queueItem.printJobId.file.originalName}`);
             
-            const mockRes = {
-              status: (code) => mockRes,
-              json: (data) => {
-                if (data.success) {
-                  console.log(`✅ Auto-printed job ${job._id}: ${job.file.originalName}`);
-                } else {
-                  console.error(`❌ Auto-print failed for job ${job._id}:`, data.error);
-                }
-                return mockRes;
-              },
-            };
+            // Mark as in progress
+            await QueueManager.markInProgress(queueItem._id);
             
-            // Process the print job
-            await printJobById(mockReq, mockRes);
+            // Let the main queueProcessor handle actual printing
+            // This backup processor only handles stuck jobs
+            console.log(`⏭️ Backup processor skipping - main processor should handle printing`);
             
-            // Small delay between jobs to prevent overwhelming the printer
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Small delay between jobs to prevent overwhelming the system
+            await new Promise(resolve => setTimeout(resolve, 1000));
             
           } catch (error) {
-            console.error(`❌ Error auto-processing job ${job._id}:`, error.message);
+            console.error(`❌ Backup processor error for queue item ${queueItem._id}:`, error.message);
+            try {
+              await QueueManager.failJob(queueItem.printJobId._id, error.message);
+            } catch (failError) {
+              console.error(`❌ Failed to mark job as failed:`, failError.message);
+            }
           }
         }
       }
     } catch (error) {
-      console.error('❌ Auto-print processor error:', error.message);
+      console.error('❌ Backup auto-print processor error:', error.message);
     }
   });
 };
@@ -76,33 +79,35 @@ const startTempFileCleanup = () => {
 };
 
 /**
- * Update job queue positions every 5 minutes
+ * Update queue positions - DEPRECATED: Now handled by QueueManager
+ * This function is kept for backward compatibility but does nothing
  */
 const startQueuePositionUpdater = () => {
-  console.log('📊 Starting queue position updater...');
+  console.log('📊 Queue position updater: Using QueueManager auto-positioning...');
   
-  // Update queue positions every 5 minutes
+  // The QueueManager now handles position assignment automatically
+  // This scheduler is no longer needed but kept for compatibility
   cron.schedule('*/5 * * * *', async () => {
     try {
-      const pendingJobs = await PrintJob.find({
-        status: { $in: ['pending', 'queued'] }
-      }).sort({ 'timing.submittedAt': 1 });
+      // Check if there are any orphaned PrintJobs that should be in queue
+      const orphanedJobs = await PrintJob.find({
+        status: 'pending'
+      });
 
-      // Update queue positions
-      for (let i = 0; i < pendingJobs.length; i++) {
-        const job = pendingJobs[i];
-        if (job.queuePosition !== i + 1) {
-          job.queuePosition = i + 1;
-          job.status = 'queued'; // Mark as queued once position is assigned
-          await job.save();
+      for (const job of orphanedJobs) {
+        // Check if this job is already in queue
+        const existingQueueItem = await Queue.findOne({ printJobId: job._id });
+        if (!existingQueueItem) {
+          console.log(`🔄 Adding orphaned job ${job._id} to queue...`);
+          await QueueManager.enqueue(job._id);
         }
       }
 
-      if (pendingJobs.length > 0) {
-        console.log(`📊 Updated queue positions for ${pendingJobs.length} jobs`);
+      if (orphanedJobs.length > 0) {
+        console.log(`📊 Processed ${orphanedJobs.length} orphaned jobs`);
       }
     } catch (error) {
-      console.error('❌ Queue position update failed:', error.message);
+      console.error('❌ Orphaned job cleanup failed:', error.message);
     }
   });
 };
@@ -111,11 +116,12 @@ const startQueuePositionUpdater = () => {
  * Start all background schedulers
  */
 const startAllSchedulers = () => {
-  startAutoPrintProcessor();
+  startAutoPrintProcessor(); // Backup processor for queue items
   startTempFileCleanup();
-  startQueuePositionUpdater();
+  startQueuePositionUpdater(); // Orphaned job cleanup
   
   console.log('🚀 All background schedulers started successfully');
+  console.log('📋 Note: Main queue processing handled by queueProcessor service');
 };
 
 module.exports = {
