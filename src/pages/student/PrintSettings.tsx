@@ -8,12 +8,17 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
 import { SpecialPaperAlert } from "@/components/SpecialPaperAlert";
+import { MobileHeader } from "@/components/mobile/MobileHeader";
+import { MobileStepNavigation } from "@/components/mobile/MobileStepNavigation";
+import { MobileCard, MobileTouchButton } from "@/components/mobile/MobileComponents";
 import { useNavigate } from "react-router-dom";
 import { usePrintJobContext } from "@/hooks/usePrintJobContext";
-import { Calculator, FileText, Copy } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Calculator, FileText, Copy, Settings, ChevronDown, ChevronUp, Palette, FileStack, Printer } from "lucide-react";
 
 interface PrintSettings {
   pageRange: string;
@@ -35,6 +40,8 @@ export default function PrintSettings() {
   const [activeTab, setActiveTab] = useState<string>("");
   const [showSpecialPaperAlert, setShowSpecialPaperAlert] = useState(false);
   const [specialPaperType, setSpecialPaperType] = useState<"A3" | "certificate" | "photo" | "cardstock">("A3");
+  const [expandedSections, setExpandedSections] = useState<{[key: string]: boolean}>({});
+  const isMobile = useIsMobile();
   
   // Get selected files from flow context
   const selectedFiles = files || [];
@@ -200,250 +207,291 @@ export default function PrintSettings() {
     };
   };
 
-  // Calculate total cost for all files
-  const calculateTotalCost = () => {
-    return selectedFiles.reduce((total, file) => {
-      const fileCost = calculateFileCost(file.id);
-      return total + fileCost.total;
-    }, 0);
+  const handleContinue = () => {
+    navigate("/student/select-printer");
   };
 
-  const handleContinue = () => {
-    // Save all file settings to flow context
-    selectedFiles.forEach(file => {
-      const settings = fileSettings[file.id];
-      if (settings) {
-        // Determine the correct page range value
-        let pageValue = settings.pageRange;
-        if (settings.pageRange === 'custom' && settings.customPages) {
-          pageValue = settings.customPages;
-        } else if (settings.pageRange === 'current') {
-          pageValue = '1'; // Default to first page for current
-        }
-
-        updateContextFileSettings(file.id, {
-          pages: pageValue,
-          copies: settings.copies,
-          color: settings.colorMode === 'color',
-          duplex: settings.duplex === 'double',
-          paperType: settings.paperSize as 'A4' | 'A3' | 'Letter' | 'Legal' | 'Certificate',
-        });
-      }
-    });
-    navigate("/select-printer");
+  const getTotalCost = () => {
+    return selectedFiles.reduce((total, file) => {
+      const cost = calculateFileCost(file.id);
+      return total + cost.total;
+    }, 0);
   };
 
   return (
     <ProtectedRoute>
-      <div className="container mx-auto py-8 px-4">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <PrintFlowBreadcrumb currentStep="/print-settings" />
+      <MobileHeader 
+        title="Print Settings" 
+        showBackButton={true}
+        backTo="/upload"
+        rightAction={
+          <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+            ₹{getTotalCost().toFixed(2)}
+          </Badge>
+        }
+      />
+      
+      <div className={`${isMobile ? 'pb-24' : ''} container mx-auto py-8 px-4`}>
+        <div className="max-w-6xl mx-auto space-y-6">
+          {!isMobile && <PrintFlowBreadcrumb currentStep="/student/print-settings" />}
           
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight text-blue-600">
-              Print Settings
+          <div className={`text-center space-y-2 ${isMobile ? 'px-4' : ''}`}>
+            <h1 className={`font-bold tracking-tight text-blue-600 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>
+              Configure Print Settings
             </h1>
             <p className="text-muted-foreground">
-              Configure print preferences for each selected file
+              Customize print options for each file
             </p>
-            <div className="flex justify-center gap-2">
-              <Badge variant="secondary" className="mt-2">
-                <FileText className="h-3 w-3 mr-1" />
-                {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''} selected
-              </Badge>
-            </div>
           </div>
 
-          {/* File Tabs */}
+          {/* Mobile Summary Card */}
+          {isMobile && (
+            <MobileCard className="border-blue-200 bg-blue-50/50">
+              <div className="text-center space-y-2">
+                <div className="flex items-center justify-center gap-2">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                  <span className="font-medium text-blue-800">
+                    {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''} selected
+                  </span>
+                </div>
+                <div className="text-sm text-blue-700">
+                  Total Cost: ₹{getTotalCost().toFixed(2)}
+                </div>
+              </div>
+            </MobileCard>
+          )}
+
+          {/* File Settings Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${selectedFiles.length}, 1fr)` }}>
+            <TabsList className={`${isMobile ? 'w-full h-auto flex-col space-y-1' : 'grid grid-cols-2 lg:grid-cols-3'}`}>
               {selectedFiles.map((file) => (
-                <TabsTrigger key={file.id} value={file.id} className="text-xs sm:text-sm">
-                  {file.name.length > 15 ? `${file.name.substring(0, 12)}...` : file.name}
+                <TabsTrigger 
+                  key={file.id} 
+                  value={file.id}
+                  className={`${isMobile ? 'w-full justify-start' : ''} flex items-center gap-2`}
+                >
+                  <FileText className="h-4 w-4" />
+                  <span className={isMobile && file.name.length > 25 ? 'truncate' : ''}>
+                    {isMobile && file.name.length > 25 ? `${file.name.substring(0, 22)}...` : file.name}
+                  </span>
+                  <Badge variant="secondary" className="ml-auto">
+                    ₹{calculateFileCost(file.id).total.toFixed(2)}
+                  </Badge>
                 </TabsTrigger>
               ))}
             </TabsList>
 
             {selectedFiles.map((file) => {
-              const settings = fileSettings[file.id];
+              const settings = fileSettings[file.id] || {
+                pageRange: "all",
+                colorMode: "blackwhite" as const,
+                duplex: "single" as const,
+                copies: 1,
+                paperSize: "A4",
+                paperType: "regular"
+              };
               const cost = calculateFileCost(file.id);
-              
+
               return (
-                <TabsContent key={file.id} value={file.id} className="mt-6">
-                  <div className="grid gap-6 lg:grid-cols-3">
+                <TabsContent key={file.id} value={file.id} className="space-y-6">
+                  <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'lg:grid-cols-3'}`}>
                     {/* Settings Panel */}
-                    <div className="lg:col-span-2">
-                      <Card>
-                        <CardHeader>
+                    <div className={isMobile ? '' : 'lg:col-span-2'}>
+                      <MobileCard>
+                        <div className="space-y-6">
                           <div className="flex items-center justify-between">
-                            <CardTitle className="flex items-center gap-2">
-                              <FileText className="h-5 w-5" />
-                              Settings for {file.name}
-                            </CardTitle>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => copyToAllFiles(file.id)}
-                              className="flex items-center gap-1"
-                            >
-                              <Copy className="h-4 w-4" />
-                              Copy to All
-                            </Button>
-                          </div>
-                          <Badge variant="secondary">
-                            {file.pages} pages • {file.type.toUpperCase()}
-                          </Badge>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                          {/* Page Range */}
-                          <div className="space-y-2">
-                            <Label htmlFor="pageRange">Page Range</Label>
-                            <Select 
-                              value={settings.pageRange} 
-                              onValueChange={(value) => updateFileSettings(file.id, { pageRange: value })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select page range" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all">All Pages</SelectItem>
-                                <SelectItem value="current">Current Page</SelectItem>
-                                <SelectItem value="custom">Custom Range</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            {settings.pageRange === "custom" && (
-                              <Input 
-                                placeholder="e.g., 1-5, 8, 10-12" 
-                                className="mt-2"
-                                value={settings.customPages || ""}
-                                onChange={(e) => updateFileSettings(file.id, { customPages: e.target.value })}
-                              />
+                            <div className="flex items-center gap-2">
+                              <Settings className="h-5 w-5" />
+                              <h3 className="font-semibold">Print Settings</h3>
+                            </div>
+                            {!isMobile && selectedFiles.length > 1 && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => copyToAllFiles(file.id)}
+                                className="flex items-center gap-1"
+                              >
+                                <Copy className="h-4 w-4" />
+                                Copy to All
+                              </Button>
                             )}
                           </div>
 
-                          <Separator />
+                          {/* Mobile Copy to All Button */}
+                          {isMobile && selectedFiles.length > 1 && (
+                            <MobileTouchButton
+                              variant="secondary"
+                              onClick={() => copyToAllFiles(file.id)}
+                            >
+                              <Copy className="h-4 w-4 mr-2" />
+                              Copy Settings to All Files
+                            </MobileTouchButton>
+                          )}
 
-                          {/* Color Mode */}
-                          <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                              <Label>Color Printing</Label>
-                              <div className="text-sm text-muted-foreground">
-                                Enable color printing (additional charges may apply)
+                          {/* Settings Grid */}
+                          <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
+                            {/* Page Settings */}
+                            <div className="space-y-4">
+                              <h4 className="font-medium flex items-center gap-2">
+                                <FileStack className="h-4 w-4" />
+                                Page Settings
+                              </h4>
+                              
+                              <div className="space-y-3">
+                                <div>
+                                  <Label htmlFor="pageRange">Page Range</Label>
+                                  <Select 
+                                    value={settings.pageRange} 
+                                    onValueChange={(value) => updateFileSettings(file.id, { pageRange: value })}
+                                  >
+                                    <SelectTrigger className={isMobile ? 'h-12' : ''}>
+                                      <SelectValue placeholder="Select page range" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="all">All Pages</SelectItem>
+                                      <SelectItem value="current">Current Page</SelectItem>
+                                      <SelectItem value="custom">Custom Range</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  {settings.pageRange === "custom" && (
+                                    <Input 
+                                      placeholder="e.g., 1-5, 8, 10-12" 
+                                      className={`mt-2 ${isMobile ? 'h-12' : ''}`}
+                                      value={settings.customPages || ""}
+                                      onChange={(e) => updateFileSettings(file.id, { customPages: e.target.value })}
+                                    />
+                                  )}
+                                </div>
+                                
+                                <div>
+                                  <Label htmlFor="copies">Number of Copies</Label>
+                                  <Input
+                                    id="copies"
+                                    type="number"
+                                    min="1"
+                                    max="50"
+                                    value={settings.copies}
+                                    onChange={(e) => updateFileSettings(file.id, { copies: parseInt(e.target.value) || 1 })}
+                                    className={isMobile ? 'h-12' : ''}
+                                  />
+                                </div>
                               </div>
                             </div>
-                            <Switch 
-                              checked={settings.colorMode === "color"}
-                              onCheckedChange={(checked) => updateFileSettings(file.id, { colorMode: checked ? "color" : "blackwhite" })}
-                            />
-                          </div>
 
-                          <Separator />
-
-                          {/* Duplex */}
-                          <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                              <Label>Double-sided Printing</Label>
-                              <div className="text-sm text-muted-foreground">
-                                Print on both sides of the paper
+                            {/* Print Quality */}
+                            <div className="space-y-4">
+                              <h4 className="font-medium flex items-center gap-2">
+                                <Palette className="h-4 w-4" />
+                                Print Quality
+                              </h4>
+                              
+                              <div className="space-y-3">
+                                <div>
+                                  <Label htmlFor="colorMode">Color Mode</Label>
+                                  <Select 
+                                    value={settings.colorMode} 
+                                    onValueChange={(value: "color" | "blackwhite") => updateFileSettings(file.id, { colorMode: value })}
+                                  >
+                                    <SelectTrigger className={isMobile ? 'h-12' : ''}>
+                                      <SelectValue placeholder="Select color mode" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="blackwhite">Black & White</SelectItem>
+                                      <SelectItem value="color">Color</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                
+                                <div className="flex items-center justify-between">
+                                  <Label htmlFor="duplex">Double-sided</Label>
+                                  <Switch
+                                    id="duplex"
+                                    checked={settings.duplex === "double"}
+                                    onCheckedChange={(checked) => updateFileSettings(file.id, { duplex: checked ? "double" : "single" })}
+                                  />
+                                </div>
                               </div>
                             </div>
-                            <Switch 
-                              checked={settings.duplex === "double"}
-                              onCheckedChange={(checked) => updateFileSettings(file.id, { duplex: checked ? "double" : "single" })}
-                            />
+
+                            {/* Paper Settings */}
+                            <div className="space-y-4">
+                              <h4 className="font-medium flex items-center gap-2">
+                                <Printer className="h-4 w-4" />
+                                Paper Settings
+                              </h4>
+                              
+                              <div className="space-y-3">
+                                <div>
+                                  <Label htmlFor="paperSize">Paper Size</Label>
+                                  <Select 
+                                    value={settings.paperSize} 
+                                    onValueChange={(value) => {
+                                      updateFileSettings(file.id, { paperSize: value });
+                                      if (value === "A3") {
+                                        setSpecialPaperType("A3");
+                                        setShowSpecialPaperAlert(true);
+                                      }
+                                    }}
+                                  >
+                                    <SelectTrigger className={isMobile ? 'h-12' : ''}>
+                                      <SelectValue placeholder="Select paper size" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="A4">A4</SelectItem>
+                                      <SelectItem value="A3">A3</SelectItem>
+                                      <SelectItem value="Letter">Letter</SelectItem>
+                                      <SelectItem value="Legal">Legal</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                
+                                <div>
+                                  <Label htmlFor="paperType">Paper Type</Label>
+                                  <Select 
+                                    value={settings.paperType} 
+                                    onValueChange={(value) => {
+                                      updateFileSettings(file.id, { paperType: value });
+                                      // Check if special paper type is selected
+                                      if (value === "photo") {
+                                        setSpecialPaperType("photo");
+                                        setShowSpecialPaperAlert(true);
+                                      } else if (value === "cardstock") {
+                                        setSpecialPaperType("cardstock");
+                                        setShowSpecialPaperAlert(true);
+                                      } else if (value === "certificate") {
+                                        setSpecialPaperType("certificate");
+                                        setShowSpecialPaperAlert(true);
+                                      }
+                                    }}
+                                  >
+                                    <SelectTrigger className={isMobile ? 'h-12' : ''}>
+                                      <SelectValue placeholder="Select paper type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="regular">Regular Paper</SelectItem>
+                                      <SelectItem value="photo">Photo Paper</SelectItem>
+                                      <SelectItem value="cardstock">Cardstock</SelectItem>
+                                      <SelectItem value="certificate">Certificate Paper</SelectItem>
+                                      <SelectItem value="transparency">Transparency</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-
-                          <Separator />
-
-                          {/* Copies */}
-                          <div className="space-y-2">
-                            <Label htmlFor="copies">Number of Copies</Label>
-                            <Input
-                              id="copies"
-                              type="number"
-                              min="1"
-                              max="100"
-                              value={settings.copies}
-                              onChange={(e) => updateFileSettings(file.id, { copies: parseInt(e.target.value) || 1 })}
-                            />
-                          </div>
-
-                          <Separator />
-
-                          {/* Paper Size */}
-                          <div className="space-y-2">
-                            <Label htmlFor="paperSize">Paper Size</Label>
-                            <Select 
-                              value={settings.paperSize} 
-                              onValueChange={(value) => {
-                                updateFileSettings(file.id, { paperSize: value });
-                                // Check if special paper is selected
-                                if (value === "A3") {
-                                  setSpecialPaperType("A3");
-                                  setShowSpecialPaperAlert(true);
-                                }
-                              }}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select paper size" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="A4">A4 (210 × 297 mm)</SelectItem>
-                                <SelectItem value="A3">A3 (297 × 420 mm)</SelectItem>
-                                <SelectItem value="Letter">Letter (8.5 × 11 in)</SelectItem>
-                                <SelectItem value="Legal">Legal (8.5 × 14 in)</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <Separator />
-
-                          {/* Paper Type */}
-                          <div className="space-y-2">
-                            <Label htmlFor="paperType">Paper Type</Label>
-                            <Select 
-                              value={settings.paperType} 
-                              onValueChange={(value) => {
-                                updateFileSettings(file.id, { paperType: value });
-                                // Check if special paper type is selected
-                                if (value === "photo") {
-                                  setSpecialPaperType("photo");
-                                  setShowSpecialPaperAlert(true);
-                                } else if (value === "cardstock") {
-                                  setSpecialPaperType("cardstock");
-                                  setShowSpecialPaperAlert(true);
-                                } else if (value === "certificate") {
-                                  setSpecialPaperType("certificate");
-                                  setShowSpecialPaperAlert(true);
-                                }
-                              }}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select paper type" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="regular">Regular Paper</SelectItem>
-                                <SelectItem value="photo">Photo Paper</SelectItem>
-                                <SelectItem value="cardstock">Cardstock</SelectItem>
-                                <SelectItem value="certificate">Certificate Paper</SelectItem>
-                                <SelectItem value="transparency">Transparency</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </MobileCard>
                     </div>
 
                     {/* Cost Panel */}
                     <div>
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
+                      <MobileCard>
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2">
                             <Calculator className="h-5 w-5" />
-                            Cost Breakdown
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
+                            <h3 className="font-semibold">Cost Breakdown</h3>
+                          </div>
+                          
                           <div className="space-y-2">
                             <div className="flex justify-between text-sm">
                               <span>Pages to print:</span>
@@ -465,16 +513,14 @@ export default function PrintSettings() {
                               <span>Paper:</span>
                               <span>{settings.paperSize} {settings.paperType}</span>
                             </div>
+                            <Separator />
+                            <div className="flex justify-between font-medium">
+                              <span>Total Cost:</span>
+                              <span className="text-blue-600">₹{cost.total.toFixed(2)}</span>
+                            </div>
                           </div>
-                          <Separator />
-                          <div className="flex justify-between font-medium">
-                            <span>Total for this file:</span>
-                            <span className="flex items-center gap-1">
-                              ₹{cost.total.toFixed(2)}
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </MobileCard>
                     </div>
                   </div>
                 </TabsContent>
@@ -482,48 +528,57 @@ export default function PrintSettings() {
             })}
           </Tabs>
 
-          {/* Total Cost Summary */}
-          <Card className="border-green-200 bg-green-50/50">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-green-800">Total Cost for All Files</h3>
-                  <p className="text-sm text-green-700">
-                    {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''} configured
-                  </p>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-green-800 flex items-center gap-1">
-                    ₹{calculateTotalCost().toFixed(2)}
+          {/* Total Summary - Desktop only */}
+          {!isMobile && (
+            <Card className="border-green-200 bg-green-50/50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calculator className="h-5 w-5 text-green-600" />
+                    <span className="font-medium text-green-800">Total Print Cost</span>
+                  </div>
+                  <div className="text-lg font-bold text-green-800">
+                    ₹{getTotalCost().toFixed(2)}
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Navigation */}
-          <div className="flex gap-4">
-            <Button variant="outline" onClick={() => navigate("/upload")} className="flex-1">
-              Back to Upload
-            </Button>
-            <Button onClick={handleContinue} className="flex-1 bg-gradient-hero">
-              Continue to Select Printer
-            </Button>
-          </div>
+          {/* Continue button - Desktop only */}
+          {!isMobile && (
+            <div className="flex gap-4">
+              <Button variant="outline" onClick={() => navigate("/upload")} className="flex-1">
+                Back to Upload
+              </Button>
+              <Button onClick={handleContinue} className="flex-1 bg-gradient-hero text-white">
+                Continue to Select Printer →
+              </Button>
+            </div>
+          )}
         </div>
       </div>
-      
-      {/* Special Paper Alert Modal */}
+
+      {/* Mobile Step Navigation */}
+      <MobileStepNavigation
+        currentStep={2}
+        totalSteps={5}
+        onNext={handleContinue}
+        onPrevious={() => navigate('/upload')}
+        nextLabel="Select Printer"
+        previousLabel="Back to Upload"
+      />
+
+      {/* Special Paper Alert */}
       <SpecialPaperAlert
         isOpen={showSpecialPaperAlert}
         onClose={() => setShowSpecialPaperAlert(false)}
         onConfirm={() => {
           setShowSpecialPaperAlert(false);
-          // Continue with current settings
         }}
         paperType={specialPaperType}
         estimatedDelay={(() => {
-          if (specialPaperType === "A3") return 30;
+          if (specialPaperType === "A3") return 5;
           if (specialPaperType === "certificate") return 20;
           return 15;
         })()}

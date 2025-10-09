@@ -79,6 +79,7 @@ const App = () => (
             <Route path="/print-settings" element={<SignedIn><Layout><PrintSettings /></Layout></SignedIn>} />
             <Route path="/student/print-settings" element={<SignedIn><Layout><PrintSettings /></Layout></SignedIn>} />
             <Route path="/select-printer" element={<SignedIn><Layout><SelectPrinter /></Layout></SignedIn>} />
+            <Route path="/student/select-printer" element={<SignedIn><Layout><SelectPrinter /></Layout></SignedIn>} />
           <Route path="/confirmation" element={<SignedIn><Layout><Confirmation /></Layout></SignedIn>} />
           <Route path="/payment" element={<SignedIn><Layout><Payment /></Layout></SignedIn>} />
           <Route path="/queue" element={<SignedIn><Layout><Queue /></Layout></SignedIn>} />
