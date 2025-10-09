@@ -11,6 +11,7 @@ import { useBackendUpload } from "@/hooks/useBackendUpload";
 import { useCreatePrintJob } from "@/hooks/useDatabase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@clerk/clerk-react";
+import { usePayment } from "@/hooks/usePayment";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { MobileStepNavigation } from "@/components/mobile/MobileStepNavigation";
@@ -30,12 +31,19 @@ import {
   Banknote
 } from "lucide-react";
 
+// Razorpay interface
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
 type PaymentStatus = "pending" | "processing" | "uploading" | "success" | "failed";
 
 export default function Payment() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { userId } = useAuth();
+  const { userId, getToken } = useAuth();
   const { toast } = useToast();
   const [selectedMethod, setSelectedMethod] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
