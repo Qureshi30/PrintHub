@@ -120,6 +120,7 @@ interface Printer {
   location: string;
   status: 'online' | 'offline' | 'maintenance' | 'error';
   queue: string[];
+  queueLength?: number; // Actual queue count from Queue collection
   supportedPaperTypes: string[];
   resources: {
     inkLevel: number;
