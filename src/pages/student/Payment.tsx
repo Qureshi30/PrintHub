@@ -11,6 +11,10 @@ import { useBackendUpload } from "@/hooks/useBackendUpload";
 import { useCreatePrintJob } from "@/hooks/useDatabase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@clerk/clerk-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileHeader } from "@/components/mobile/MobileHeader";
+import { MobileStepNavigation } from "@/components/mobile/MobileStepNavigation";
+import { MobileCard, MobileTouchButton } from "@/components/mobile/MobileComponents";
 import { 
   CreditCard, 
   Smartphone, 
@@ -21,17 +25,22 @@ import {
   FileText,
   DollarSign,
   Upload,
-  Settings
+  Settings,
+  QrCode,
+  Banknote
 } from "lucide-react";
+
+type PaymentStatus = "pending" | "processing" | "uploading" | "success" | "failed";
 
 export default function Payment() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { userId } = useAuth();
   const { toast } = useToast();
   const [selectedMethod, setSelectedMethod] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ [fileId: string]: number }>({});
-  const [paymentStatus, setPaymentStatus] = useState<"pending" | "processing" | "uploading" | "success" | "failed">("pending");
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("pending");
 
   // Get data from print job flow context
   const { 
@@ -603,22 +612,185 @@ export default function Payment() {
 
   return (
     <ProtectedRoute>
-      <div className="container mx-auto py-8 px-4">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <PrintFlowBreadcrumb currentStep="/payment" />
+      {isMobile ? (
+        <>
+          <MobileHeader 
+            title="Payment"
+            rightAction={
+              <Badge variant="secondary" className="text-xs">
+                ₹{paymentInfo.amount.toFixed(2)}
+              </Badge>
+            }
+          />
           
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight text-blue-600">
-              Payment
-            </h1>
-            <p className="text-muted-foreground">
-              Complete your payment to submit the print job
-            </p>
+          <div className="px-4 pb-20 space-y-4">
+            {/* Order Summary */}
+            <MobileCard selected={false}>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                  <h3 className="font-semibold">Order Summary</h3>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">File:</span>
+                    <span className="font-medium">{paymentInfo.fileName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Job ID:</span>
+                    <Badge variant="secondary" className="text-xs">{paymentInfo.jobId}</Badge>
+                  </div>
+                  <div className="mt-3 p-3 bg-gray-50 rounded text-xs">
+                    {paymentInfo.breakdown}
+                  </div>
+                  <div className="flex justify-between items-center pt-2 border-t font-semibold">
+                    <span>Total Amount:</span>
+                    <span className="text-lg text-green-600">₹{paymentInfo.amount.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            </MobileCard>
+
+            {/* Payment Methods */}
+            <MobileCard selected={false}>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-purple-600" />
+                  <h3 className="font-semibold">Select Payment Method</h3>
+                </div>
+                
+                <div className="space-y-3">
+                  {/* UPI Payment */}
+                  <MobileTouchButton
+                    variant={selectedMethod === "upi" ? "primary" : "ghost"}
+                    className={`w-full justify-start h-auto p-4 ${
+                      selectedMethod === "upi" ? "border-2 border-blue-500 bg-blue-50" : ""
+                    }`}
+                    onClick={() => setSelectedMethod("upi")}
+                  >
+                    <div className="flex items-center gap-3 w-full">
+                      <Smartphone className="h-6 w-6 text-blue-600" />
+                      <div className="text-left">
+                        <div className="font-medium">UPI Payment</div>
+                        <div className="text-sm text-muted-foreground">Pay using Google Pay, PhonePe, Paytm</div>
+                      </div>
+                      {selectedMethod === "upi" && (
+                        <CheckCircle className="h-5 w-5 text-blue-600 ml-auto" />
+                      )}
+                    </div>
+                  </MobileTouchButton>
+
+                  {/* QR Code Payment */}
+                  <MobileTouchButton
+                    variant={selectedMethod === "qr" ? "primary" : "ghost"}
+                    className={`w-full justify-start h-auto p-4 ${
+                      selectedMethod === "qr" ? "border-2 border-green-500 bg-green-50" : ""
+                    }`}
+                    onClick={() => setSelectedMethod("qr")}
+                  >
+                    <div className="flex items-center gap-3 w-full">
+                      <QrCode className="h-6 w-6 text-green-600" />
+                      <div className="text-left">
+                        <div className="font-medium">QR Code</div>
+                        <div className="text-sm text-muted-foreground">Scan with any UPI app</div>
+                      </div>
+                      {selectedMethod === "qr" && (
+                        <CheckCircle className="h-5 w-5 text-green-600 ml-auto" />
+                      )}
+                    </div>
+                  </MobileTouchButton>
+
+                  {/* Cash Payment */}
+                  <MobileTouchButton
+                    variant={selectedMethod === "cash" ? "primary" : "ghost"}
+                    className={`w-full justify-start h-auto p-4 ${
+                      selectedMethod === "cash" ? "border-2 border-orange-500 bg-orange-50" : ""
+                    }`}
+                    onClick={() => setSelectedMethod("cash")}
+                  >
+                    <div className="flex items-center gap-3 w-full">
+                      <Banknote className="h-6 w-6 text-orange-600" />
+                      <div className="text-left">
+                        <div className="font-medium">Pay at Counter</div>
+                        <div className="text-sm text-muted-foreground">Pay cash when collecting</div>
+                      </div>
+                      {selectedMethod === "cash" && (
+                        <CheckCircle className="h-5 w-5 text-orange-600 ml-auto" />
+                      )}
+                    </div>
+                  </MobileTouchButton>
+                </div>
+              </div>
+            </MobileCard>
+
+            {/* Security Notice */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex gap-3">
+                <Shield className="h-5 w-5 text-blue-600 mt-0.5" />
+                <div className="text-sm">
+                  <div className="font-medium text-blue-900">Secure Payment</div>
+                  <div className="text-blue-700">
+                    Your payment is processed securely through our trusted payment partners.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Status */}
+            {paymentStatus === "processing" && (
+              <MobileCard selected={false} className="border-yellow-200 bg-yellow-50">
+                <div className="flex items-center gap-3">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-yellow-600 border-t-transparent" />
+                  <div>
+                    <div className="font-medium text-yellow-800">Processing Payment</div>
+                    <div className="text-sm text-yellow-700">Please wait...</div>
+                  </div>
+                </div>
+              </MobileCard>
+            )}
+
+            {(paymentStatus as PaymentStatus) === "success" && (
+              <MobileCard selected={false} className="border-green-200 bg-green-50">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <div>
+                    <div className="font-medium text-green-800">Payment Successful!</div>
+                    <div className="text-sm text-green-700">Your print job has been submitted</div>
+                  </div>
+                </div>
+              </MobileCard>
+            )}
           </div>
 
+          <MobileStepNavigation 
+            currentStep={5}
+            totalSteps={5}
+            onPrevious={() => navigate('/confirmation')}
+            onNext={handlePayment}
+            nextLabel={
+              (paymentStatus as PaymentStatus) === "success" ? "Go to Queue" :
+              (paymentStatus as PaymentStatus) === "processing" ? "Processing..." :
+              "Complete Payment"
+            }
+            previousLabel="Back"
+            nextDisabled={!selectedMethod || isProcessing || paymentStatus === "processing"}
+          />
+        </>
+      ) : (
+        <div className="container mx-auto py-8 px-4">
+          <div className="max-w-4xl mx-auto space-y-6">
+            <PrintFlowBreadcrumb currentStep="/payment" />
+            
+            <div className="text-center space-y-2">
+              <h1 className="text-3xl font-bold tracking-tight text-blue-600">
+                Payment
+              </h1>
+              <p className="text-muted-foreground">
+                Complete your payment to submit the print job
+              </p>
+            </div>
 
-
-          <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-2 gap-6">
             {/* Order Summary */}
             <Card>
               <CardHeader>
@@ -781,6 +953,7 @@ export default function Payment() {
           </div>
         </div>
       </div>
+      )}
     </ProtectedRoute>
   );
 }
