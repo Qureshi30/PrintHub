@@ -1,5 +1,5 @@
-import React from 'react';
-import { ChevronLeft, Home } from 'lucide-react';
+﻿import React from 'react';
+import { ChevronLeft, Home, Menu, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -10,6 +10,7 @@ interface MobileHeaderProps {
   backTo?: string;
   showHomeButton?: boolean;
   rightAction?: React.ReactNode;
+  onMenuClick?: () => void;
 }
 
 export function MobileHeader({ 
@@ -17,7 +18,8 @@ export function MobileHeader({
   showBackButton = true, 
   backTo, 
   showHomeButton = false,
-  rightAction 
+  rightAction,
+  onMenuClick
 }: MobileHeaderProps) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -39,38 +41,56 @@ export function MobileHeader({
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm lg:hidden">
-      <div className="flex items-center space-x-3">
-        {showBackButton && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBack}
-            className="p-2 h-auto"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-        )}
-        {showHomeButton && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleHome}
-            className="p-2 h-auto"
-          >
-            <Home className="h-5 w-5" />
-          </Button>
-        )}
-        <h1 className="text-lg font-semibold text-gray-900 truncate">
-          {title}
-        </h1>
+    <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90 border-b border-border px-4 py-3 lg:hidden">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-3">
+          {onMenuClick && (
+            <button
+              onClick={onMenuClick}
+              className="p-1 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors"
+              aria-label="Open menu"
+            >
+              <Menu className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </button>
+          )}
+          <Printer className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <span className="font-semibold text-blue-600 dark:text-blue-400 text-sm">PrintHub</span>
+        </div>
       </div>
       
-      {rightAction && (
-        <div className="flex items-center">
-          {rightAction}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3 flex-1 min-w-0">
+          {showBackButton && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBack}
+              className="p-2 h-auto hover:bg-blue-100 dark:hover:bg-blue-900/20"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+          )}
+          {showHomeButton && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleHome}
+              className="p-2 h-auto hover:bg-blue-100 dark:hover:bg-blue-900/20"
+            >
+              <Home className="h-5 w-5" />
+            </Button>
+          )}
+          <h1 className="text-lg font-semibold text-foreground truncate flex-1">
+            {title}
+          </h1>
         </div>
-      )}
-    </header>
+        
+        {rightAction && (
+          <div className="flex items-center ml-3 flex-shrink-0">
+            {rightAction}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
