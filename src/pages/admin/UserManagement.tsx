@@ -10,6 +10,12 @@ import { useAuth } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import apiClient from "@/lib/apiClient";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { AdminMobileHeader } from "@/components/admin/AdminMobileHeader";
+import { AdminMobileCard } from "@/components/admin/AdminMobileCard";
+import { AdminMobileForm } from "@/components/admin/AdminMobileForm";
+import { AdminMobileTouchButton } from "@/components/admin/AdminMobileTouchButton";
+import { AdminMobileSidebar } from "@/components/admin/AdminMobileSidebar";
 import {
   Users,
   Search,
@@ -24,6 +30,7 @@ export default function UserManagement() {
   const { users, loading, error } = useAllUsers();
   const { getToken } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   // Modal state
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
@@ -31,6 +38,8 @@ export default function UserManagement() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<typeof users[0] | null>(null);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Form state
   const [newUser, setNewUser] = useState({
@@ -40,6 +49,59 @@ export default function UserManagement() {
     role: 'admin' as 'admin' | 'staff' | 'student',
     password: ''
   });
+
+  // Mobile form fields configuration
+  const mobileFormFields = [
+    {
+      id: 'firstName',
+      label: 'First Name',
+      type: 'text' as const,
+      placeholder: 'Enter first name',
+      value: newUser.firstName,
+      required: true
+    },
+    {
+      id: 'lastName', 
+      label: 'Last Name',
+      type: 'text' as const,
+      placeholder: 'Enter last name',
+      value: newUser.lastName,
+      required: true
+    },
+    {
+      id: 'email',
+      label: 'Email Address',
+      type: 'email' as const,
+      placeholder: 'Enter email address',
+      value: newUser.email,
+      required: true
+    },
+    {
+      id: 'password',
+      label: 'Password',
+      type: 'password' as const,
+      placeholder: 'Strong password (min 8 chars)',
+      value: newUser.password,
+      required: true
+    },
+    {
+      id: 'role',
+      label: 'User Role',
+      type: 'select' as const,
+      placeholder: 'Select user role',
+      value: newUser.role,
+      required: true,
+      options: [
+        { label: 'Admin', value: 'admin' },
+        { label: 'Staff', value: 'staff' },
+        { label: 'Student', value: 'student' }
+      ]
+    }
+  ];
+
+  const handleMobileFormChange = (id: string, value: string) => {
+    setNewUser(prev => ({ ...prev, [id]: value }));
+  };
 
   const handleCreateUser = async () => {
     if (!newUser.email || !newUser.firstName || !newUser.lastName || !newUser.password) {
@@ -199,6 +261,196 @@ export default function UserManagement() {
       default: return <Badge variant="outline">Unknown</Badge>;
     }
   };
+
+  // Filter users based on search term
+  const filteredUsers = userList.filter(user => {
+    const searchLower = searchTerm.toLowerCase();
+    const fullName = user.fullName || `${user.firstName} ${user.lastName}`;
+    return (
+      fullName.toLowerCase().includes(searchLower) ||
+      user.email?.toLowerCase().includes(searchLower) ||
+      user.role?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AdminMobileSidebar open={isSidebarOpen} onOpenChange={setIsSidebarOpen} />
+        
+        <AdminMobileHeader
+          title="User Management"
+          subtitle={`${userList.length} total users`}
+          onMenuClick={() => setIsSidebarOpen(true)}
+          rightAction={
+            <AdminMobileTouchButton
+              icon={UserPlus}
+              onClick={() => setIsAddUserOpen(true)}
+              size="sm"
+            >
+              Add
+            </AdminMobileTouchButton>
+          }
+        />
+
+        <div className="p-4 pb-20 space-y-4">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search users..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 h-12 text-base"
+            />
+          </div>
+
+          {/* User Statistics Cards */}
+          <div className="grid grid-cols-3 gap-3">
+            <AdminMobileCard padding="sm">
+              <div className="text-center">
+                <div className="text-lg font-bold text-red-600 dark:text-red-400">{userList.filter(u => u.role === 'admin').length}</div>
+                <div className="text-xs text-muted-foreground">Admins</div>
+              </div>
+            </AdminMobileCard>
+            <AdminMobileCard padding="sm">
+              <div className="text-center">
+                <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{userList.filter(u => u.role === 'staff').length}</div>
+                <div className="text-xs text-muted-foreground">Staff</div>
+              </div>
+            </AdminMobileCard>
+            <AdminMobileCard padding="sm">
+              <div className="text-center">
+                <div className="text-lg font-bold text-green-600 dark:text-green-400">{userList.filter(u => u.role === 'student').length}</div>
+                <div className="text-xs text-muted-foreground">Students</div>
+              </div>
+            </AdminMobileCard>
+          </div>
+
+          {/* Users List */}
+          <div className="space-y-3">
+            {filteredUsers.length === 0 ? (
+              <AdminMobileCard>
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground">
+                    {searchTerm ? "No users match your search" : "No users found"}
+                  </p>
+                </div>
+              </AdminMobileCard>
+            ) : (
+              filteredUsers.map((user) => (
+                <AdminMobileCard key={user._id} hover>
+                  <div className="space-y-3">
+                    {/* User Header */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium text-lg">
+                        {user.firstName?.charAt(0).toUpperCase() || 'U'}{user.lastName?.charAt(0).toUpperCase() || 'S'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-foreground truncate">
+                          {user.fullName || (user.firstName && user.lastName 
+                            ? `${user.firstName} ${user.lastName}`
+                            : `User ${user.clerkUserId.substring(0, 8)}`)}
+                        </div>
+                        <div className="text-sm text-muted-foreground flex items-center gap-1 truncate">
+                          <Mail className="h-3 w-3 flex-shrink-0" />
+                          {user.email || 'No email'}
+                        </div>
+                      </div>
+                      {getRoleBadge(user.role)}
+                    </div>
+
+                    {/* User Details */}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border">
+                      <span>Joined: {new Date(user.createdAt || Date.now()).toLocaleDateString()}</span>
+                      <AdminMobileTouchButton
+                        variant="outline"
+                        size="sm"
+                        icon={Trash2}
+                        onClick={() => openDeleteDialog(user)}
+                        className="text-red-600 border-red-200 hover:bg-red-50 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/20"
+                      >
+                        Delete
+                      </AdminMobileTouchButton>
+                    </div>
+                  </div>
+                </AdminMobileCard>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Mobile Add User Dialog */}
+        <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
+          <DialogContent className="w-[95vw] max-w-md mx-auto">
+            <AdminMobileForm
+              title="Add New User"
+              fields={mobileFormFields}
+              onFieldChange={handleMobileFormChange}
+              onSubmit={handleCreateUser}
+              onCancel={() => setIsAddUserOpen(false)}
+              submitLabel="Create User"
+              isLoading={isCreatingUser}
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Mobile Delete Confirmation */}
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent className="w-[95vw] max-w-md mx-auto">
+            <div className="space-y-4">
+              <div className="text-center">
+                <h2 className="text-xl font-bold text-foreground">Delete User</h2>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Are you sure you want to delete this user? This action cannot be undone.
+                </p>
+              </div>
+              
+              {userToDelete && (
+                <AdminMobileCard className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium">
+                      {userToDelete.firstName?.charAt(0).toUpperCase() || 'U'}{userToDelete.lastName?.charAt(0).toUpperCase() || 'S'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-foreground truncate">
+                        {userToDelete.fullName || `${userToDelete.firstName} ${userToDelete.lastName}`}
+                      </div>
+                      <div className="text-sm text-muted-foreground truncate">{userToDelete.email}</div>
+                      <div className="text-xs text-muted-foreground">Role: {userToDelete.role}</div>
+                    </div>
+                  </div>
+                </AdminMobileCard>
+              )}
+
+              <div className="flex gap-3">
+                <AdminMobileTouchButton
+                  variant="outline"
+                  onClick={() => {
+                    setIsDeleteDialogOpen(false);
+                    setUserToDelete(null);
+                  }}
+                  disabled={isDeletingUser}
+                  fullWidth
+                >
+                  Cancel
+                </AdminMobileTouchButton>
+                <AdminMobileTouchButton
+                  variant="destructive"
+                  onClick={handleDeleteUser}
+                  disabled={isDeletingUser}
+                  fullWidth
+                >
+                  {isDeletingUser ? "Deleting..." : "Delete"}
+                </AdminMobileTouchButton>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">

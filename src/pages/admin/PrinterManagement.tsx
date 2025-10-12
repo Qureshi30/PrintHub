@@ -3,15 +3,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 import { usePrinters } from "@/hooks/useDatabase";
 import { AddPrinterDialog } from "@/components/admin/AddPrinterDialog";
 import { EditPrinterDialog } from "@/components/admin/EditPrinterDialog";
 import { DeletePrinterDialog } from "@/components/admin/DeletePrinterDialog";
 import { useAuth } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { AdminMobileHeader } from "@/components/admin/AdminMobileHeader";
+import { AdminMobileCard } from "@/components/admin/AdminMobileCard";
+import { AdminMobileTouchButton } from "@/components/admin/AdminMobileTouchButton";
+import { AdminMobileSidebar } from "@/components/admin/AdminMobileSidebar";
 import apiClient from "@/lib/apiClient";
 import { 
-  Printer, 
+  Printer as PrinterIcon, 
   Plus, 
   Settings, 
   AlertTriangle,
@@ -22,7 +28,10 @@ import {
   MapPin,
   Edit,
   Trash2,
-  Power
+  Power,
+  Search,
+  Droplets,
+  FileText
 } from "lucide-react";
 
 interface Printer {
@@ -51,6 +60,7 @@ export default function PrinterManagement() {
   const { printers, loading } = usePrinters();
   const { getToken } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   
   // Dialog states
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -58,6 +68,8 @@ export default function PrinterManagement() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedPrinter, setSelectedPrinter] = useState<Printer | null>(null);
   const [togglingPrinter, setTogglingPrinter] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Event handlers
   const handleAddPrinter = () => {
@@ -178,6 +190,192 @@ export default function PrinterManagement() {
     }
   };
 
+  // Filter printers based on search term
+  const filteredPrinters = printerList.filter(printer => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      printer.name.toLowerCase().includes(searchLower) ||
+      printer.location.toLowerCase().includes(searchLower) ||
+      printer.status.toLowerCase().includes(searchLower)
+    );
+  });
+
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AdminMobileSidebar open={isSidebarOpen} onOpenChange={setIsSidebarOpen} />
+        
+        <AdminMobileHeader
+          title="Printer Management"
+          subtitle={`${printerList.length} total printers`}
+          onMenuClick={() => setIsSidebarOpen(true)}
+          rightAction={
+            <AdminMobileTouchButton
+              icon={Plus}
+              onClick={handleAddPrinter}
+              size="sm"
+            >
+              Add
+            </AdminMobileTouchButton>
+          }
+        />
+
+        <div className="p-4 pb-20 space-y-4">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search printers..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 h-12 text-base"
+            />
+          </div>
+
+          {/* Printer Statistics Cards */}
+          <div className="grid grid-cols-2 gap-3">
+            <AdminMobileCard padding="sm">
+              <div className="text-center">
+                <div className="text-lg font-bold text-green-600 dark:text-green-400">{onlinePrinters}</div>
+                <div className="text-xs text-muted-foreground">Online</div>
+              </div>
+            </AdminMobileCard>
+            <AdminMobileCard padding="sm">
+              <div className="text-center">
+                <div className="text-lg font-bold text-muted-foreground">{printerList.length - onlinePrinters}</div>
+                <div className="text-xs text-muted-foreground">Offline</div>
+              </div>
+            </AdminMobileCard>
+          </div>
+
+          {/* Printers List */}
+          <div className="space-y-3">
+            {filteredPrinters.length === 0 ? (
+              <AdminMobileCard>
+                <div className="text-center py-8">
+                  <PrinterIcon className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground">
+                    {searchTerm ? "No printers match your search" : "No printers found. Add your first printer to get started."}
+                  </p>
+                </div>
+              </AdminMobileCard>
+            ) : (
+              filteredPrinters.map((printer) => (
+                <AdminMobileCard key={printer._id} hover>
+                  <div className="space-y-3">
+                    {/* Printer Header */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center text-white">
+                        <PrinterIcon className="h-6 w-6" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-foreground truncate">{printer.name}</div>
+                        <div className="text-sm text-muted-foreground flex items-center gap-1 truncate">
+                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          {printer.location}
+                        </div>
+                      </div>
+                      {getStatusBadge(printer.status)}
+                    </div>
+
+                    {/* Printer Metrics */}
+                    <div className="grid grid-cols-3 gap-3 py-2 border-t border-border">
+                      <div className="text-center">
+                        <div className="text-sm font-medium text-foreground">{printer.queueLength ?? 0}</div>
+                        <div className="text-xs text-muted-foreground">Queue</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <Droplets className="h-3 w-3 text-blue-500" />
+                          <span className="text-sm font-medium text-foreground">{getInkLevel(printer)}%</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">Ink</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <FileText className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-sm font-medium text-foreground">{getPaperLevel(printer)}%</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">Paper</div>
+                      </div>
+                    </div>
+
+                    {/* Progress Bars */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground w-8">Ink</span>
+                        <Progress value={getInkLevel(printer)} className="flex-1 h-2" />
+                        <span className="text-xs text-muted-foreground w-8">{getInkLevel(printer)}%</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground w-8">Paper</span>
+                        <Progress value={getPaperLevel(printer)} className="flex-1 h-2" />
+                        <span className="text-xs text-muted-foreground w-8">{getPaperLevel(printer)}%</span>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 pt-2 border-t border-border">
+                      <AdminMobileTouchButton
+                        variant={printer.status === 'online' ? 'default' : 'outline'}
+                        size="sm"
+                        icon={Power}
+                        onClick={() => handleToggleStatus(printer)}
+                        disabled={togglingPrinter === printer._id}
+                        className={printer.status === 'online' ? 'bg-green-600 hover:bg-green-700' : ''}
+                      >
+                        {printer.status === 'online' ? 'Online' : 'Offline'}
+                      </AdminMobileTouchButton>
+                      <AdminMobileTouchButton
+                        variant="outline"
+                        size="sm"
+                        icon={Edit}
+                        onClick={() => handleEditPrinter(printer)}
+                      >
+                        Edit
+                      </AdminMobileTouchButton>
+                      <AdminMobileTouchButton
+                        variant="outline"
+                        size="sm"
+                        icon={Trash2}
+                        onClick={() => handleDeletePrinter(printer)}
+                        className="text-red-600 border-red-200 hover:bg-red-50 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/20"
+                      >
+                        Delete
+                      </AdminMobileTouchButton>
+                    </div>
+                  </div>
+                </AdminMobileCard>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Dialog Components */}
+        <AddPrinterDialog
+          open={addDialogOpen}
+          onOpenChange={setAddDialogOpen}
+          onPrinterAdded={handlePrinterAdded}
+          existingPrinters={printerList.map(p => ({ name: p.name, _id: p._id }))}
+        />
+
+        <EditPrinterDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          onPrinterUpdated={handlePrinterUpdated}
+          printer={selectedPrinter}
+        />
+
+        <DeletePrinterDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          onPrinterDeleted={handlePrinterDeleted}
+          printer={selectedPrinter}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -199,7 +397,7 @@ export default function PrinterManagement() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Printer Status</CardTitle>
-            <Printer className="h-4 w-4 text-muted-foreground" />
+            <PrinterIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{onlinePrinters}/{printerList.length}</div>

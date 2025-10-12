@@ -25,21 +25,18 @@ export function AdminHeader() {
   ];
 
   return (
-    <header className="sticky top-0 z-30 border-b bg-red-50/80 backdrop-blur supports-[backdrop-filter]:bg-red-50/70 border-red-200">
+    <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70 border-red-200 dark:border-red-800">
       <div className="container flex h-14 items-center justify-between">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
             <button 
-              className="text-lg font-semibold tracking-tight text-red-600 cursor-pointer hover:opacity-80 bg-transparent border-none flex items-center gap-2"
+              className="text-lg font-semibold tracking-tight text-red-600 dark:text-red-400 cursor-pointer hover:opacity-80 bg-transparent border-none flex items-center gap-2"
               onClick={() => navigate("/admin")}
               aria-label="Go to Admin Dashboard"
             >
               <Shield className="h-5 w-5" />
               PrintHub Admin
             </button>
-            <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
-              Admin Portal
-            </Badge>
           </div>
           
           {/* Admin Navigation Menu */}
