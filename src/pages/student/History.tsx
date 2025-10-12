@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import MobileSidebar from "@/components/layout/MobileSidebar";
@@ -64,6 +65,7 @@ function History() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { data: printJobs, isLoading } = useUserPrintJobs(user?.id, { limit: 50 });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -97,8 +99,10 @@ function History() {
     <>
       {isMobile ? (
         <>
+          <MobileSidebar open={isSidebarOpen} onOpenChange={setIsSidebarOpen} />
           <MobileHeader 
             title="Print History"
+            onMenuClick={() => setIsSidebarOpen(true)}
             rightAction={
               <MobileTouchButton 
                 variant="primary" 
@@ -226,7 +230,6 @@ function History() {
         </>
       ) : (
         <>
-          <MobileSidebar />
           <div className="container mx-auto py-8 px-4">
             <div className="max-w-6xl mx-auto space-y-6">
               <div className="flex items-center justify-between">
