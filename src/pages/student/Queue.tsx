@@ -8,7 +8,9 @@ import { useUser } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
+import MobileSidebar from "@/components/layout/MobileSidebar";
 import { MobileCard, MobileTouchButton } from "@/components/mobile/MobileComponents";
+import { useState } from "react";
 import { 
   Clock, 
   FileText, 
@@ -28,6 +30,7 @@ import { useUserPrintJobs, useCancelPrintJob } from "@/hooks/useDatabase";
 export default function Queue() {
   const navigate = useNavigate();
   const { user } = useUser();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
   
   // Use mock hooks
@@ -89,9 +92,18 @@ export default function Queue() {
   if (isLoading) {
     return (
       <ProtectedRoute>
+        {isMobile && (
+          <MobileSidebar 
+            open={isSidebarOpen}
+            onOpenChange={setIsSidebarOpen}
+          />
+        )}
         {isMobile ? (
           <>
-            <MobileHeader title="Print Queue" />
+            <MobileHeader 
+              title="Print Queue" 
+              onMenuClick={() => setIsSidebarOpen(true)}
+            />
             <div className="px-4 py-6 space-y-4">
               <div className="animate-pulse space-y-4">
                 <div className="h-20 bg-gray-200 rounded-lg"></div>
@@ -115,9 +127,18 @@ export default function Queue() {
   if (error) {
     return (
       <ProtectedRoute>
+        {isMobile && (
+          <MobileSidebar 
+            open={isSidebarOpen}
+            onOpenChange={setIsSidebarOpen}
+          />
+        )}
         {isMobile ? (
           <>
-            <MobileHeader title="Print Queue" />
+            <MobileHeader 
+              title="Print Queue" 
+              onMenuClick={() => setIsSidebarOpen(true)}
+            />
             <div className="px-4 py-6">
               <MobileCard selected={false} className="border-red-200 bg-red-50">
                 <div className="text-center text-red-600">
@@ -155,10 +176,17 @@ export default function Queue() {
 
   return (
     <ProtectedRoute>
+      {isMobile && (
+        <MobileSidebar 
+          open={isSidebarOpen}
+          onOpenChange={setIsSidebarOpen}
+        />
+      )}
       {isMobile ? (
         <>
           <MobileHeader 
             title="Print Queue"
+            onMenuClick={() => setIsSidebarOpen(true)}
             rightAction={
               <MobileTouchButton
                 variant="ghost"

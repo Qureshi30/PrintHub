@@ -36,6 +36,7 @@ export default function Upload() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [previewFile, setPreviewFile] = useState<PrintJobFile | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
 
   // Use print job flow context
@@ -142,11 +143,17 @@ export default function Upload() {
 
   return (
     <ProtectedRoute>
-      <MobileSidebar />
+      {isMobile && (
+        <MobileSidebar 
+          open={isSidebarOpen}
+          onOpenChange={setIsSidebarOpen}
+        />
+      )}
       <MobileHeader 
         title="Upload Documents" 
         showBackButton={true}
         backTo="/student/dashboard"
+        onMenuClick={() => setIsSidebarOpen(true)}
         rightAction={
           readyFiles.length > 0 && (
             <Badge variant="secondary" className="bg-blue-100 text-blue-700">
