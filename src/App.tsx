@@ -27,6 +27,7 @@ import UserManagement from "./pages/admin/UserManagement";
 import PrinterManagement from "./pages/admin/PrinterManagement";
 import Analytics from "./pages/admin/Analytics";
 import EmailConfiguration from "./pages/admin/EmailConfiguration";
+import CashPayments from "./pages/admin/CashPayments";
 import AuthTestPage from "./pages/AuthTestPage";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import Layout from "@/components/layout/Layout";
@@ -64,7 +65,7 @@ const App = () => (
                 </SignedIn>
               </>
             } />
-            
+
             {/* Dashboard route that uses role-based rendering */}
             <Route path="/dashboard" element={
               <SignedIn>
@@ -73,12 +74,13 @@ const App = () => (
             } />
             {/* Student routes (require authentication) */}
             <Route path="/student/dashboard" element={<SignedIn><Layout><StudentDashboard /></Layout></SignedIn>} />
-            
+
             {/* Print flow routes */}
             <Route path="/upload" element={<SignedIn><Layout><Upload /></Layout></SignedIn>} />
             <Route path="/print-settings" element={<SignedIn><Layout><PrintSettings /></Layout></SignedIn>} />
             <Route path="/student/print-settings" element={<SignedIn><Layout><PrintSettings /></Layout></SignedIn>} />
             <Route path="/select-printer" element={<SignedIn><Layout><SelectPrinter /></Layout></SignedIn>} />
+            <Route path="/student/select-printer" element={<SignedIn><Layout><SelectPrinter /></Layout></SignedIn>} />
           <Route path="/confirmation" element={<SignedIn><Layout><Confirmation /></Layout></SignedIn>} />
           <Route path="/payment" element={<SignedIn><Layout><Payment /></Layout></SignedIn>} />
           <Route path="/queue" element={<SignedIn><Layout><Queue /></Layout></SignedIn>} />
@@ -171,6 +173,11 @@ const App = () => (
           <Route path="/admin/email" element={
             <ProtectedRoute requiredRole="admin">
               <AdminLayout><EmailConfiguration /></AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/cash-payments" element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLayout><CashPayments /></AdminLayout>
             </ProtectedRoute>
           } />
           

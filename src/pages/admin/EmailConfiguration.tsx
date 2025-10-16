@@ -6,6 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { AdminMobileHeader } from "@/components/admin/AdminMobileHeader";
+import { AdminMobileSidebar } from "@/components/admin/AdminMobileSidebar";
 import { Mail, ExternalLink, CheckCircle, AlertCircle, Copy, Send } from "lucide-react";
 import emailService from "@/lib/emailService";
 
@@ -13,6 +16,8 @@ export default function EmailConfiguration() {
   const { toast } = useToast();
   const [testEmail, setTestEmail] = useState("");
   const [isTesting, setIsTesting] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const configStatus = emailService.getConfigurationStatus();
 
@@ -61,19 +66,152 @@ export default function EmailConfiguration() {
     });
   };
 
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AdminMobileSidebar open={isSidebarOpen} onOpenChange={setIsSidebarOpen} />
+        
+        <AdminMobileHeader 
+          title="Email Configuration"
+          subtitle="Set up email notifications for print job completions"
+          onMenuClick={() => setIsSidebarOpen(true)}
+        />
+        
+        <div className="p-4 pb-20 space-y-4">
+          {/* Configuration Status */}
+          <Card className="border-2 shadow-lg">
+            <CardHeader className="bg-gray-50 dark:bg-gray-800/50">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                {configStatus.configured ? (
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                ) : (
+                  <AlertCircle className="h-6 w-6 text-yellow-600" />
+                )}
+                Configuration Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 p-6">
+              <div className="grid gap-4">
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/30 rounded-lg border">
+                  <span className="font-medium text-gray-800 dark:text-gray-200">EmailJS Service</span>
+                  <Badge 
+                    variant={configStatus.configured ? "default" : "secondary"}
+                    className={`px-3 py-1 font-semibold ${
+                      configStatus.configured 
+                        ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400" 
+                        : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
+                    }`}
+                  >
+                    {configStatus.configured ? "Configured" : "Not Configured"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/30 rounded-lg border">
+                  <span className="font-medium text-gray-800 dark:text-gray-200">Service ID</span>
+                  <Badge 
+                    variant={configStatus.serviceId ? "default" : "secondary"}
+                    className={`px-3 py-1 font-semibold ${
+                      configStatus.serviceId 
+                        ? "bg-blue-100 text-blue-800 border-blue-200" 
+                        : "bg-red-100 text-red-600 border-red-200"
+                    }`}
+                  >
+                    {configStatus.serviceId ? "Set" : "Missing"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/30 rounded-lg border">
+                  <span className="font-medium text-gray-800 dark:text-gray-200">Template ID</span>
+                  <Badge 
+                    variant={configStatus.templateId ? "default" : "secondary"}
+                    className={`px-3 py-1 font-semibold ${
+                      configStatus.templateId 
+                        ? "bg-blue-100 text-blue-800 border-blue-200" 
+                        : "bg-red-100 text-red-600 border-red-200"
+                    }`}
+                  >
+                    {configStatus.templateId ? "Set" : "Missing"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/30 rounded-lg border">
+                  <span className="font-medium text-gray-800 dark:text-gray-200">Public Key</span>
+                  <Badge 
+                    variant={configStatus.publicKey ? "default" : "secondary"}
+                    className={`px-3 py-1 font-semibold ${
+                      configStatus.publicKey 
+                        ? "bg-blue-100 text-blue-800 border-blue-200" 
+                        : "bg-red-100 text-red-600 border-red-200"
+                    }`}
+                  >
+                    {configStatus.publicKey ? "Set" : "Missing"}
+                  </Badge>
+                </div>
+              </div>
+
+              {!configStatus.configured && (
+                <Alert className="border-2 border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20">
+                  <AlertCircle className="h-5 w-5 text-yellow-600" />
+                  <AlertDescription className="text-yellow-800 dark:text-yellow-200 font-medium">
+                    Email notifications are not configured. Follow the setup instructions below.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Test Email */}
+          <Card className="border-2 shadow-lg">
+            <CardHeader className="bg-green-50 dark:bg-green-900/20">
+              <CardTitle className="flex items-center gap-2 text-xl text-green-800 dark:text-green-200">
+                <Send className="h-6 w-6" />
+                Test Email Service
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6 p-6">
+              <div className="space-y-4">
+                <Label htmlFor="test-email" className="text-base font-medium">
+                  Test Email Address
+                </Label>
+                <Input
+                  id="test-email"
+                  type="email"
+                  placeholder="Enter email to test notifications"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  className="text-base h-12"
+                />
+              </div>
+              
+              <Button 
+                onClick={handleTestEmail} 
+                disabled={isTesting || !configStatus.configured}
+                className="w-full h-12 text-base font-medium"
+                size="lg"
+              >
+                {isTesting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Sending Test Email...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Send Test Email
+                  </>
+                )}
+              </Button>
+              
+              <p className="text-sm text-muted-foreground text-center leading-relaxed">
+                This will send a sample print job completion notification to test your email configuration.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <Mail className="h-8 w-8 text-blue-600" />
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Email Configuration</h1>
-            <p className="text-muted-foreground">
-              Set up email notifications for print job completions
-            </p>
-          </div>
-        </div>
-
         {/* Configuration Status */}
         <Card className="border-2 shadow-lg">
           <CardHeader className="bg-gray-50 dark:bg-gray-800/50">

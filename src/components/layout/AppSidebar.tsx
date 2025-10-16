@@ -1,10 +1,10 @@
 import { NavLink } from "react-router-dom";
-import { 
-  Home, 
-  Upload, 
-  Folder, 
-  HelpCircle, 
-  Clock, 
+import {
+  Home,
+  Upload,
+  Folder,
+  HelpCircle,
+  Clock,
   User,
   Calendar,
   Shield,
@@ -13,7 +13,8 @@ import {
   Users,
   Printer,
   BarChart3,
-  Settings
+  Settings,
+  DollarSign
 } from "lucide-react";
 import {
   Sidebar,
@@ -50,6 +51,7 @@ const adminItems = [
   { title: "Admin Dashboard", url: "/admin", icon: Settings },
   { title: "User Management", url: "/admin/users", icon: Users },
   { title: "Printer Management", url: "/admin/printers", icon: Printer },
+  { title: "Cash Payments", url: "/admin/cash-payments", icon: DollarSign },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
 ];
 
@@ -82,7 +84,7 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        
+
         <SidebarGroup>
           <SidebarGroupLabel>Account</SidebarGroupLabel>
           <SidebarGroupContent>
