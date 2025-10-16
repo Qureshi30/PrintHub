@@ -8,7 +8,7 @@
  */
 
 const mongoose = require('mongoose');
-const readline = require('readline');
+const readline = require('node:readline');
 require('dotenv').config();
 
 const Printer = require('./src/models/Printer');
@@ -48,14 +48,14 @@ async function main() {
     }
 
     console.log(`Found ${printers.length} printer(s):`);
-    printers.forEach((printer, index) => {
+    for (const [index, printer] of printers.entries()) {
       console.log(`${index + 1}. ${printer.name} (${printer.location})`);
       if (printer.systemInfo?.ipAddress) {
         console.log(`   Current IP: ${printer.systemInfo.ipAddress}`);
       } else {
         console.log(`   No IP configured`);
       }
-    });
+    }
     console.log('');
 
     const printerIndex = await question('Select printer number to configure (or 0 to exit): ');
@@ -148,4 +148,7 @@ async function main() {
   }
 }
 
-main();
+// eslint-disable-next-line unicorn/prefer-top-level-await -- CommonJS module
+(async () => {
+  await main();
+})();

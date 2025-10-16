@@ -1,5 +1,5 @@
 const express = require('express');
-const { requireAdmin } = require('../middleware/authMiddleware');
+const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
 const { clerkClient } = require('@clerk/clerk-sdk-node');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
@@ -124,7 +124,7 @@ router.post('/create-user',
  * @desc    Get all users for admin management
  * @access  Admin only
  */
-router.get('/users', requireAdmin, async (req, res) => {
+router.get('/users', requireAuth, requireAdmin, async (req, res) => {
   try {
     console.log(`👥 Admin ${req.user.fullName} fetching all users`);
 
@@ -173,7 +173,7 @@ router.get('/users', requireAdmin, async (req, res) => {
  * @desc    Delete a user from both Clerk and MongoDB
  * @access  Admin only
  */
-router.delete('/users/:clerkUserId', requireAdmin, async (req, res) => {
+router.delete('/users/:clerkUserId', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { clerkUserId } = req.params;
     console.log(`🗑️ Admin ${req.user.fullName} deleting user: ${clerkUserId}`);
@@ -306,7 +306,7 @@ router.post('/create-sample-users', createSampleUsersHandler);
  * @desc    Get admin overview data - requires admin role
  * @access  Admin only
  */
-router.get('/overview', requireAdmin, async (req, res) => {
+router.get('/overview', requireAuth, requireAdmin, async (req, res) => {
   try {
     console.log(`📊 Admin overview accessed by: ${req.user.fullName} (${req.user.email})`);
 
@@ -341,7 +341,7 @@ router.get('/overview', requireAdmin, async (req, res) => {
  * @desc    Get admin dashboard statistics
  * @access  Admin only
  */
-router.get('/dashboard-stats', requireAdmin, async (req, res) => {
+router.get('/dashboard-stats', requireAuth, requireAdmin, async (req, res) => {
   try {
     // Fetch actual stats from database
     
@@ -437,7 +437,7 @@ router.get('/dashboard-stats', requireAdmin, async (req, res) => {
  * @desc    Get detailed analytics data for admin dashboard (Dynamic)
  * @access  Admin only
  */
-router.get('/analytics', requireAdmin, async (req, res) => {
+router.get('/analytics', requireAuth, requireAdmin, async (req, res) => {
   try {
     console.log(`📊 Analytics accessed by: ${req.user.fullName} (${req.user.email})`);
 
@@ -590,7 +590,7 @@ router.get('/analytics', requireAdmin, async (req, res) => {
  * @desc    Test admin authentication endpoint
  * @access  Admin only
  */
-router.post('/test-auth', requireAdmin, async (req, res) => {
+router.post('/test-auth', requireAuth, requireAdmin, async (req, res) => {
   res.json({
     success: true,
     message: 'Admin authentication successful',

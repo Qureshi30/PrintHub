@@ -2,10 +2,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@clerk/clerk-react";
+import { apiClient } from "@/lib/apiClient";
 import { useAdminStats } from "@/hooks/useDatabase";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useSystemNotifications } from "@/hooks/useSystemNotifications";
 import { AdminMobileHeader } from "@/components/admin/AdminMobileHeader";
 import { AdminMobileSidebar } from "@/components/admin/AdminMobileSidebar";
 import { 
@@ -17,15 +18,53 @@ import {
   AlertTriangle,
   AlertCircle,
   Info,
-  CheckCircle
+  CheckCircle,
+  ArrowRight
 } from "lucide-react";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const { getToken } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [recentErrors, setRecentErrors] = useState<Array<{
+    _id: string;
+    printerName: string;
+    errorType: string;
+    description: string;
+    status: string;
+    priority: 'urgent' | 'high' | 'medium' | 'low';
+    timestamp: string;
+    metadata?: { location?: string };
+  }>>([]);
+  const [errorsLoading, setErrorsLoading] = useState(true);
   const isMobile = useIsMobile();
   const { stats, loading, error } = useAdminStats();
-  const { notifications: systemNotifications, loading: notificationsLoading } = useSystemNotifications(true, 30000);
+
+  // Fetch recent printer errors
+  useEffect(() => {
+    const fetchRecentErrors = async () => {
+      try {
+        const token = await getToken();
+        const response = await apiClient.get('/printer-errors/recent-activity', {
+          params: { limit: 10 },
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        
+        if (response.data.success) {
+          setRecentErrors(response.data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching recent errors:', error);
+      } finally {
+        setErrorsLoading(false);
+      }
+    };
+
+    fetchRecentErrors();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchRecentErrors, 30000);
+    return () => clearInterval(interval);
+  }, [getToken]);
 
   // Default stats to prevent errors
   const defaultStats = {
@@ -312,17 +351,26 @@ export default function AdminDashboard() {
 
       {/* Recent Activity */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Recent System Activity</CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/admin/error-logs')}
+            className="text-blue-600 hover:text-blue-700"
+          >
+            View All Errors
+            <ArrowRight className="h-4 w-4 ml-1" />
+          </Button>
         </CardHeader>
         <CardContent>
-          {notificationsLoading && (
+          {errorsLoading && (
             <div className="text-center py-4 text-muted-foreground">
-              Loading notifications...
+              Loading recent activity...
             </div>
           )}
           
-          {!notificationsLoading && systemNotifications.length === 0 && (
+          {!errorsLoading && recentErrors.length === 0 && (
             <div className="text-center py-4 text-muted-foreground flex flex-col items-center gap-2">
               <CheckCircle className="h-8 w-8 text-green-500" />
               <p>No active system alerts</p>
@@ -330,9 +378,9 @@ export default function AdminDashboard() {
             </div>
           )}
           
-          {!notificationsLoading && systemNotifications.length > 0 && (
+          {!errorsLoading && recentErrors.length > 0 && (
             <div className="space-y-3">
-              {systemNotifications.slice(0, 5).map((notification) => {
+              {recentErrors.slice(0, 5).map((error) => {
                 const priorityConfig = {
                   urgent: { bg: 'bg-red-50 dark:bg-red-950/30', dot: 'bg-red-500 dark:bg-red-400', text: 'text-red-800 dark:text-red-200', icon: AlertCircle },
                   high: { bg: 'bg-orange-50 dark:bg-orange-950/30', dot: 'bg-orange-500 dark:bg-orange-400', text: 'text-orange-800 dark:text-orange-200', icon: AlertTriangle },
@@ -340,21 +388,30 @@ export default function AdminDashboard() {
                   low: { bg: 'bg-blue-50 dark:bg-blue-950/30', dot: 'bg-blue-500 dark:bg-blue-400', text: 'text-blue-800 dark:text-blue-200', icon: Info }
                 };
                 
-                const config = priorityConfig[notification.priority];
+                const config = priorityConfig[error.priority];
                 const Icon = config.icon;
-                const timeAgo = getTimeAgo(notification.createdAt);
+                const timeAgo = getTimeAgo(error.timestamp);
+                
+                // Badge for status
+                const statusBadge = error.status === 'unresolved' ? 
+                  <Badge className="bg-red-100 text-red-800 text-xs">Unresolved</Badge> : 
+                  <Badge className="bg-yellow-100 text-yellow-800 text-xs">In Progress</Badge>;
                 
                 return (
-                  <div key={notification._id} className={`flex items-start justify-between p-3 ${config.bg} rounded-lg`}>
+                  <div key={error._id} className={`flex items-start justify-between p-3 ${config.bg} rounded-lg`}>
                     <div className="flex items-start gap-3 flex-1">
                       <Icon className={`h-4 w-4 ${config.text} mt-0.5 flex-shrink-0`} />
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium ${config.text}`}>{notification.title}</p>
-                        <p className={`text-xs ${config.text} opacity-80 mt-0.5`}>{notification.message}</p>
-                        {notification.metadata?.printerId && (
+                        <div className="flex items-center gap-2">
+                          <p className={`text-sm font-medium ${config.text}`}>
+                            {error.errorType}: {error.printerName}
+                          </p>
+                          {statusBadge}
+                        </div>
+                        <p className={`text-xs ${config.text} opacity-80 mt-0.5`}>{error.description}</p>
+                        {error.metadata?.location && (
                           <p className={`text-xs ${config.text} opacity-60 mt-1`}>
-                            Printer: {notification.metadata.printerId.name}
-                            {notification.metadata.printerId.location && ` • ${notification.metadata.printerId.location}`}
+                            📍 {error.metadata.location}
                           </p>
                         )}
                       </div>

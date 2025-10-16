@@ -5,6 +5,7 @@ const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
 const Printer = require('../models/Printer');
 const PrintJob = require('../models/PrintJob');
 const Queue = require('../models/Queue');
+const PrinterError = require('../models/PrinterError');
 const printerService = require('../services/printerService');
 const { getRealPrinterCapabilities } = require('../utils/printerCapabilities');
 
@@ -71,7 +72,7 @@ const createDefaultPrinters = async () => {
         paperSizes: printer.specifications.supportedPaperTypes
       },
       pricing: {
-        baseCostPerPage: 1.00,
+        baseCostPerPage: 1,
         colorCostPerPage: 0,
         currency: 'INR'
       },
@@ -94,6 +95,7 @@ const createDefaultPrinters = async () => {
 const validateRequest = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.error('❌ Validation failed:', JSON.stringify(errors.array(), null, 2));
     return res.status(400).json({
       success: false,
       error: {
@@ -253,7 +255,7 @@ router.get('/test', async (req, res) => {
         estimatedWait,
         capabilities,
         pricing: {
-          baseCostPerPage: 1.00,
+          baseCostPerPage: 1,
           colorCostPerPage: 0,
           currency: 'INR'
         },
@@ -534,8 +536,8 @@ router.get('/',
           
           // Ensure pricing is in INR format
           printerObj.pricing = {
-            baseCostPerPage: 1.00, // ₹1 per page
-            colorCostPerPage: 0,    // No extra for color
+            baseCostPerPage: 1, // ₹1 per page
+            colorCostPerPage: 0, // No extra for color
             currency: 'INR'
           };
 
@@ -994,10 +996,11 @@ router.put('/:id/location',
 
 // PUT /api/printers/:id/status - Update printer status only (Admin only)
 router.put('/:id/status',
+  requireAuth,
+  requireAdmin,
   [
     param('id').isMongoId().withMessage('Valid printer ID is required'),
-    body('status').isIn(['online', 'offline', 'maintenance', 'busy']).withMessage('Valid status is required'),
-    requireAdmin
+    body('status').isIn(['online', 'offline', 'maintenance', 'busy', 'error']).withMessage('Valid status is required'),
   ],
   validateRequest,
   async (req, res) => {
@@ -1005,13 +1008,13 @@ router.put('/:id/status',
       const { id } = req.params;
       const { status } = req.body;
 
-      const printer = await Printer.findByIdAndUpdate(
-        id,
-        { $set: { status, lastChecked: new Date() } },
-        { new: true, runValidators: true }
-      );
+      console.log(`🔄 Updating printer ${id} status to: ${status}`);
 
+      // First get the printer
+      const printer = await Printer.findById(id);
+      
       if (!printer) {
+        console.log(`❌ Printer ${id} not found`);
         return res.status(404).json({
           success: false,
           error: {
@@ -1020,6 +1023,34 @@ router.put('/:id/status',
           }
         });
       }
+
+      // If trying to set printer to online, check for active errors
+      if (status === 'online') {
+        // Check for active errors by printer name (since errors store printerName)
+        const activeErrors = await PrinterError.countDocuments({
+          printerName: printer.name,
+          status: { $in: ['unresolved', 'in_progress'] },
+        });
+
+        if (activeErrors > 0) {
+          console.log(`⚠️  Blocked: ${activeErrors} active error(s) for ${printer.name}`);
+          return res.status(400).json({
+            success: false,
+            error: {
+              message: 'This printer cannot be set online until all related errors are resolved.',
+              code: 'ACTIVE_ERRORS_EXIST',
+              activeErrorCount: activeErrors,
+            },
+          });
+        }
+      }
+
+      // Update printer status
+      printer.status = status;
+      printer.lastChecked = new Date();
+      await printer.save();
+
+      console.log(`✅ Printer ${printer.name} status updated to: ${status}`);
 
       res.json({
         success: true,

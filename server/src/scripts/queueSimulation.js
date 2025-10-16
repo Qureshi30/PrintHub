@@ -10,9 +10,7 @@ require('dotenv').config();
  */
 
 class QueueSimulation {
-  constructor() {
-    this.isConnected = false;
-  }
+  isConnected = false;
 
   async connect() {
     try {
@@ -197,12 +195,12 @@ class QueueSimulation {
       }
 
       console.log(`📋 Current queue (${queue.length} jobs):`);
-      queue.forEach((item, index) => {
+      for (const item of queue) {
         const status = item.status === 'pending' ? '⏳' : '🟡';
         const file = item.printJobId.file.originalName;
         const user = item.printJobId.userName;
         console.log(`   ${status} Position ${item.position}: ${file} (${user}) - ${item.status}`);
-      });
+      }
     } catch (error) {
       console.error('❌ Error showing queue status:', error.message);
     }
@@ -236,21 +234,22 @@ class QueueSimulation {
 
 // Run simulation if called directly
 if (require.main === module) {
-  const simulation = new QueueSimulation();
-  
-  simulation.connect()
-    .then(() => simulation.runSimulation())
-    .then(() => {
+  // eslint-disable-next-line unicorn/prefer-top-level-await -- CommonJS module
+  (async () => {
+    const simulation = new QueueSimulation();
+    
+    try {
+      await simulation.connect();
+      await simulation.runSimulation();
       console.log('\n❓ Would you like to clean up test data? (You can run cleanup separately)');
       // Uncomment the next line to auto-cleanup
-      // return simulation.cleanup();
-    })
-    .catch(error => {
+      // await simulation.cleanup();
+    } catch (error) {
       console.error('Simulation failed:', error);
-    })
-    .finally(() => {
+    } finally {
       simulation.disconnect();
-    });
+    }
+  })();
 }
 
 module.exports = QueueSimulation;
