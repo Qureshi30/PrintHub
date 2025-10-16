@@ -86,23 +86,34 @@ class QueueManager {
    * @param {string} queueItemId - The ObjectId of the Queue item
    * @returns {Promise<Object>} The updated queue item
    */
-  static async markInProgress(queueItemId) {
+  static async markInProgress(queueItemId, retryCount = 0) {
+    const maxRetries = 3;
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
       const queueItem = await Queue.findById(queueItemId).session(session);
       if (!queueItem) {
+        await session.abortTransaction();
         throw new Error('Queue item not found');
       }
 
       if (queueItem.status !== 'pending') {
-        throw new Error('Only pending jobs can be marked as in-progress');
+        await session.abortTransaction();
+        throw new Error(`Cannot mark job as in-progress - current status is: ${queueItem.status}`);
       }
 
-      // Update queue item status
-      queueItem.status = 'in-progress';
-      await queueItem.save({ session });
+      // Update queue item status using findOneAndUpdate to avoid write conflicts
+      const updatedQueueItem = await Queue.findOneAndUpdate(
+        { _id: queueItemId, status: 'pending' },
+        { $set: { status: 'in-progress', updatedAt: new Date() } },
+        { session, new: true }
+      );
+      
+      if (!updatedQueueItem) {
+        await session.abortTransaction();
+        throw new Error('Queue item was modified by another process');
+      }
 
       // Update print job status
       await PrintJob.findByIdAndUpdate(
