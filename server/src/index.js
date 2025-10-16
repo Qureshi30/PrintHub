@@ -183,6 +183,27 @@ app.listen(PORT, () => {
   // Start the print queue processor
   queueProcessor.start();
   console.log(`🖨️ Print queue processor started`);
+
+  // Start Windows printer monitoring (every 2 minutes)
+  const cron = require('node-cron');
+  const { monitorAllWindowsPrinters } = require('./services/windowsPrinterMonitor');
+  
+  // Run monitoring immediately on startup
+  setTimeout(() => {
+    monitorAllWindowsPrinters().catch(error => {
+      console.error('❌ Initial printer monitoring error:', error);
+    });
+  }, 5000); // Wait 5 seconds for database connection
+  
+  // Schedule monitoring every 2 minutes
+  cron.schedule('*/2 * * * *', () => {
+    console.log('🔍 Running scheduled printer monitoring...');
+    monitorAllWindowsPrinters().catch(error => {
+      console.error('❌ Scheduled printer monitoring error:', error);
+    });
+  });
+  
+  console.log(`📡 Windows printer monitoring scheduled (every 2 minutes)`);
 });
 
 module.exports = app;
