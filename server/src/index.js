@@ -21,6 +21,7 @@ const studentRoutes = require('./routes/studentRoutes');
 const queueRoutes = require('./routes/queueRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const webhookRoutes = require('./routes/webhookRoutes');
+const cashPaymentRoutes = require('./routes/cashPaymentRoutes');
 
 // Import queue processor
 const queueProcessor = require('./services/queueProcessor');
@@ -141,6 +142,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/queue', queueRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/cash-payment', cashPaymentRoutes);
 // Webhook routes (no rate limiting for webhooks)
 app.use('/webhooks', webhookRoutes);
 
@@ -174,10 +176,10 @@ app.listen(PORT, () => {
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`📦 MongoDB Connected: localhost`);
   console.log(`🔄 Queue API: http://localhost:${PORT}/api/queue`);
-  
+
   // Start background schedulers for print job processing
   startAllSchedulers();
-  
+
   // Start the print queue processor
   queueProcessor.start();
   console.log(`🖨️ Print queue processor started`);
