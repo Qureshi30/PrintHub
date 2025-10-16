@@ -20,6 +20,7 @@ class QueueProcessor {
 
     console.log('🚀 Starting print queue processor with REAL PRINTING...');
     console.log('🖨️ Using HP LaserJet Pro M201-M202 PCL 6');
+    console.log(`⏱️ Checking for new jobs every ${this.intervalMs}ms (${this.intervalMs/1000} seconds)`);
     this.isRunning = true;
     
     this.processingInterval = setInterval(() => {
@@ -27,6 +28,7 @@ class QueueProcessor {
     }, this.intervalMs);
 
     // Process immediately on start
+    console.log('🔍 Checking for pending jobs immediately...');
     this.processNextJob();
   }
 
@@ -47,6 +49,7 @@ class QueueProcessor {
    */
   async processNextJob() {
     if (this.isProcessing) {
+      console.log('⏳ Already processing a job, skipping this cycle...');
       return; // Already processing a job
     }
 
@@ -57,13 +60,16 @@ class QueueProcessor {
       const nextJob = await QueueManager.getNextJob();
       
       if (!nextJob) {
-        // No jobs to process
+        // No jobs to process - this is normal, don't log unless in debug mode
         return;
       }
 
-      console.log(`🎯 Processing job ${nextJob.printJobId._id} at position ${nextJob.position}`);
+      console.log('═══════════════════════════════════════════════');
+      console.log(`🎯 MAIN PROCESSOR: Starting job ${nextJob.printJobId._id}`);
       console.log(`📄 File: ${nextJob.printJobId.file.originalName}`);
+      console.log(`📊 Position: ${nextJob.position}`);
       console.log(`👤 User: ${nextJob.printJobId.userName || nextJob.printJobId.clerkUserId}`);
+      console.log('═══════════════════════════════════════════════');
 
       // Mark job as in-progress
       await QueueManager.markInProgress(nextJob._id);
@@ -72,13 +78,15 @@ class QueueProcessor {
       const success = await this.sendToPrinter(nextJob);
 
       if (success) {
-        // Job completed successfully
+        // Job completed successfully - actual print command was sent to printer
         await QueueManager.completeJob(nextJob.printJobId._id);
         console.log(`✅ Job ${nextJob.printJobId._id} completed successfully`);
+        console.log(`📋 Print command sent to physical printer successfully`);
       } else {
-        // Job failed
-        await QueueManager.failJob(nextJob.printJobId._id, 'Printer communication failed');
+        // Job failed - print command could not be sent
+        await QueueManager.failJob(nextJob.printJobId._id, 'Printer communication failed - physical printer did not receive print job');
         console.log(`❌ Job ${nextJob.printJobId._id} failed`);
+        console.log(`⚠️ WARNING: Print job marked as failed because printer communication failed`);
       }
 
     } catch (error) {

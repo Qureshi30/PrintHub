@@ -2,7 +2,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { useAdminStats } from "@/hooks/useDatabase";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { AdminMobileHeader } from "@/components/admin/AdminMobileHeader";
+import { AdminMobileSidebar } from "@/components/admin/AdminMobileSidebar";
 import { 
   Users, 
   Printer, 
@@ -15,6 +19,8 @@ import {
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
   const { stats, loading, error } = useAdminStats();
 
   // Default stats to prevent errors
@@ -59,21 +65,131 @@ export default function AdminDashboard() {
       </div>
     );
   }
+
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AdminMobileSidebar open={isSidebarOpen} onOpenChange={setIsSidebarOpen} />
+        
+        <AdminMobileHeader 
+          title="Admin Dashboard"
+          subtitle="Manage PrintHub system and monitor operations"
+          onMenuClick={() => setIsSidebarOpen(true)}
+          rightAction={
+            <Badge variant="secondary" className="bg-red-100 text-red-800">
+              Admin Portal
+            </Badge>
+          }
+        />
+        
+        <div className="p-4 pb-20 space-y-4">
+          {/* Quick Stats */}
+          <div className="grid gap-4 grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Students</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{displayStats.activeStudents.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Registered students</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Print Jobs Today</CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{displayStats.printJobsToday}</div>
+                <p className="text-xs text-muted-foreground">Jobs processed today</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Revenue Today</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">₹{displayStats.revenueToday.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">Revenue today</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Printers</CardTitle>
+                <Printer className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{displayStats.activePrinters}/{displayStats.totalPrinters}</div>
+                <p className="text-xs text-muted-foreground">{displayStats.maintenancePrinters} under maintenance</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Admin Actions */}
+          <div className="grid gap-4">
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/users')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  User Management
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Manage student accounts, permissions, and access controls
+                </p>
+                <Button className="w-full" onClick={(e) => { e.stopPropagation(); navigate('/admin/users'); }}>
+                  Manage Users
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/printers')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Printer className="h-5 w-5" />
+                  Printer Management
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Monitor printer status, configure settings, and manage queues
+                </p>
+                <Button className="w-full" onClick={(e) => { e.stopPropagation(); navigate('/admin/printers'); }}>
+                  Manage Printers
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/analytics')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Analytics & Reports
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  View detailed analytics and generate comprehensive reports
+                </p>
+                <Button className="w-full" onClick={(e) => { e.stopPropagation(); navigate('/admin/analytics'); }}>
+                  View Analytics
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-          <p className="text-muted-foreground">
-            Manage PrintHub system and monitor operations
-          </p>
-        </div>
-        <Badge variant="secondary" className="bg-red-100 text-red-800">
-          Admin Portal
-        </Badge>
-      </div>
-
       {/* Quick Stats */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
