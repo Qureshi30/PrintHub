@@ -275,7 +275,7 @@ router.post('/verify-payment',
                 });
             }
 
-            // Update print job payment status
+            // Update print job payment status AND set status to pending so queue processor picks it up
             const printJob = await PrintJob.findOneAndUpdate(
                 {
                     _id: printJobId,
@@ -288,7 +288,7 @@ router.post('/verify-payment',
                         'payment.razorpayPaymentId': razorpay_payment_id,
                         'payment.razorpaySignature': razorpay_signature,
                         'payment.paidAt': new Date(),
-                        'status': 'payment_verified'
+                        'status': 'pending'  // Changed from 'payment_verified' to 'pending' so queue processor can pick it up
                     }
                 },
                 { new: true }

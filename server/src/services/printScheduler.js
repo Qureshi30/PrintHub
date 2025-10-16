@@ -5,55 +5,67 @@ const QueueManager = require('./queueManager');
 const { cleanupTempFiles } = require('../utils/fileUtils');
 
 /**
- * Auto-process pending print jobs from Queue collection every 30 seconds
- * This is a backup processor in case the main queueProcessor fails
+ * Auto-process stuck print jobs from Queue collection every 2 minutes
+ * This is a backup processor that only handles jobs stuck in "in-progress" status
+ * The main queueProcessor handles all "pending" jobs
  */
 const startAutoPrintProcessor = () => {
-  console.log('🤖 Starting backup auto-print processor...');
+  console.log('🤖 Starting backup auto-print processor (for stuck jobs only)...');
   
-  // Process pending jobs from Queue collection every 30 seconds
-  cron.schedule('*/30 * * * * *', async () => {
+  // Check for stuck "in-progress" jobs every 2 minutes (less frequent to avoid conflicts)
+  cron.schedule('*/2 * * * *', async () => {
     try {
-      // Get pending jobs from Queue collection (not PrintJob collection)
-      const pendingQueueItems = await Queue.find({
-        status: 'pending'
+      // Only look for jobs that are stuck in "in-progress" for more than 5 minutes
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      
+      const stuckQueueItems = await Queue.find({
+        status: 'in-progress',
+        updatedAt: { $lt: fiveMinutesAgo }
       })
       .populate('printJobId')
-      .sort({ position: 1 }) // FIFO order by position
-      .limit(5); // Process max 5 jobs at a time
+      .sort({ position: 1 })
+      .limit(5);
 
-      if (pendingQueueItems.length > 0) {
-        console.log(`🔄 Backup processor: Processing ${pendingQueueItems.length} pending queue items...`);
+      if (stuckQueueItems.length > 0) {
+        console.log(`⚠️ Backup processor: Found ${stuckQueueItems.length} stuck jobs...`);
         
-        for (const queueItem of pendingQueueItems) {
+        for (const queueItem of stuckQueueItems) {
           try {
             if (!queueItem.printJobId) {
               console.warn(`⚠️ Queue item ${queueItem._id} has no associated PrintJob`);
+              // Clean up orphaned queue item
+              await Queue.findByIdAndDelete(queueItem._id);
               continue;
             }
 
-            // Use QueueManager to properly process the job
-            console.log(`🖨️ Backup processing: ${queueItem.printJobId.file.originalName}`);
+            console.log(`� Resetting stuck job: ${queueItem.printJobId.file.originalName}`);
+            console.log(`⏰ Stuck since: ${queueItem.updatedAt}`);
             
-            // Mark as in progress
-            await QueueManager.markInProgress(queueItem._id);
+            // Reset job back to pending so main processor can retry it
+            queueItem.status = 'pending';
+            await queueItem.save();
             
-            // Let the main queueProcessor handle actual printing
-            // This backup processor only handles stuck jobs
-            console.log(`⏭️ Backup processor skipping - main processor should handle printing`);
+            console.log(`✅ Job reset to pending - main processor will retry`);
             
-            // Small delay between jobs to prevent overwhelming the system
+            // Small delay between jobs
             await new Promise(resolve => setTimeout(resolve, 1000));
             
           } catch (error) {
             console.error(`❌ Backup processor error for queue item ${queueItem._id}:`, error.message);
+            // If we can't reset it, fail the job
             try {
-              await QueueManager.failJob(queueItem.printJobId._id, error.message);
+              await QueueManager.failJob(queueItem.printJobId._id, `Job was stuck in progress: ${error.message}`);
             } catch (failError) {
               console.error(`❌ Failed to mark job as failed:`, failError.message);
             }
           }
         }
+      }
+      
+      // Log status if there are pending jobs waiting for main processor
+      const pendingCount = await Queue.countDocuments({ status: 'pending' });
+      if (pendingCount > 0) {
+        console.log(`📊 Queue status: ${pendingCount} pending job(s) waiting for main processor`);
       }
     } catch (error) {
       console.error('❌ Backup auto-print processor error:', error.message);
