@@ -1,5 +1,6 @@
 import { useState } from "react";
 import MobileSidebar from "@/components/layout/MobileSidebar";
+import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -7,6 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -27,6 +29,8 @@ interface TimeSlot {
 export default function Schedule() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
   
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>("");
@@ -94,7 +98,18 @@ export default function Schedule() {
 
   return (
     <ProtectedRoute>
-      <MobileSidebar />
+      {isMobile && (
+        <MobileSidebar 
+          open={isSidebarOpen}
+          onOpenChange={setIsSidebarOpen}
+        />
+      )}
+      <MobileHeader 
+        title="Schedule Print Job"
+        showBackButton={true}
+        backTo="/student/dashboard"
+        onMenuClick={() => setIsSidebarOpen(true)}
+      />
       <div className="container mx-auto py-8 px-4">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header */}

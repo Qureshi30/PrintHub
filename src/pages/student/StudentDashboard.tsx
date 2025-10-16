@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
 import MobileSidebar from "@/components/layout/MobileSidebar";
+import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { useUser } from "@clerk/clerk-react";
 import { useDashboardStats } from "@/hooks/useDatabase";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function StudentDashboard() {
   const [isVisible, setIsVisible] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { user } = useUser();
   const { stats, loading, error, refresh } = useDashboardStats(user?.id);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     setIsVisible(true);
@@ -47,7 +51,17 @@ export default function StudentDashboard() {
 
   return (
     <>
-      <MobileSidebar />
+      {isMobile && (
+        <MobileSidebar 
+          open={isSidebarOpen}
+          onOpenChange={setIsSidebarOpen}
+        />
+      )}
+      <MobileHeader 
+        title="Dashboard"
+        showBackButton={false}
+        onMenuClick={() => setIsSidebarOpen(true)}
+      />
       <div className="flex-1">
         {/* Dashboard Content */}
         <div className={`space-y-8 p-8 pt-16 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>

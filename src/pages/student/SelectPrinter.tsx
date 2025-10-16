@@ -6,10 +6,14 @@ import { Progress } from "@/components/ui/progress";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
 import PrinterCompatibilityAlert from "@/components/PrinterCompatibilityAlert";
+import { MobileHeader } from "@/components/mobile/MobileHeader";
+import { MobileStepNavigation } from "@/components/mobile/MobileStepNavigation";
+import { MobileCard, MobileTouchButton } from "@/components/mobile/MobileComponents";
 import { useNavigate } from "react-router-dom";
-import { Printer, Clock, Users, CheckCircle, Loader2 } from "lucide-react";
+import { Printer, Clock, Users, CheckCircle, Loader2, MapPin, Wifi, Battery, AlertTriangle } from "lucide-react";
 import { printerService, type PrinterStation } from "@/services/printerService";
 import { usePrintJobContext } from "@/hooks/usePrintJobContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { type PrintJobFile, type PrintJobSettings } from "@/context/PrintJobFlowContext";
 import { 
   validatePrinterCompatibility, 
@@ -28,6 +32,7 @@ export default function SelectPrinter() {
   const [showCompatibilityAlert, setShowCompatibilityAlert] = useState(false);
   const [printerCapabilities, setPrinterCapabilities] = useState<PrinterCapabilities | null>(null);
   const [hasIncompatibleSettings, setHasIncompatibleSettings] = useState(false);
+  const isMobile = useIsMobile();
   
   // Use PrintJob context
   const { files, settings, selectPrinter, setCurrentStep } = usePrintJobContext();
@@ -172,12 +177,25 @@ export default function SelectPrinter() {
 
   return (
     <ProtectedRoute>
-      <div className="container mx-auto py-8 px-4">
+      <MobileHeader 
+        title="Select Printer" 
+        showBackButton={true}
+        backTo="/student/print-settings"
+        rightAction={
+          selectedPrinterId && (
+            <Badge variant="secondary" className="bg-green-100 text-green-700">
+              Selected
+            </Badge>
+          )
+        }
+      />
+      
+      <div className={`${isMobile ? 'pb-24' : ''} container mx-auto py-8 px-4`}>
         <div className="max-w-4xl mx-auto space-y-6">
-          <PrintFlowBreadcrumb currentStep="/select-printer" />
+          {!isMobile && <PrintFlowBreadcrumb currentStep="/select-printer" />}
           
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight text-blue-600">
+          <div className={`text-center space-y-2 ${isMobile ? 'px-4' : ''}`}>
+            <h1 className={`font-bold tracking-tight text-blue-600 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>
               Select Printer Station
             </h1>
             <p className="text-muted-foreground">
@@ -217,127 +235,185 @@ export default function SelectPrinter() {
           )}
 
           {!loading && !error && (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
               {printers.map((printer) => {
                 // Check if this printer is incompatible
                 const isIncompatible = selectedPrinterId === printer.id && hasIncompatibleSettings;
-                
-                // Determine ring classes based on selection and compatibility
-                let ringClasses = "";
-                if (selectedPrinterId === printer.id) {
-                  ringClasses = isIncompatible 
-                    ? "ring-2 ring-red-500 bg-red-50/50" 
-                    : "ring-2 ring-blue-500 bg-blue-50/50";
-                }
+                const isSelected = selectedPrinterId === printer.id;
                 
                 return (
-                  <Card 
+                  <MobileCard 
                     key={printer.id}
-                    className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${ringClasses} ${printer.status !== "online" ? "opacity-60" : ""}`}
-                    onClick={() => printer.status === "online" && setSelectedPrinterId(printer.id)}
+                    selected={isSelected}
+                    className={`cursor-pointer transition-all duration-200 ${
+                      isIncompatible 
+                        ? "border-red-500 bg-red-50/50" 
+                        : isSelected 
+                        ? "border-blue-500 bg-blue-50/50" 
+                        : "hover:shadow-md hover:border-gray-300"
+                    }`}
+                    onClick={() => setSelectedPrinterId(printer.id)}
                   >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <CardTitle className="flex items-center gap-2">
-                          <Printer className="h-5 w-5" />
-                          {printer.name}
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                          {printer.location}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className={`h-3 w-3 rounded-full ${getStatusColor(printer.status)}`} />
-                        <Badge variant={printer.status === "online" ? "default" : "secondary"}>
-                          {printer.status}
+                    <div className="space-y-4">
+                      {/* Printer Header */}
+                      <div className={`flex items-start justify-between ${isMobile ? 'flex-col gap-2' : ''}`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${
+                            printer.status === 'online' ? 'bg-green-100' : 
+                            printer.status === 'maintenance' ? 'bg-yellow-100' : 'bg-red-100'
+                          }`}>
+                            <Printer className={`h-6 w-6 ${
+                              printer.status === 'online' ? 'text-green-600' : 
+                              printer.status === 'maintenance' ? 'text-yellow-600' : 'text-red-600'
+                            }`} />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-lg">{printer.name}</h3>
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <MapPin className="h-3 w-3" />
+                              <span>{printer.location}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Status Badge */}
+                        <Badge 
+                          variant={printer.status === 'online' ? 'default' : 'secondary'}
+                          className={`${
+                            printer.status === 'online' ? 'bg-green-100 text-green-800' : 
+                            printer.status === 'maintenance' ? 'bg-yellow-100 text-yellow-800' : 
+                            'bg-red-100 text-red-800'
+                          } ${isMobile ? 'self-start' : ''}`}
+                        >
+                          <div className={`w-2 h-2 rounded-full mr-2 ${getStatusColor(printer.status)}`} />
+                          {printer.status === 'online' ? 'Available' : 
+                           printer.status === 'maintenance' ? 'Maintenance' : 'Offline'}
                         </Badge>
                       </div>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="space-y-4">
-                    {/* Queue Information */}
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-1">
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                        <span className={`font-medium ${getQueueColor(printer.queueLength)}`}>
-                          {printer.queueLength} in queue
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">
-                          ~{printer.estimatedWait} min wait
-                        </span>
-                      </div>
-                    </div>
 
-                    {/* Queue Progress Bar */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Queue Load</span>
-                        <span>{Math.min(printer.queueLength * 10, 100)}%</span>
-                      </div>
-                      <Progress value={Math.min(printer.queueLength * 10, 100)} className="h-2" />
-                    </div>
-
-                    {/* Capabilities */}
-                    <div className="space-y-2">
-                      <div className="text-sm font-medium">Capabilities:</div>
-                      <div className="flex flex-wrap gap-1">
-                        {printer.capabilities?.color && (
-                          <Badge variant="outline" className="text-xs">Color</Badge>
-                        )}
-                        {printer.capabilities?.duplex && (
-                          <Badge variant="outline" className="text-xs">Duplex</Badge>
-                        )}
-                        {printer.capabilities?.paperSizes?.map(size => (
-                          <Badge key={size} variant="outline" className="text-xs">{size}</Badge>
-                        )) || (
-                          <Badge variant="outline" className="text-xs">A4</Badge>
+                      {/* Printer Stats */}
+                      <div className={`grid gap-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                        <div className="text-center">
+                          <div className="flex items-center justify-center gap-1 text-sm text-gray-600">
+                            <Users className="h-4 w-4" />
+                            <span>Queue</span>
+                          </div>
+                          <div className={`font-semibold ${getQueueColor(printer.queueLength)}`}>
+                            {printer.queueLength} jobs
+                          </div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="flex items-center justify-center gap-1 text-sm text-gray-600">
+                            <Clock className="h-4 w-4" />
+                            <span>Wait Time</span>
+                          </div>
+                          <div className="font-semibold text-gray-900">
+                            {printer.estimatedWait} min
+                          </div>
+                        </div>
+                        
+                        {!isMobile && (
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-sm text-gray-600">
+                              <Battery className="h-4 w-4" />
+                              <span>Load</span>
+                            </div>
+                            <div className="font-semibold text-gray-900">
+                              {Math.min(printer.queueLength * 20, 100)}%
+                            </div>
+                          </div>
                         )}
                       </div>
-                    </div>
 
-                    {/* Pricing Information */}
-                    <div className="space-y-1">
-                      <div className="text-sm font-medium">Pricing:</div>
-                      <div className="text-sm text-muted-foreground">
-                        {printerService.formatCurrency(printer.pricing.baseCostPerPage, printer.pricing.currency)} per page
-                        {printer.capabilities.color && printer.pricing.colorCostPerPage > 0 && (
-                          <span className="ml-2">
-                            • Color: +{printerService.formatCurrency(printer.pricing.colorCostPerPage, printer.pricing.currency)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                      {/* Mobile Load Indicator */}
+                      {isMobile && (
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Queue Load</span>
+                            <span className="font-medium">{Math.min(printer.queueLength * 20, 100)}%</span>
+                          </div>
+                          <Progress value={Math.min(printer.queueLength * 20, 100)} className="h-2" />
+                        </div>
+                      )}
 
-                    {selectedPrinterId === printer.id && (
-                      <div className="flex items-center gap-2 pt-2 border-t">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        <span className="text-sm font-medium text-green-600">Selected</span>
+                      {/* Pricing */}
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-sm text-gray-700">Pricing</h4>
+                        <div className={`grid gap-2 text-sm ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                          <div className="flex justify-between">
+                            <span>Base:</span>
+                            <span>₹{printer.pricing?.baseCostPerPage || 1.00}/page</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Color:</span>
+                            <span>₹{printer.pricing?.colorCostPerPage || 2.00}/page</span>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
+
+                      {/* Selection Indicator */}
+                      {isSelected && (
+                        <div className={`flex items-center justify-center gap-2 py-2 px-4 rounded-lg ${
+                          isIncompatible ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                        }`}>
+                          {isIncompatible ? (
+                            <>
+                              <AlertTriangle className="h-4 w-4" />
+                              <span className="text-sm font-medium">Incompatible Settings</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4" />
+                              <span className="text-sm font-medium">Selected</span>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Mobile Select Button */}
+                      {isMobile && !isSelected && printer.status === 'online' && (
+                        <MobileTouchButton
+                          onClick={() => setSelectedPrinterId(printer.id)}
+                          className="w-full"
+                        >
+                          Select This Printer
+                        </MobileTouchButton>
+                      )}
+                    </div>
+                  </MobileCard>
                 );
               })}
             </div>
           )}
 
-          <div className="flex gap-4">
-            <Button variant="outline" onClick={() => navigate(-1)} className="flex-1">
-              Back to Settings
-            </Button>
-            <Button 
-              onClick={handleContinue} 
-              disabled={!selectedPrinterId || hasIncompatibleSettings}
-              className="flex-1 bg-gradient-hero"
-            >
-              {hasIncompatibleSettings ? "Resolve Compatibility Issues" : "Continue to Confirmation"}
-            </Button>
-          </div>
+          {/* Mobile Step Navigation */}
+          {isMobile && (
+            <MobileStepNavigation
+              currentStep={2}
+              totalSteps={4}
+              onPrevious={() => navigate(-1)}
+              onNext={handleContinue}
+              nextDisabled={!selectedPrinterId || hasIncompatibleSettings}
+              nextLabel={hasIncompatibleSettings ? "Resolve Issues" : "Continue"}
+            />
+          )}
+
+          {/* Desktop Navigation */}
+          {!isMobile && (
+            <div className="flex gap-4">
+              <Button variant="outline" onClick={() => navigate(-1)} className="flex-1">
+                Back to Settings
+              </Button>
+              <Button 
+                onClick={handleContinue} 
+                disabled={!selectedPrinterId || hasIncompatibleSettings}
+                className="flex-1 bg-gradient-hero"
+              >
+                {hasIncompatibleSettings ? "Resolve Compatibility Issues" : "Continue to Confirmation"}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </ProtectedRoute>
