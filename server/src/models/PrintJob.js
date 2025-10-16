@@ -83,7 +83,7 @@ const printJobSchema = new mongoose.Schema({
   // Queue & Status
   status: {
     type: String,
-    enum: ['pending', 'queued', 'in-progress', 'printing', 'completed', 'failed', 'cancelled'],
+    enum: ['pending', 'queued', 'in-progress', 'printing', 'completed', 'failed', 'cancelled', 'paused', 'resumed'],
     default: 'pending',
     index: true,
   },
@@ -96,6 +96,34 @@ const printJobSchema = new mongoose.Schema({
   },
   actualCompletionTime: {
     type: Date,
+  },
+  
+  // Pause/Resume Tracking
+  pauseHistory: [{
+    pausedAt: {
+      type: Date,
+      required: true
+    },
+    resumedAt: {
+      type: Date
+    },
+    reason: {
+      type: String,
+      enum: ['out_of_paper', 'out_of_ink', 'printer_error', 'manual_pause', 'other'],
+      required: true
+    },
+    details: {
+      type: String
+    }
+  }],
+  currentPauseInfo: {
+    isPaused: {
+      type: Boolean,
+      default: false
+    },
+    pausedAt: Date,
+    reason: String,
+    details: String
   },
 
   // Cost Details
