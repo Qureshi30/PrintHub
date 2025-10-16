@@ -1,4 +1,4 @@
-import { UploadCloud, Home, History, Clock, Calendar, Bell, User } from "lucide-react";
+import { UploadCloud, Home, History, Clock, Calendar, Bell, User, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import AuthButtons from "@/components/auth/AuthButtons";
@@ -22,10 +22,13 @@ export function AppHeader() {
       <div className="container flex h-14 items-center justify-between">
         <div className="flex items-center gap-6">
           <button 
-            className="text-lg font-semibold tracking-tight text-blue-600 cursor-pointer hover:opacity-80 bg-transparent border-none"
+            className="flex items-center gap-2 text-lg font-semibold tracking-tight text-blue-600 cursor-pointer hover:opacity-80 bg-transparent border-none"
             onClick={() => navigate("/dashboard")}
             aria-label="Go to PrintHub dashboard"
           >
+            <div className="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center">
+              <Printer className="h-4 w-4 text-white" />
+            </div>
             PrintHub
           </button>
           

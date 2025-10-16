@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import MobileSidebar from "@/components/layout/MobileSidebar";
@@ -7,7 +8,10 @@ import { RefundStatus } from "@/components/RefundStatus";
 import { useUser } from "@clerk/clerk-react";
 import { useUserPrintJobs } from "@/hooks/useDatabase";
 import { useNavigate } from "react-router-dom";
-import { FileText, Calendar, Printer } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileHeader } from "@/components/mobile/MobileHeader";
+import { MobileCard, MobileTouchButton } from "@/components/mobile/MobileComponents";
+import { FileText, Calendar, Printer, Filter, Download, Trash2, Eye } from "lucide-react";
 
 // Match the PrintJob type from useDatabase hook
 interface PrintJobType {
@@ -59,7 +63,9 @@ interface PrintJobType {
 function History() {
   const { user } = useUser();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { data: printJobs, isLoading } = useUserPrintJobs(user?.id, { limit: 50 });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -91,102 +97,195 @@ function History() {
 
   return (
     <>
-      <MobileSidebar />
-      <div className="container mx-auto py-8 px-4">
-        <div className="max-w-6xl mx-auto space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight text-blue-600">
-                Print History
-              </h1>
-              <p className="text-muted-foreground">
-                View and manage your past print jobs
-              </p>
-            </div>
-            <Button onClick={() => navigate("/upload")} className="bg-gradient-hero">
-              New Print Job
-            </Button>
-          </div>
+      {isMobile ? (
+        <>
+          <MobileSidebar open={isSidebarOpen} onOpenChange={setIsSidebarOpen} />
+          <MobileHeader 
+            title="Print History"
+            onMenuClick={() => setIsSidebarOpen(true)}
+            rightAction={
+              <MobileTouchButton 
+                variant="primary" 
+                size="sm"
+                onClick={() => navigate("/upload")}
+              >
+                New Job
+              </MobileTouchButton>
+            }
+          />
+          
+          <div className="px-4 pb-6 space-y-4">
+            {jobs.length === 0 ? (
+              <div className="text-center py-12">
+                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No print jobs yet</h3>
+                <p className="text-gray-500 mb-6">Your print history will appear here once you submit jobs.</p>
+                <MobileTouchButton 
+                  variant="primary"
+                  onClick={() => navigate("/upload")}
+                >
+                  Upload Your First Document
+                </MobileTouchButton>
+              </div>
+            ) : (
+              jobs.map((job) => {
+                const pages = job.settings?.pages === "all"
+                  ? 10
+                  : parseInt(job.settings.pages.split("-")[1] || "1");
 
-          <div className="space-y-4">
-            {jobs.map((job) => {
-              const pages = job.settings?.pages === "all"
-                ? 10
-                : parseInt(job.settings.pages.split("-")[1] || "1");
-
-              const cost = pages * (job.settings?.copies || 1) * 1.0;
-
-              return (
-                <Card key={job._id}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-blue-100">
-                          <FileText className="h-6 w-6 text-blue-600" />
-                        </div>
-
-                        <div className="space-y-1">
-                          <h3 className="font-semibold">{job.file?.publicId || "Document"}</h3>
-
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Printer className="h-3 w-3" />
-                              Printer{" "}
-                              {typeof job.printerId === "string"
-                                ? job.printerId.substring(0, 8)
-                                : (job.printerId as { name?: string })?.name || "Unknown"}
-                            </span>
-                            <span>{pages} pages</span>
-                            <span>{job.settings?.copies || 1} copies</span>
-                            <span className="capitalize">{job.settings?.color ? "color" : "black & white"}</span>
-                            <span>₹{cost.toFixed(2)}</span>
-                          </div>
-
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            Submitted: {formatDate(job.timing?.createdAt || job.timing?.submittedAt || new Date())}
-                            {job.status === "completed" && (
-                              <span className="ml-2">
-                                • Completed:{" "}
-                                {formatDate(job.timing?.completedAt || job.timing?.updatedAt || new Date())}
-                              </span>
-                            )}
-                          </div>
+                return (
+                  <MobileCard key={job._id} selected={false} className="space-y-3">
+                    {/* Job Header */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900 truncate">
+                          {job.file?.originalName || "Unknown File"}
+                        </h3>
+                        <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                          <Calendar className="h-3 w-3" />
+                          <span>{formatDate(job.timing?.submittedAt || new Date())}</span>
                         </div>
                       </div>
+                      <Badge className={getStatusColor(job.status)}>
+                        {job.status}
+                      </Badge>
+                    </div>
 
-                      <div className="flex items-center gap-3">
-                        <Badge className={getStatusColor(job.status)}>{job.status}</Badge>
-
-                        <div className="flex gap-2">
-                          {job.status === "failed" && (
-                            <div className="flex gap-2">
-                              <RefundStatus jobId={job._id} />
-                            </div>
-                          )}
+                    {/* Job Details */}
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-gray-500">Printer:</span>
+                        <div className="font-medium">
+                          {(job.printerId as any)?.name || 'Unknown Printer'}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Pages:</span>
+                        <div className="font-medium">{pages} pages</div>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Copies:</span>
+                        <div className="font-medium">{job.settings?.copies || 1}</div>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Cost:</span>
+                        <div className="font-medium text-green-600">
+                          ₹{job.pricing?.totalCost?.toFixed(2) || '0.00'}
                         </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
 
-            {jobs.length === 0 && (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No print history yet</h3>
-                  <p className="text-muted-foreground mb-4">Start printing to see your job history here</p>
-                  <Button onClick={() => navigate("/upload")} className="bg-gradient-hero">
-                    Start Printing
-                  </Button>
-                </CardContent>
-              </Card>
+                    {/* Payment Status */}
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">Payment:</span>
+                        <Badge variant={job.payment?.status === 'paid' ? 'default' : 'secondary'}>
+                          {job.payment?.status || 'pending'}
+                        </Badge>
+                      </div>
+                      
+                      {/* Action Buttons */}
+                      <div className="flex gap-2">
+                        {job.status === 'completed' && (
+                          <MobileTouchButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(job.file?.cloudinaryUrl, '_blank')}
+                          >
+                            <Download className="h-4 w-4" />
+                          </MobileTouchButton>
+                        )}
+                        <MobileTouchButton
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {/* Add view details functionality */}}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </MobileTouchButton>
+                      </div>
+                    </div>
+
+                    {/* Refund Status for failed jobs */}
+                    {job.status === 'failed' && job.payment?.status === 'paid' && (
+                      <div className="pt-2 border-t">
+                        <RefundStatus 
+                          jobId={job._id}
+                          trigger={
+                            <MobileTouchButton
+                              variant="secondary"
+                              size="sm"
+                              className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100 w-full"
+                            >
+                              Request Refund
+                            </MobileTouchButton>
+                          }
+                        />
+                      </div>
+                    )}
+                  </MobileCard>
+                );
+              })
             )}
           </div>
-        </div>
-      </div>
+        </>
+      ) : (
+        <>
+          <div className="container mx-auto py-8 px-4">
+            <div className="max-w-6xl mx-auto space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight text-blue-600">
+                    Print History
+                  </h1>
+                  <p className="text-muted-foreground">
+                    View and manage your past print jobs
+                  </p>
+                </div>
+                <Button onClick={() => navigate("/upload")} className="bg-gradient-hero">
+                  New Print Job
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Desktop content will be the same as mobile but in card format */}
+                {jobs.length === 0 ? (
+                  <Card className="text-center py-12">
+                    <CardContent>
+                      <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-medium mb-2">No print jobs found</h3>
+                      <p className="text-muted-foreground mb-4">Start printing to see your job history here</p>
+                      <Button onClick={() => navigate("/upload")} className="bg-gradient-hero">
+                        Start Printing
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  jobs.map((job) => (
+                    <Card key={job._id} className="p-6">
+                      <CardContent className="p-0">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <FileText className="h-5 w-5 text-blue-600" />
+                            <div>
+                              <h3 className="font-medium">{job.file?.originalName || "Unknown File"}</h3>
+                              <div className="text-sm text-muted-foreground">
+                                {formatDate(job.timing?.submittedAt || new Date())}
+                              </div>
+                            </div>
+                          </div>
+                          <Badge className={getStatusColor(job.status)}>
+                            {job.status}
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }
