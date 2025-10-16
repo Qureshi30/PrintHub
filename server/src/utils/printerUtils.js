@@ -141,23 +141,23 @@ const printFile = async (filePath, printSettings = {}, printerName = null, print
     
     console.log(`🖨️ Print options:`, printOptions);
     
-    // Execute print command
-    await printer.print(filePath, printOptions);
-    
-    const endTime = Date.now();
-    const processingTime = Math.round((endTime - startTime) / 1000); // seconds
-    
-    console.log(`✅ Print job completed successfully in ${processingTime}s`);
-    
-    return {
-      success: true,
-      printerName: targetPrinter,
-      processingTimeSeconds: processingTime,
-      printOptions: printOptions,
-      message: 'Print job completed successfully',
-    };
-    
-  } catch (error) {
+      // Execute print command
+      console.log(`📤 Sending print command to printer: ${targetPrinter}`);
+      await printer.print(filePath, printOptions);
+      
+      const endTime = Date.now();
+      const processingTime = Math.round((endTime - startTime) / 1000); // seconds
+      
+      console.log(`✅ Print command sent successfully to printer in ${processingTime}s`);
+      console.log(`📋 Job sent to printer queue - printer should process it now`);
+      
+      return {
+        success: true,
+        printerName: targetPrinter,
+        processingTimeSeconds: processingTime,
+        printOptions: printOptions,
+        message: 'Print command sent to printer successfully',
+      };  } catch (error) {
     const endTime = Date.now();
     const processingTime = Math.round((endTime - startTime) / 1000);
     
