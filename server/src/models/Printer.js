@@ -18,7 +18,7 @@ const printerSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['online', 'offline', 'maintenance', 'busy'],
+    enum: ['online', 'offline', 'maintenance', 'busy', 'error'],
     default: 'online',
     index: true,
   },
@@ -166,7 +166,7 @@ const printerSchema = new mongoose.Schema({
   pricing: {
     baseCostPerPage: {
       type: Number,
-      default: 1.00,
+      default: 1,
       min: 0,
     },
     colorCostPerPage: {

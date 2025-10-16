@@ -2,12 +2,10 @@ const QueueManager = require('../services/queueManager');
 const PrintJob = require('../models/PrintJob');
 
 class QueueProcessor {
-  constructor() {
-    this.isProcessing = false;
-    this.processingInterval = null;
-    this.intervalMs = 5000; // Check every 5 seconds
-    this.isRunning = false;
-  }
+  isProcessing = false;
+  processingInterval = null;
+  intervalMs = 5000; // Check every 5 seconds
+  isRunning = false;
 
   /**
    * Start the queue processor
@@ -175,7 +173,7 @@ class QueueProcessor {
       
       // Clean up temp file
       if (tempFilePath) {
-        const fs = require('fs').promises;
+        const fs = require('node:fs').promises;
         try {
           await fs.unlink(tempFilePath);
           console.log(`🗑️ Cleaned up temp file: ${tempFilePath}`);
@@ -205,11 +203,11 @@ class QueueProcessor {
       
       // Clean up temp file on error
       if (tempFilePath) {
-        const fs = require('fs').promises;
+        const fs = require('node:fs').promises;
         try {
           await fs.unlink(tempFilePath);
         } catch (cleanupError) {
-          // Ignore cleanup errors
+          console.debug('Temp file cleanup failed:', cleanupError.message);
         }
       }
       

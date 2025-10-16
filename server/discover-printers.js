@@ -11,7 +11,7 @@
  */
 
 const mongoose = require('mongoose');
-const readline = require('readline');
+const readline = require('node:readline');
 require('dotenv').config();
 
 const { discoverPrinters } = require('./src/services/snmpDiscovery');
@@ -73,7 +73,8 @@ async function main() {
     console.log('\n📋 Discovered Printers:');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
     
-    discoveredPrinters.forEach((printer, index) => {
+    for (let index = 0; index < discoveredPrinters.length; index++) {
+      const printer = discoveredPrinters[index];
       console.log(`${index + 1}. ${printer.name}`);
       console.log(`   IP Address: ${printer.ipAddress}`);
       console.log(`   Model: ${printer.model}`);
@@ -81,7 +82,7 @@ async function main() {
         console.log(`   MAC Address: ${printer.macAddress}`);
       }
       console.log('');
-    });
+    }
 
     // Ask if user wants to add to database
     if (!addToDB) {
@@ -137,8 +138,8 @@ async function main() {
           supportedPaperTypes: ['Plain', 'Photo'],
         },
         pricing: {
-          colorPerPage: 2.0,
-          bwPerPage: 1.0,
+          colorPerPage: 2,
+          bwPerPage: 1,
         },
         isActive: true,
         lastKnownErrors: [],
@@ -172,4 +173,8 @@ async function main() {
   }
 }
 
-main();
+// Execute main function
+// eslint-disable-next-line unicorn/prefer-top-level-await -- CommonJS module
+(async () => {
+  await main();
+})();

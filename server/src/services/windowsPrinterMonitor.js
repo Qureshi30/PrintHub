@@ -5,10 +5,11 @@
  * Alternative to SNMP for local Windows printers
  */
 
-const { exec } = require('child_process');
-const { promisify } = require('util');
+const { exec } = require('node:child_process');
+const { promisify } = require('node:util');
 const execAsync = promisify(exec);
 const Printer = require('../models/Printer');
+const PrinterError = require('../models/PrinterError');
 const Notification = require('../models/Notification');
 const { getSocketIO } = require('./socketService');
 
@@ -148,22 +149,76 @@ async function monitorWindowsPrinter(printer) {
     const previousErrors = printer.lastKnownErrors || [];
     const newErrors = statusInfo.errors.filter(error => !previousErrors.includes(error));
     
+    // Map status to printer status
+    let printerStatus = statusInfo.status;
+    if (statusInfo.hasErrors) {
+      printerStatus = 'offline'; // Set to offline when errors occur
+    }
+    
     // Update printer in database
-    printer.status = statusInfo.status;
+    printer.status = printerStatus;
     printer.lastChecked = new Date();
     printer.lastKnownErrors = statusInfo.errors;
     
     await printer.save();
     
-    // Create admin notification if there are new errors
+    // Create admin notification AND save error to PrinterError collection if there are new errors
     if (newErrors.length > 0) {
       await createWindowsPrinterNotification(printer, statusInfo.errors);
+      await saveErrorsToDatabase(printer, newErrors);
     }
     
     console.log(`✅ Printer ${printer.name} monitored - Status: ${statusInfo.status}, Errors: ${statusInfo.errors.length}`);
     
   } catch (error) {
     console.error(`❌ Error monitoring printer ${printer.name}:`, error.message);
+  }
+}
+
+/**
+ * Save detected errors to PrinterError collection
+ */
+async function saveErrorsToDatabase(printer, errors) {
+  try {
+    const errorTypeMapping = {
+      noPaper: 'Out of Paper',
+      lowToner: 'Low Toner',
+      noToner: 'Out of Toner',
+      jammed: 'Paper Jam',
+      offline: 'Offline',
+      doorOpen: 'Door Open',
+      general_error: 'Hardware Error',
+    };
+    
+    const errorMessages = {
+      noPaper: 'Paper tray is empty',
+      lowToner: 'Toner level is low',
+      noToner: 'Toner cartridge is empty',
+      jammed: 'Paper jam detected',
+      offline: 'Printer is offline',
+      doorOpen: 'Printer door is open',
+      general_error: 'Printer error detected',
+    };
+    
+    for (const error of errors) {
+      await PrinterError.create({
+        printerName: printer.name,
+        printerId: printer._id,
+        errorType: errorTypeMapping[error] || 'Other',
+        description: errorMessages[error] || error,
+        status: 'unresolved',
+        metadata: {
+          location: printer.location,
+          ipAddress: printer.systemInfo?.ipAddress,
+          errorCode: error,
+          source: 'windows_monitor',
+        },
+      });
+    }
+    
+    console.log(`💾 Saved ${errors.length} error(s) to database for printer ${printer.name}`);
+  } catch (error) {
+    console.error('❌ Error saving to database:', error);
   }
 }
 
@@ -185,8 +240,8 @@ async function createWindowsPrinterNotification(printer, errors) {
     const message = errors.map(e => errorMessages[e] || e).join('; ');
     
     // Determine priority
-    const urgentErrors = ['jammed', 'offline', 'noPaper', 'noToner'];
-    const hasUrgentError = errors.some(e => urgentErrors.includes(e));
+    const urgentErrors = new Set(['jammed', 'offline', 'noPaper', 'noToner']);
+    const hasUrgentError = errors.some(e => urgentErrors.has(e));
     const priority = hasUrgentError ? 'urgent' : 'high';
     
     // Create notification

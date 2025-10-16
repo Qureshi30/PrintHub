@@ -59,7 +59,22 @@ export function EditPrinterDialog({ open, onOpenChange, onPrinterUpdated, printe
 
       // Update status if changed
       if (status !== printer.status) {
-        await printerService.updatePrinterStatus(printer._id, status, token);
+        try {
+          await printerService.updatePrinterStatus(printer._id, status, token);
+        } catch (statusError) {
+          // Check if error is due to active errors
+          if ((statusError as { response?: { data?: { error?: { code?: string; activeErrorCount?: number } } } })?.response?.data?.error?.code === 'ACTIVE_ERRORS_EXIST') {
+            const errorCount = (statusError as { response?: { data?: { error?: { activeErrorCount?: number } } } })?.response?.data?.error?.activeErrorCount || 0;
+            toast({
+              title: "Cannot Set Printer Online",
+              description: `This printer has ${errorCount} active error(s). Please resolve all errors before setting it online. Go to Error Logs to resolve them.`,
+              variant: "destructive",
+            });
+            setIsUpdating(false);
+            return;
+          }
+          throw statusError;
+        }
       }
 
       toast({

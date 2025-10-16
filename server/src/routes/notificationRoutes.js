@@ -89,7 +89,7 @@ router.get('/user/:clerkUserId',
           .populate('metadata.printerId', 'name location')
           .sort({ createdAt: -1 })
           .skip(skip)
-          .limit(parseInt(limit)),
+          .limit(Number.parseInt(limit, 10)),
         Notification.countDocuments(filter),
         Notification.getUnreadCount(clerkUserId)
       ]);
@@ -102,8 +102,8 @@ router.get('/user/:clerkUserId',
           notifications,
           unreadCount,
           pagination: {
-            page: parseInt(page),
-            limit: parseInt(limit),
+            page: Number.parseInt(page, 10),
+            limit: Number.parseInt(limit, 10),
             total,
             pages: Math.ceil(total / limit)
           }
@@ -354,7 +354,7 @@ router.get('/system',
           .populate('jobId', 'file.originalName userName')
           .sort({ createdAt: -1 })
           .skip(skip)
-          .limit(parseInt(limit)),
+          .limit(Number.parseInt(limit, 10)),
         Notification.countDocuments(filter)
       ]);
 
@@ -365,8 +365,8 @@ router.get('/system',
         data: {
           notifications,
           pagination: {
-            page: parseInt(page),
-            limit: parseInt(limit),
+            page: Number.parseInt(page, 10),
+            limit: Number.parseInt(limit, 10),
             total,
             totalPages: Math.ceil(total / limit)
           }
@@ -397,7 +397,7 @@ router.delete('/user/:clerkUserId/cleanup',
   async (req, res) => {
     try {
       const { clerkUserId } = req.params;
-      const days = parseInt(req.query.days) || 30;
+      const days = Number.parseInt(req.query.days, 10) || 30;
 
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - days);

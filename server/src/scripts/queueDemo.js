@@ -66,11 +66,11 @@ async function demonstrateQueue() {
     
     const currentQueue = await QueueManager.getCurrentQueue();
     if (currentQueue.length > 0) {
-      currentQueue.forEach((item, index) => {
+      for (const item of currentQueue) {
         console.log(`   Position ${item.position}: Job ${item.printJobId._id} (${item.status})`);
         console.log(`      📄 File: ${item.printJobId.file.originalName}`);
         console.log(`      👤 User: ${item.printJobId.userName}`);
-      });
+      }
     } else {
       console.log('   📭 Queue is empty');
     }
@@ -141,7 +141,10 @@ async function demonstrateQueue() {
 
 // Run if called directly
 if (require.main === module) {
-  demonstrateQueue();
+  // eslint-disable-next-line unicorn/prefer-top-level-await -- CommonJS module
+  (async () => {
+    await demonstrateQueue();
+  })();
 }
 
 module.exports = demonstrateQueue;

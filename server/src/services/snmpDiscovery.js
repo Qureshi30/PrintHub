@@ -6,9 +6,9 @@
  */
 
 const snmp = require('net-snmp');
-const os = require('os');
-const { exec } = require('child_process');
-const { promisify } = require('util');
+const os = require('node:os');
+const { exec } = require('node:child_process');
+const { promisify } = require('node:util');
 const execAsync = promisify(exec);
 
 // SNMP OIDs for printer identification
@@ -38,15 +38,6 @@ function getLocalNetworkRanges() {
         // For simplicity, scan common ranges
         if (subnet === '255.255.255.0') {
           // Class C network - scan all 254 hosts
-          const baseIP = `${ipParts[0]}.${ipParts[1]}.${ipParts[2]}`;
-          ranges.push({
-            baseIP,
-            start: 1,
-            end: 254,
-            networkInterface: name,
-          });
-        } else if (subnet === '255.255.0.0') {
-          // Class B - scan current subnet only
           const baseIP = `${ipParts[0]}.${ipParts[1]}.${ipParts[2]}`;
           ranges.push({
             baseIP,
@@ -91,9 +82,9 @@ function checkSNMPDevice(ipAddress, timeout = 2000) {
         isPrinter: false,
       };
 
-      varbinds.forEach((varbind) => {
+      for (const varbind of varbinds) {
         if (snmp.isVarbindError(varbind)) {
-          return;
+          continue;
         }
 
         const value = varbind.value.toString();
@@ -105,7 +96,7 @@ function checkSNMPDevice(ipAddress, timeout = 2000) {
         } else if (varbind.oid === OIDS.sysObjectID) {
           deviceInfo.sysObjectID = value;
         }
-      });
+      }
 
       // Check if this looks like a printer
       const printerKeywords = ['printer', 'laserjet', 'inkjet', 'deskjet', 'officejet', 
@@ -161,9 +152,9 @@ function getPrinterDetails(ipAddress, timeout = 3000) {
         description: null,
       };
 
-      varbinds.forEach((varbind) => {
+      for (const varbind of varbinds) {
         if (snmp.isVarbindError(varbind)) {
-          return;
+          continue;
         }
 
         const value = varbind.value.toString();
@@ -175,7 +166,7 @@ function getPrinterDetails(ipAddress, timeout = 3000) {
         } else if (varbind.oid === OIDS.sysDescr) {
           details.description = value;
         }
-      });
+      }
 
       // Fallback: use description as name if name is not set
       if (!details.name && details.description) {
@@ -184,7 +175,7 @@ function getPrinterDetails(ipAddress, timeout = 3000) {
 
       // Extract model from description if not found
       if (!details.model && details.description) {
-        const modelMatch = details.description.match(/(HP|Canon|Epson|Brother|Xerox|Ricoh|Kyocera|Samsung|Lexmark)\s+[\w\s\-]+/i);
+        const modelMatch = details.description.match(/(HP|Canon|Epson|Brother|Xerox|Ricoh|Kyocera|Samsung|Lexmark)\s+[\w\s-]+/i);
         if (modelMatch) {
           details.model = modelMatch[0];
         }
@@ -202,8 +193,9 @@ async function getMACAddress(ipAddress) {
   try {
     const { stdout } = await execAsync(`arp -a ${ipAddress}`);
     const macMatch = stdout.match(/([0-9a-f]{2}[:-]){5}([0-9a-f]{2})/i);
-    return macMatch ? macMatch[0].replace(/-/g, ':').toUpperCase() : null;
+    return macMatch ? macMatch[0].replaceAll('-', ':').toUpperCase() : null;
   } catch (error) {
+    console.debug('Could not retrieve MAC address:', error.message);
     return null;
   }
 }
@@ -283,11 +275,11 @@ async function scanIPRange(baseIP, start, end, options = {}) {
       batch.map(ip => scanIP(ip, { timeout, includeMAC }))
     );
 
-    results.forEach(result => {
+    for (const result of results) {
       if (result) {
         discoveredPrinters.push(result);
       }
-    });
+    }
   }
 
   return discoveredPrinters;
@@ -301,7 +293,7 @@ async function discoverPrinters(options = {}) {
     timeout = 2000,
     includeMAC = true,
     concurrency = 10,
-    specificRange = null, // { baseIP, start, end }
+    specificRange = null,
   } = options;
 
   console.log('\n🖨️  Starting Automated Printer Discovery');
@@ -328,9 +320,9 @@ async function discoverPrinters(options = {}) {
     }
 
     console.log(`📡 Found ${ranges.length} network interface(s) to scan:`);
-    ranges.forEach(range => {
+    for (const range of ranges) {
       console.log(`   - ${range.baseIP}.0/24 (${range.networkInterface})`);
-    });
+    }
 
     for (const range of ranges) {
       const printers = await scanIPRange(

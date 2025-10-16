@@ -35,9 +35,9 @@ async function createTestNotification() {
       .limit(5);
     
     console.log('\n📋 Recent maintenance notifications:');
-    allNotifications.forEach(n => {
+    for (const n of allNotifications) {
       console.log(`  - ${n.title} (${n.createdAt})`);
-    });
+    }
     
   } catch (error) {
     console.error('❌ Error:', error);
@@ -47,4 +47,7 @@ async function createTestNotification() {
   }
 }
 
-createTestNotification();
+// eslint-disable-next-line unicorn/prefer-top-level-await -- CommonJS module
+(async () => {
+  await createTestNotification();
+})();

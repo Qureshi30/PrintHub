@@ -7,6 +7,7 @@
 
 const Notification = require('../models/Notification');
 const Printer = require('../models/Printer');
+const PrinterError = require('../models/PrinterError');
 const { getSocketIO } = require('./socketService');
 const { monitorPrinter } = require('./snmpPrinterMonitor');
 
@@ -137,6 +138,29 @@ async function handlePrintError(printJob, errorMessage, printerDocument = null) 
     
     console.log('📢 User notification created:', userNotification._id);
     
+    // Log error to PrinterError collection
+    const errorTypeMapping = {
+      [ERROR_TYPES.HARDWARE_ERROR]: 'Hardware Error',
+      [ERROR_TYPES.COMMUNICATION_FAILURE]: 'Communication Error',
+      [ERROR_TYPES.PRINTER_NOT_FOUND]: 'Offline',
+      [ERROR_TYPES.FILE_ACCESS_ERROR]: 'Driver Error',
+      [ERROR_TYPES.SETTINGS_ERROR]: 'Driver Error',
+      [ERROR_TYPES.UNKNOWN_ERROR]: 'Other',
+    };
+
+    await PrinterError.create({
+      printerName: printer?.name || 'Unknown Printer',
+      printerId: printJob.printerId,
+      errorType: errorTypeMapping[errorType] || 'Other',
+      description: errorMessage,
+      metadata: {
+        affectedJobs: 1,
+        errorCode: errorType,
+        location: printer?.location,
+        ipAddress: printer?.systemInfo?.ipAddress,
+      },
+    });
+
     // Create admin notification for critical errors
     if (errorType === ERROR_TYPES.HARDWARE_ERROR || 
         errorType === ERROR_TYPES.COMMUNICATION_FAILURE ||
@@ -246,8 +270,8 @@ async function checkPrinterHealth(printerId) {
     
     // Check for known errors
     if (printer.lastKnownErrors && printer.lastKnownErrors.length > 0) {
-      const criticalErrors = ['noPaper', 'noToner', 'jammed', 'offline'];
-      const hasCriticalError = printer.lastKnownErrors.some(err => criticalErrors.includes(err));
+      const criticalErrors = new Set(['noPaper', 'noToner', 'jammed', 'offline']);
+      const hasCriticalError = printer.lastKnownErrors.some(err => criticalErrors.has(err));
       
       if (hasCriticalError) {
         return {

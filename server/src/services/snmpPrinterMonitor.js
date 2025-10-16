@@ -131,9 +131,7 @@ async function getPrinterErrors(session) {
       let alertMessage = null;
       
       // Process the SNMP response
-      for (let i = 0; i < varbinds.length; i++) {
-        const varbind = varbinds[i];
-        
+      for (const varbind of varbinds) {
         // Check if this OID returned an error
         if (snmp.isVarbindError(varbind)) {
           console.warn(`⚠️ SNMP error for OID ${varbind.oid}:`, snmp.varbindError(varbind));
@@ -191,20 +189,18 @@ async function getPrinterStatus(ipAddress, community = 'public') {
         let pageCount = null;
         let deviceStatus = null;
         
-        for (let i = 0; i < varbinds.length; i++) {
-          const varbind = varbinds[i];
-          
+        for (const varbind of varbinds) {
           if (snmp.isVarbindError(varbind)) {
             continue;
           }
           
           if (varbind.oid === SNMP_OIDS.PAGE_COUNT) {
-            pageCount = parseInt(varbind.value) || null;
+            pageCount = Number.parseInt(varbind.value, 10) || null;
           }
           
           if (varbind.oid === SNMP_OIDS.DEVICE_STATUS) {
             // Device status: 1=unknown, 2=running, 3=warning, 4=testing, 5=down
-            const statusCode = parseInt(varbind.value);
+            const statusCode = Number.parseInt(varbind.value, 10);
             deviceStatus = ['unknown', 'unknown', 'running', 'warning', 'testing', 'down'][statusCode] || 'unknown';
           }
         }
