@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,10 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
 import { useNavigate } from "react-router-dom";
 import { usePrintJobContext } from "@/hooks/usePrintJobContext";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileHeader } from "@/components/mobile/MobileHeader";
+import { MobileStepNavigation } from "@/components/mobile/MobileStepNavigation";
+import { MobileCard, MobileTouchButton } from "@/components/mobile/MobileComponents";
 import { 
   FileText, 
   Printer, 
@@ -18,7 +22,9 @@ import {
   CheckCircle, 
   AlertTriangle,
   Calendar,
-  DollarSign
+  DollarSign,
+  Edit,
+  ArrowLeft
 } from "lucide-react";
 
 interface JobSummary {
@@ -42,170 +48,61 @@ interface JobSummary {
     estimatedWait: number;
   };
   cost: {
+    base: number;
+    color: number;
+    duplex: number;
     total: number;
-    breakdown: string;
+  };
+  timing: {
+    scheduledFor: string;
+    estimatedCompletion: string;
   };
 }
 
 export default function Confirmation() {
   const navigate = useNavigate();
-  const [isScheduled, setIsScheduled] = useState(false);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
+  const { files, settings, selectedPrinter, payment } = usePrintJobContext();
+  const isMobile = useIsMobile();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [jobSummary, setJobSummary] = useState<JobSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Use PrintJob context instead of sessionStorage
-  const { files, settings, selectedPrinter, setCurrentStep } = usePrintJobContext();
+  const [notifyEmail, setNotifyEmail] = useState(true);
+  const [notifySMS, setNotifySMS] = useState(false);
 
-  useEffect(() => {
-    // Set current step to confirm
-    setCurrentStep('confirm');
-    
-    // Load data from PrintJob context
-    console.log('🔍 Loading confirmation data from context...');
-    console.log('📄 Context data:', { files, settings, selectedPrinter });
-    
-    // Debug: Detailed file analysis
-    console.log('📂 CONFIRMATION PAGE: Detailed file analysis:');
-    files.forEach((file, index) => {
-      console.log(`📄 CONFIRMATION PAGE: File ${index + 1}: ${file.name}`, {
-        id: file.id,
-        hasFileProperty: !!file.file,
-        fileType: file.file?.type,
-        fileSize: file.file?.size,
-        cloudinaryUrl: file.cloudinaryUrl,
-        pages: file.pages,
-        size: file.size
-      });
-    });
-    
-    // Check if we have the minimum required data
-    if (files.length > 0 && selectedPrinter) {
-      // Normal flow with selected files
-      const firstFile = files[0];
-      const firstFileSettings = settings[firstFile.id] || {
-        pages: 'all',
-        copies: 1,
-        color: false,
-        duplex: false,
-        paperType: 'A4'
-      };
-      
-      // Calculate actual cost (₹1 per page)
-      const pages = firstFile.pages || 1;
-      const copies = firstFileSettings.copies || 1;
-      const totalCost = pages * copies * 1.00; // ₹1 per page
-      
-      setJobSummary({
-        file: {
-          name: firstFile.name || "Document",
-          pages: pages,
-          size: `${(firstFile.size / 1024 / 1024).toFixed(1)} MB`
-        },
-        settings: {
-          pageRange: firstFileSettings.pages === 'all' ? 'All pages' : `Pages ${firstFileSettings.pages}`,
-          colorMode: firstFileSettings.color ? 'Color' : 'Black & White',
-          duplex: firstFileSettings.duplex ? 'Double-sided' : 'Single-sided',
-          copies: copies,
-          paperSize: firstFileSettings.paperType || 'A4',
-          paperType: 'Regular'
-        },
-        printer: {
-          name: selectedPrinter.name || 'Unknown Printer',
-          location: selectedPrinter.location || 'Unknown Location',
-          queueLength: selectedPrinter.queueLength || 0,
-          estimatedWait: selectedPrinter.estimatedWait || 0
-        },
-        cost: {
-          total: totalCost,
-          breakdown: `${pages} pages × ${copies} copies × ₹1.00 = ₹${totalCost.toFixed(2)}`
-        }
-      });
-    } else if (selectedPrinter) {
-      // We have a printer but no files - create a demo/placeholder job summary
-      console.log('⚠️ Found printer but no files - creating placeholder summary');
-      setJobSummary({
-        file: {
-          name: "No Document Selected",
-          pages: 0,
-          size: "0 MB"
-        },
-        settings: {
-          pageRange: 'No pages',
-          colorMode: 'Black & White',
-          duplex: 'Single-sided',
-          copies: 1,
-          paperSize: 'A4',
-          paperType: 'Regular'
-        },
-        printer: {
-          name: selectedPrinter.name || 'Unknown Printer',
-          location: selectedPrinter.location || 'Unknown Location',
-          queueLength: selectedPrinter.queueLength || 0,
-          estimatedWait: selectedPrinter.estimatedWait || 0
-        },
-        cost: {
-          total: 0,
-          breakdown: 'No document to print'
-        }
-      });
-    } else {
-      console.log('❌ Missing context data - redirecting to upload');
-      // If no valid context data, redirect to upload page after a brief moment
-      setTimeout(() => {
-        navigate('/upload');
-      }, 2000); // Increased delay to allow user to see the message
+  // Get the first file for display (assuming single file upload for now)
+  const currentFile = files[0];
+  const currentFileSettings = currentFile ? settings[currentFile.id] : null;
+
+  // Mock job summary data - replace with actual data from context
+  const jobSummary: JobSummary = {
+    file: {
+      name: currentFile?.name || "No document selected",
+      pages: currentFile?.pages || 0,
+      size: currentFile ? `${(currentFile.sizeKB / 1024).toFixed(1)} MB` : "0 MB"
+    },
+    settings: {
+      pageRange: currentFileSettings?.pages || "All pages",
+      colorMode: currentFileSettings?.color ? "Color" : "Black & White",
+      duplex: currentFileSettings?.duplex ? "Double-sided" : "One-sided",
+      copies: currentFileSettings?.copies || 1,
+      paperSize: currentFileSettings?.paperType || "A4",
+      paperType: currentFileSettings?.paperType || "Regular"
+    },
+    printer: {
+      name: selectedPrinter?.name || "Library Printer 1",
+      location: selectedPrinter?.location || "Main Library - Ground Floor",
+      queueLength: selectedPrinter?.queueLength || 3,
+      estimatedWait: selectedPrinter?.estimatedWait || 8
+    },
+    cost: {
+      base: payment?.breakdown?.baseCost || 0,
+      color: payment?.breakdown?.colorCost || 0,
+      duplex: 0, // Add duplex cost calculation if needed
+      total: payment?.totalCost || 0
+    },
+    timing: {
+      scheduledFor: "Now",
+      estimatedCompletion: "~10 minutes"
     }
-    
-    // Set loading to false after data processing
-    setIsLoading(false);
-  }, [files, settings, selectedPrinter, setCurrentStep, navigate]);
-
-  if (isLoading) {
-    return (
-      <ProtectedRoute>
-        <div className="container mx-auto py-8 px-4">
-          <div className="max-w-4xl mx-auto text-center space-y-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p>Loading job details...</p>
-          </div>
-        </div>
-      </ProtectedRoute>
-    );
-  }
-
-  if (!jobSummary) {
-    return (
-      <ProtectedRoute>
-        <div className="container mx-auto py-8 px-4">
-          <div className="max-w-4xl mx-auto text-center space-y-4">
-            <AlertTriangle className="h-12 w-12 text-yellow-600 mx-auto" />
-            <h2 className="text-xl font-semibold">No Print Job Found</h2>
-            <p className="text-muted-foreground">
-              No print job data found. Please start from uploading a document.
-            </p>
-            <div className="text-sm text-gray-600 mb-4">
-              Redirecting to upload page in a moment...
-            </div>
-            <div className="flex gap-2 justify-center">
-              <Button onClick={() => navigate('/upload')} className="bg-blue-600 hover:bg-blue-700">
-                Upload Document Now
-              </Button>
-              <Button onClick={() => navigate('/settings')} variant="outline">
-                Back to Settings
-              </Button>
-            </div>
-          </div>
-        </div>
-      </ProtectedRoute>
-    );
-  }
-
-  const timeSlots = [
-    "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
-    "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM"
-  ];
+  };
 
   const handleSubmit = async () => {
     // Prevent submission if no document is selected
@@ -237,255 +134,464 @@ export default function Confirmation() {
 
   return (
     <ProtectedRoute>
-      <div className="container mx-auto py-8 px-4">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <PrintFlowBreadcrumb currentStep="/confirmation" />
-          
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight text-blue-600">
-              Confirm Print Job
-            </h1>
-            <p className="text-muted-foreground">
-              Review your settings before submitting
-            </p>
-          </div>
-
-          {/* No Document Warning */}
-          {jobSummary.file.pages === 0 && (
-            <div className="mb-6">
-              <Alert className="border-yellow-200 bg-yellow-50">
-                <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                <AlertDescription className="text-yellow-800">
-                  <strong>No document selected!</strong> You need to upload a document before you can proceed with printing. 
-                  <Button 
-                    variant="link" 
-                    className="p-0 h-auto font-semibold text-yellow-800 underline ml-1"
+      {isMobile ? (
+        <>
+          <MobileHeader 
+            title="Confirm Print Job"
+            rightAction={
+              <MobileTouchButton
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/history')}
+              >
+                History
+              </MobileTouchButton>
+            }
+          />
+          <div className="px-4 pb-20 space-y-4">
+            {/* No Document Warning */}
+            {jobSummary.file.pages === 0 && (
+              <Alert className="border-orange-200 bg-orange-50">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <AlertDescription className="text-orange-800">
+                  No document selected. Please upload a document first.
+                  <MobileTouchButton 
+                    variant="secondary" 
+                    size="sm" 
+                    className="mt-2 w-full bg-orange-100 text-orange-800 border-orange-200"
                     onClick={() => navigate('/upload')}
                   >
-                    Upload a document now
+                    Upload Document Now
+                  </MobileTouchButton>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Document Summary */}
+            <MobileCard selected={false} className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                  {jobSummary.file.pages === 0 && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full"></div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className={`font-medium ${jobSummary.file.pages === 0 ? 'text-gray-500' : ''}`}>
+                      {jobSummary.file.name}
+                    </span>
+                    <MobileTouchButton
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate('/settings')}
+                      className="text-blue-600 h-8 px-2"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </MobileTouchButton>
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    {jobSummary.file.pages} pages • {jobSummary.file.size}
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <Badge variant="secondary" className="text-xs">
+                      {jobSummary.settings.colorMode}
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      {jobSummary.settings.copies} {jobSummary.settings.copies === 1 ? 'copy' : 'copies'}
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      {jobSummary.settings.duplex}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </MobileCard>
+
+            {/* Printer Summary */}
+            <MobileCard selected={false} className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-green-50 rounded-lg">
+                  <Printer className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{jobSummary.printer.name}</span>
+                    <MobileTouchButton
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate('/select-printer')}
+                      className="text-blue-600 h-8 px-2"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </MobileTouchButton>
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    {jobSummary.printer.location}
+                  </div>
+                  <div className="flex items-center gap-4 mt-2">
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3 w-3 text-gray-500" />
+                      <span className="text-xs text-gray-600">~{jobSummary.printer.estimatedWait} min wait</span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {jobSummary.printer.queueLength} in queue
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </MobileCard>
+
+            {/* Cost Breakdown */}
+            {jobSummary.cost.total > 0 && (
+              <MobileCard selected={false} className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-purple-50 rounded-lg">
+                    <DollarSign className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium mb-3">Cost Breakdown</div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Base printing ({jobSummary.file.pages} pages)</span>
+                        <span>${jobSummary.cost.base.toFixed(2)}</span>
+                      </div>
+                      {jobSummary.cost.color > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span>Color printing</span>
+                          <span>${jobSummary.cost.color.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {jobSummary.cost.duplex > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span>Double-sided</span>
+                          <span>${jobSummary.cost.duplex.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <Separator />
+                      <div className="flex justify-between font-medium">
+                        <span>Total</span>
+                        <span>${jobSummary.cost.total.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </MobileCard>
+            )}
+
+            {/* Timing */}
+            <MobileCard selected={false} className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-orange-50 rounded-lg">
+                  <Calendar className="h-5 w-5 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium mb-2">Print Schedule</div>
+                  <div className="text-sm text-gray-600">
+                    Scheduled for: <span className="font-medium text-gray-900">{jobSummary.timing.scheduledFor}</span>
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    Est. completion: <span className="font-medium text-gray-900">{jobSummary.timing.estimatedCompletion}</span>
+                  </div>
+                </div>
+              </div>
+            </MobileCard>
+
+            {/* Notification Preferences */}
+            <MobileCard selected={false} className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
+              <div className="space-y-4">
+                <div className="font-medium">Notification Preferences</div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="email-notify" className="text-sm">Email notifications</Label>
+                    <Switch 
+                      id="email-notify" 
+                      checked={notifyEmail} 
+                      onCheckedChange={setNotifyEmail}
+                      disabled={jobSummary.file.pages === 0}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="sms-notify" className="text-sm">SMS notifications</Label>
+                    <Switch 
+                      id="sms-notify" 
+                      checked={notifySMS} 
+                      onCheckedChange={setNotifySMS}
+                      disabled={jobSummary.file.pages === 0}
+                    />
+                  </div>
+                </div>
+              </div>
+            </MobileCard>
+
+            {/* Action Buttons */}
+            <div className="space-y-3 pt-4">
+              <MobileTouchButton
+                variant="primary"
+                size="lg"
+                onClick={handleSubmit}
+                disabled={isSubmitting || jobSummary.file.pages === 0}
+                className="w-full"
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Submitting...
+                  </div>
+                ) : (
+                  getSubmitButtonText()
+                )}
+              </MobileTouchButton>
+              
+              <MobileTouchButton
+                variant="secondary"
+                size="lg"
+                onClick={() => navigate('/select-printer')}
+                className="w-full"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Printer Selection
+              </MobileTouchButton>
+            </div>
+          </div>
+
+          <MobileStepNavigation 
+            currentStep={4}
+            totalSteps={5}
+          />
+        </>
+      ) : (
+        /* Desktop Layout */
+        <div className="min-h-screen bg-gray-50 p-6">
+          <div className="max-w-4xl mx-auto space-y-6">
+            <PrintFlowBreadcrumb currentStep="confirm" />
+            
+            <div className="text-center space-y-2">
+              <h1 className="text-3xl font-bold tracking-tight">Confirm Your Print Job</h1>
+              <p className="text-gray-600">Review your print settings and submit your job</p>
+            </div>
+
+            {jobSummary.file.pages === 0 && (
+              <Alert className="border-orange-200 bg-orange-50">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <AlertDescription className="text-orange-800">
+                  No document selected. Please upload a document first.
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="ml-3 bg-orange-100 text-orange-800 border-orange-200"
+                    onClick={() => navigate('/upload')}
+                  >
+                    Upload Document Now
                   </Button>
                 </AlertDescription>
               </Alert>
-            </div>
-          )}
+            )}
 
-          {/* Job Summary */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* File Details */}
-            <Card className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-blue-600" />
-                  Document Details
-                  {jobSummary.file.pages === 0 && (
-                    <Badge variant="secondary" className="text-xs">No Document</Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">File Name:</span>
-                  <span className={`font-medium ${jobSummary.file.pages === 0 ? 'text-gray-500' : ''}`}>
-                    {jobSummary.file.name}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Pages:</span>
-                  <span className={jobSummary.file.pages === 0 ? 'text-gray-500' : ''}>
-                    {jobSummary.file.pages || 'None'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">File Size:</span>
-                  <span className={jobSummary.file.pages === 0 ? 'text-gray-500' : ''}>
-                    {jobSummary.file.size}
-                  </span>
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Page Range:</span>
-                    <span>{jobSummary.settings.pageRange}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Color:</span>
-                    <span>{jobSummary.settings.colorMode}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Sides:</span>
-                    <span>{jobSummary.settings.duplex}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Copies:</span>
-                    <span>{jobSummary.settings.copies}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Paper:</span>
-                    <span>{jobSummary.settings.paperSize} {jobSummary.settings.paperType}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Printer & Cost */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Printer className="h-5 w-5 text-green-600" />
-                  Printer & Cost
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Station:</span>
-                  <span className="font-medium">{jobSummary.printer.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Location:</span>
-                  <span className="text-sm">{jobSummary.printer.location}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Queue:</span>
-                  <Badge variant="secondary">{jobSummary.printer.queueLength} jobs ahead</Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Wait Time:</span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    ~{jobSummary.printer.estimatedWait} min
-                  </span>
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Cost Breakdown:</span>
-                  </div>
-                  <div className="text-sm text-muted-foreground bg-gray-50 p-2 rounded">
-                    {jobSummary.cost.breakdown}
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">Total Cost:</span>
-                    <span className="text-xl font-bold text-green-600">
-                      ₹{jobSummary.cost.total.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Scheduling Option */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-purple-600" />
-                Schedule Print (Optional)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Schedule for later</Label>
-                  <div className="text-sm text-muted-foreground">
-                    Choose a time slot to avoid peak hours
-                  </div>
-                </div>
-                <Switch 
-                  checked={isScheduled}
-                  onCheckedChange={setIsScheduled}
-                />
-              </div>
-              
-              {isScheduled && (
-                <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
-                  {timeSlots.map((slot) => (
-                    <Button
-                      key={slot}
-                      variant={selectedTimeSlot === slot ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setSelectedTimeSlot(slot)}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column */}
+              <div className="space-y-6">
+                {/* Document Summary */}
+                <Card className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-lg">Document</CardTitle>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => navigate('/settings')}
+                      className="text-blue-600"
                     >
-                      {slot}
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
                     </Button>
-                  ))}
-                </div>
-              )}
-              
-              {isScheduled && selectedTimeSlot && (
-                <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-purple-600" />
-                    <span className="text-sm font-medium text-purple-800">
-                      Scheduled for {selectedTimeSlot} today
-                    </span>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-50 rounded-lg">
+                        <FileText className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="font-medium">{jobSummary.file.name}</div>
+                        <div className="text-sm text-gray-600">
+                          {jobSummary.file.pages} pages • {jobSummary.file.size}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">Page Range:</span>
+                        <div className="font-medium">{jobSummary.settings.pageRange}</div>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Color Mode:</span>
+                        <div className="font-medium">{jobSummary.settings.colorMode}</div>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Duplex:</span>
+                        <div className="font-medium">{jobSummary.settings.duplex}</div>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Copies:</span>
+                        <div className="font-medium">{jobSummary.settings.copies}</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-          {/* Payment Method */}
-          {jobSummary.cost.total > 0 && (
-            <Card className="border-orange-200 bg-orange-50/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5 text-orange-600" />
-                  Payment Required
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-orange-600" />
-                  <span className="font-medium">
-                    Payment of ₹{jobSummary.cost.total.toFixed(2)} will be processed via UPI
-                  </span>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  You'll be redirected to secure payment after confirming this job.
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Warning */}
-          <Card className="border-yellow-200 bg-yellow-50/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                <span className="text-sm text-yellow-800">
-                  Please ensure your document settings are correct. Changes cannot be made after submission.
-                </span>
+                {/* Printer Summary */}
+                <Card className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-lg">Printer</CardTitle>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => navigate('/select-printer')}
+                      className="text-blue-600"
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Change
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-green-50 rounded-lg">
+                        <Printer className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div>
+                        <div className="font-medium">{jobSummary.printer.name}</div>
+                        <div className="text-sm text-gray-600">{jobSummary.printer.location}</div>
+                        <div className="flex items-center gap-4 mt-2">
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3 text-gray-500" />
+                            <span className="text-xs text-gray-600">~{jobSummary.printer.estimatedWait} min wait</span>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {jobSummary.printer.queueLength} in queue
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Action Buttons */}
-          <div className="flex gap-4">
-            <Button 
-              variant="outline" 
-              onClick={() => navigate(-1)} 
-              className="flex-1"
-              disabled={isSubmitting}
-            >
-              Back to Settings
-            </Button>
-            <Button 
-              onClick={handleSubmit} 
-              className="flex-1 bg-gradient-hero"
-              disabled={isSubmitting || (isScheduled && !selectedTimeSlot) || jobSummary.file.pages === 0}
-            >
-              {isSubmitting ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Submitting...
-                </div>
-              ) : (
-                getSubmitButtonText()
-              )}
-            </Button>
+              {/* Right Column */}
+              <div className="space-y-6">
+                {/* Cost Breakdown */}
+                {jobSummary.cost.total > 0 && (
+                  <Card className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <DollarSign className="h-5 w-5" />
+                        Cost Breakdown
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex justify-between">
+                        <span>Base printing ({jobSummary.file.pages} pages)</span>
+                        <span>${jobSummary.cost.base.toFixed(2)}</span>
+                      </div>
+                      {jobSummary.cost.color > 0 && (
+                        <div className="flex justify-between">
+                          <span>Color printing</span>
+                          <span>${jobSummary.cost.color.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {jobSummary.cost.duplex > 0 && (
+                        <div className="flex justify-between">
+                          <span>Double-sided</span>
+                          <span>${jobSummary.cost.duplex.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <Separator />
+                      <div className="flex justify-between text-lg font-semibold">
+                        <span>Total</span>
+                        <span>${jobSummary.cost.total.toFixed(2)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Timing */}
+                <Card className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Calendar className="h-5 w-5" />
+                      Print Schedule
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Scheduled for:</span>
+                      <span className="font-medium">{jobSummary.timing.scheduledFor}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Est. completion:</span>
+                      <span className="font-medium">{jobSummary.timing.estimatedCompletion}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Notification Preferences */}
+                <Card className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Notification Preferences</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="email-notify-desktop">Email notifications</Label>
+                      <Switch 
+                        id="email-notify-desktop" 
+                        checked={notifyEmail} 
+                        onCheckedChange={setNotifyEmail}
+                        disabled={jobSummary.file.pages === 0}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="sms-notify-desktop">SMS notifications</Label>
+                      <Switch 
+                        id="sms-notify-desktop" 
+                        checked={notifySMS} 
+                        onCheckedChange={setNotifySMS}
+                        disabled={jobSummary.file.pages === 0}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-4 justify-center pt-6">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => navigate('/select-printer')}
+                className="px-8"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+              <Button
+                size="lg"
+                onClick={handleSubmit}
+                disabled={isSubmitting || jobSummary.file.pages === 0}
+                className="px-8"
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Submitting...
+                  </div>
+                ) : (
+                  getSubmitButtonText()
+                )}
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </ProtectedRoute>
   );
 }

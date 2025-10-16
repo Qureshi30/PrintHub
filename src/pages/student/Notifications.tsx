@@ -1,11 +1,13 @@
 import { useState } from "react";
 import MobileSidebar from "@/components/layout/MobileSidebar";
+import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@clerk/clerk-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserNotifications, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from "@/hooks/useDatabase";
 import { 
   Bell, 
@@ -22,6 +24,8 @@ export default function Notifications() {
   const { toast } = useToast();
   const { userId } = useAuth();
   const [filter, setFilter] = useState<"all" | "unread" | "action_required">("all");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
   
   // Use hooks with user ID
   const { notifications, loading: isLoading, error } = useUserNotifications(userId || undefined);
@@ -107,7 +111,18 @@ export default function Notifications() {
 
   return (
     <ProtectedRoute>
-      <MobileSidebar />
+      {isMobile && (
+        <MobileSidebar 
+          open={isSidebarOpen}
+          onOpenChange={setIsSidebarOpen}
+        />
+      )}
+      <MobileHeader 
+        title="Notifications"
+        showBackButton={true}
+        backTo="/student/dashboard"
+        onMenuClick={() => setIsSidebarOpen(true)}
+      />
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Notifications</h1>
