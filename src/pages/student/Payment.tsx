@@ -119,6 +119,13 @@ export default function Payment() {
       popular: false
     },
     {
+      id: "cash",
+      name: "Cash Payment",
+      description: "Pay at the counter (requires admin approval)",
+      icon: DollarSign,
+      popular: false
+    },
+    {
       id: "dev",
       name: "Dev Mode",
       description: "Development testing (always succeeds)",
@@ -604,6 +611,155 @@ export default function Payment() {
     }
   };
 
+  // Handle cash payment flow - Submit request for admin approval
+  const handleCashPayment = async (amount: number) => {
+    try {
+      console.log('💵 Processing cash payment request...');
+
+      if (!selectedPrinter) {
+        throw new Error('No printer selected');
+      }
+
+      const token = await getToken();
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      // First, upload files to Cloudinary
+      setPaymentStatus("uploading");
+      const uploadedFiles = [];
+
+      for (const fileData of files) {
+        if (fileData.cloudinaryUrl) {
+          // File already uploaded
+          uploadedFiles.push({
+            cloudinaryUrl: fileData.cloudinaryUrl,
+            publicId: fileData.cloudinaryPublicId || '',
+            originalName: fileData.name,
+            format: fileData.format,
+            sizeKB: fileData.sizeKB
+          });
+          continue;
+        }
+
+        // Need to upload file
+        let sessionFile = getSessionFile(fileData.id);
+        if (!sessionFile && fileData.file) {
+          sessionFile = fileData.file;
+        }
+
+        if (sessionFile) {
+          setUploadProgress(prev => ({ ...prev, [fileData.id]: 0 }));
+
+          const uploadResult = await uploadFile(sessionFile);
+
+          // Update file with Cloudinary data
+          updateFileWithCloudinaryData(
+            fileData.id,
+            uploadResult.url,
+            uploadResult.publicId,
+            uploadResult.format,
+            uploadResult.sizeKB
+          );
+
+          uploadedFiles.push({
+            cloudinaryUrl: uploadResult.url,
+            publicId: uploadResult.publicId,
+            originalName: sessionFile.name,
+            format: uploadResult.format || fileData.format,
+            sizeKB: uploadResult.sizeKB
+          });
+        }
+      }
+
+      // Create cash payment requests for each file
+      setPaymentStatus("processing");
+
+      const cashRequestPromises = files.map(async (fileData) => {
+        const uploadedFile = uploadedFiles.find(uf =>
+          uf.originalName === fileData.name
+        );
+
+        if (!uploadedFile) {
+          throw new Error(`File ${fileData.name} was not uploaded`);
+        }
+
+        const requestData = {
+          printerId: selectedPrinter._id,
+          file: uploadedFile,
+          settings: settings[fileData.id] || {
+            pages: 'all',
+            copies: 1,
+            color: false,
+            duplex: false,
+            paperType: 'A4'
+          },
+          cost: {
+            totalCost: amount
+          },
+          payment: {
+            amount: amount,
+            status: 'pending',
+            method: 'cash'
+          }
+        };
+
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/cash-payment/upload`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error?.message || 'Failed to create cash payment request');
+        }
+
+        return await response.json();
+      });
+
+      const cashRequests = await Promise.all(cashRequestPromises);
+
+      console.log('✅ Cash payment requests created:', cashRequests.length);
+
+      // Store payment info
+      setPaymentInfo({
+        method: 'cash',
+        totalCost: amount,
+        transactionId: `cash_${cashRequests[0].data.requestId}`,
+        breakdown: {
+          baseCost: amount * 0.8,
+          colorCost: 0,
+          paperCost: amount * 0.2
+        }
+      });
+
+      // Cleanup local files after successful submission
+      cleanupLocalFiles();
+
+      toast({
+        title: "Cash Payment Request Submitted",
+        description: `Please pay ₹${amount.toFixed(2)} at the counter. Your print job will be processed after admin approval.`,
+        duration: 5000,
+      });
+
+      setPaymentStatus("success");
+
+      // Navigate to queue or dashboard after a delay
+      setTimeout(() => {
+        navigate("/student/dashboard");
+      }, 3000);
+
+    } catch (error) {
+      console.error('Cash payment error:', error);
+      setPaymentStatus("failed");
+      throw error;
+    }
+  };
+
   const handlePayment = async () => {
     if (!selectedMethod) return;
 
@@ -650,6 +806,10 @@ export default function Payment() {
         }
 
         await handleRazorpayPayment(totalAmount);
+      } else if (selectedMethod === "cash") {
+        // Cash payment - Create request for admin approval
+        console.log('💵 Creating cash payment request...');
+        await handleCashPayment(totalAmount);
       }
     } catch (error) {
       setPaymentStatus("failed");
@@ -715,33 +875,54 @@ export default function Payment() {
   }
 
   if (paymentStatus === "success") {
+    const isCashPayment = selectedMethod === "cash";
+
     return (
       <ProtectedRoute>
         <div className="container mx-auto py-8 px-4">
           <div className="max-w-2xl mx-auto text-center space-y-6">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle className="w-8 h-8 text-green-600" />
+            <div className={`w-16 h-16 ${isCashPayment ? 'bg-orange-100' : 'bg-green-100'} rounded-full flex items-center justify-center mx-auto`}>
+              {isCashPayment ? (
+                <Clock className="w-8 h-8 text-orange-600" />
+              ) : (
+                <CheckCircle className="w-8 h-8 text-green-600" />
+              )}
             </div>
-            <h1 className="text-3xl font-bold text-green-600">Payment Successful!</h1>
+            <h1 className={`text-3xl font-bold ${isCashPayment ? 'text-orange-600' : 'text-green-600'}`}>
+              {isCashPayment ? 'Request Submitted!' : 'Payment Successful!'}
+            </h1>
             <p className="text-muted-foreground">
-              Your print job has been submitted to the queue.
+              {isCashPayment
+                ? 'Please pay at the counter. Your print job will be processed after admin approval.'
+                : 'Your print job has been submitted to the queue.'}
             </p>
             <Card>
               <CardContent className="p-6">
                 <div className="space-y-2">
+                  {!isCashPayment && paymentInfo.jobId && (
+                    <div className="flex justify-between">
+                      <span>Job ID:</span>
+                      <span className="font-medium">{paymentInfo.jobId}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
-                    <span>Job ID:</span>
-                    <span className="font-medium">{paymentInfo.jobId}</span>
+                    <span>Amount {isCashPayment ? 'Due' : 'Paid'}:</span>
+                    <span className={`font-medium ${isCashPayment ? 'text-orange-600' : 'text-green-600'}`}>
+                      ₹{paymentInfo.amount.toFixed(2)}
+                    </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Amount Paid:</span>
-                    <span className="font-medium text-green-600">₹{paymentInfo.amount.toFixed(2)}</span>
-                  </div>
+                  {isCashPayment && (
+                    <div className="pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        Status: <Badge variant="outline" className="ml-2">Pending Admin Approval</Badge>
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
-            <Button onClick={() => navigate("/queue")} className="bg-gradient-hero">
-              Track Your Print Job
+            <Button onClick={() => navigate(isCashPayment ? "/student/dashboard" : "/queue")} className="bg-gradient-hero">
+              {isCashPayment ? 'Go to Dashboard' : 'Track Your Print Job'}
             </Button>
           </div>
         </div>
@@ -875,8 +1056,8 @@ export default function Payment() {
                             </div>
                           </div>
                           <div className={`w-4 h-4 rounded-full border-2 ${selectedMethod === method.id
-                              ? "border-blue-500 bg-blue-500"
-                              : "border-gray-300"
+                            ? "border-blue-500 bg-blue-500"
+                            : "border-gray-300"
                             }`}>
                             {selectedMethod === method.id && (
                               <div className="w-full h-full rounded-full bg-white scale-50"></div>
