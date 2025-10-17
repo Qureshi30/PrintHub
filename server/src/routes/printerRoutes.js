@@ -299,6 +299,84 @@ router.get('/test', async (req, res) => {
   }
 });
 
+// GET /api/printers/diagnose - Diagnostic endpoint to compare database vs system printers
+router.get('/diagnose', async (req, res) => {
+  try {
+    console.log('🔍 Running printer diagnostics...');
+    
+    // Get printers from database
+    const dbPrinters = await Printer.find({})
+      .select('_id name status location isActive')
+      .lean();
+    
+    console.log(`📋 Found ${dbPrinters.length} printers in database`);
+    
+    // Get system printers
+    const { getAvailablePrinters } = require('../utils/printerUtils');
+    const systemPrinters = await getAvailablePrinters();
+    
+    console.log(`🖨️ Found ${systemPrinters.length} printers on system`);
+    
+    // Compare and match
+    const diagnostics = {
+      databasePrinters: dbPrinters.map(p => ({
+        id: p._id,
+        name: p.name,
+        status: p.status,
+        location: p.location,
+        isActive: p.isActive,
+        foundOnSystem: systemPrinters.some(sp => 
+          sp.name === p.name || 
+          sp.name.toLowerCase() === p.name.toLowerCase() ||
+          (p.name.toLowerCase().includes('pdf') && sp.name.toLowerCase().includes('pdf'))
+        )
+      })),
+      systemPrinters: systemPrinters.map(sp => ({
+        name: sp.name,
+        isDefault: sp.isDefault || false,
+        status: sp.status || 'unknown',
+        inDatabase: dbPrinters.some(p => 
+          p.name === sp.name || 
+          p.name.toLowerCase() === sp.name.toLowerCase()
+        )
+      })),
+      mismatches: {
+        inDatabaseNotOnSystem: dbPrinters
+          .filter(p => !systemPrinters.some(sp => 
+            sp.name === p.name || 
+            sp.name.toLowerCase() === p.name.toLowerCase() ||
+            (p.name.toLowerCase().includes('pdf') && sp.name.toLowerCase().includes('pdf'))
+          ))
+          .map(p => p.name),
+        onSystemNotInDatabase: systemPrinters
+          .filter(sp => !dbPrinters.some(p => 
+            p.name === sp.name || 
+            p.name.toLowerCase() === sp.name.toLowerCase()
+          ))
+          .map(sp => sp.name)
+      }
+    };
+    
+    res.json({
+      success: true,
+      data: diagnostics,
+      summary: {
+        databaseCount: dbPrinters.length,
+        systemCount: systemPrinters.length,
+        matchedCount: diagnostics.databasePrinters.filter(p => p.foundOnSystem).length,
+        mismatchCount: diagnostics.mismatches.inDatabaseNotOnSystem.length
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Diagnostics error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // POST /api/printers/validate-compatibility - Check printer settings compatibility
 router.post('/validate-compatibility', async (req, res) => {
   try {
