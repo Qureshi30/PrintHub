@@ -42,45 +42,41 @@ export function MobileHeader({
 
   return (
     <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90 border-b border-border px-4 py-3 lg:hidden">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3 flex-1 min-w-0">
           {onMenuClick && (
             <button
               onClick={onMenuClick}
-              className="p-1 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors"
+              className="p-1 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors flex-shrink-0"
               aria-label="Open menu"
             >
               <Menu className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </button>
           )}
-          <Printer className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-          <span className="font-semibold text-blue-600 dark:text-blue-400 text-sm">PrintHub</span>
-        </div>
-      </div>
-      
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3 flex-1 min-w-0">
+          
           {showBackButton && (
             <Button
               variant="ghost"
               size="sm"
               onClick={handleBack}
-              className="p-2 h-auto hover:bg-blue-100 dark:hover:bg-blue-900/20"
+              className="p-2 h-auto hover:bg-blue-100 dark:hover:bg-blue-900/20 flex-shrink-0"
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
           )}
+          
           {showHomeButton && (
             <Button
               variant="ghost"
               size="sm"
               onClick={handleHome}
-              className="p-2 h-auto hover:bg-blue-100 dark:hover:bg-blue-900/20"
+              className="p-2 h-auto hover:bg-blue-100 dark:hover:bg-blue-900/20 flex-shrink-0"
             >
               <Home className="h-5 w-5" />
             </Button>
           )}
-          <h1 className="text-lg font-semibold text-foreground truncate flex-1">
+          
+          <h1 className="text-lg font-semibold text-foreground truncate flex-1 ml-2">
             {title}
           </h1>
         </div>
