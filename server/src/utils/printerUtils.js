@@ -53,7 +53,7 @@ const getDefaultPrinter = async () => {
 
 /**
  * Map printerId from frontend to actual printer name
- * We're specifically using HP LaserJet Pro M201-M202 PCL 6
+ * Queries the database to get the printer name, then validates it exists on the system
  * @param {string|ObjectId} printerId - Frontend printer ID or ObjectId
  * @returns {Promise<string>} - Actual printer name
  */
@@ -61,34 +61,98 @@ const getPrinterName = async (printerId) => {
   console.log(`🔍 Getting printer name for ID: ${printerId}`);
   
   try {
-    const availablePrinters = await getAvailablePrinters();
-    console.log(`🖨️ Found ${availablePrinters.length} available printers`);
+    // Import Printer model dynamically to avoid circular dependencies
+    const Printer = require('../models/Printer');
     
-    // We're specifically using HP LaserJet Pro M201-M202 PCL 6
+    // Query database for printer name
+    const printerDoc = await Printer.findById(printerId);
+    
+    if (!printerDoc) {
+      console.error(`❌ Printer not found in database with ID: ${printerId}`);
+      throw new Error(`Printer not found in database with ID: ${printerId}`);
+    }
+    
+    const dbPrinterName = printerDoc.name;
+    console.log(`📋 Database printer name: ${dbPrinterName}`);
+    
+    // Get available system printers
+    const availablePrinters = await getAvailablePrinters();
+    console.log(`🖨️ Found ${availablePrinters.length} available system printers`);
+    
+    // Try to find exact match first
+    let targetPrinter = availablePrinters.find(p => p.name === dbPrinterName);
+    
+    if (targetPrinter) {
+      console.log(`✅ Found exact match: ${targetPrinter.name}`);
+      return targetPrinter.name;
+    }
+    
+    // Try case-insensitive match
+    targetPrinter = availablePrinters.find(p => 
+      p.name.toLowerCase() === dbPrinterName.toLowerCase()
+    );
+    
+    if (targetPrinter) {
+      console.log(`✅ Found case-insensitive match: ${targetPrinter.name}`);
+      return targetPrinter.name;
+    }
+    
+    // Try partial match for virtual printers (e.g., "Microsoft Print to PDF")
+    if (dbPrinterName.toLowerCase().includes('pdf') || 
+        dbPrinterName.toLowerCase().includes('microsoft')) {
+      targetPrinter = availablePrinters.find(p => 
+        p.name.toLowerCase().includes('microsoft') && 
+        p.name.toLowerCase().includes('pdf')
+      );
+      
+      if (targetPrinter) {
+        console.log(`✅ Found PDF printer: ${targetPrinter.name}`);
+        return targetPrinter.name;
+      }
+    }
+    
+    // List available printers for debugging
+    console.error(`❌ Printer "${dbPrinterName}" not found on system`);
+    console.error(`📋 Available printers:`);
+    for (const p of availablePrinters) {
+      console.error(`   - ${p.name}`);
+    }
+    
+    throw new Error(`Printer "${dbPrinterName}" not found on system. Please check printer installation.`);
+    
+  } catch (error) {
+    console.error('❌ Failed to get printer name:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * DEPRECATED: Old hardcoded logic - keeping for reference
+ * This function was hardcoded to only look for HP LaserJet, ignoring the actual printer in the database
+ */
+const _oldGetPrinterName = async (printerId) => {
+  try {
+    const availablePrinters = await getAvailablePrinters();
+    
+    // This was the problem - always looking for HP LaserJet regardless of what printer was requested
     const targetPrinterName = 'HP LaserJet Pro M201-M202 PCL 6';
     const targetPrinter = availablePrinters.find(p => p.name === targetPrinterName);
     
     if (targetPrinter) {
-      console.log(`🖨️ Found HP LaserJet: ${targetPrinter.name}`);
       return targetPrinter.name;
     }
     
-    // Fallback to any HP LaserJet if the exact one isn't found
     const hpPrinter = availablePrinters.find(p => 
       p.name.toLowerCase().includes('hp laserjet') && 
       p.name.toLowerCase().includes('m201')
     );
     
     if (hpPrinter) {
-      console.log(`�️ Found HP LaserJet fallback: ${hpPrinter.name}`);
       return hpPrinter.name;
     }
     
-    // Last resort - use default printer
-    console.log(`⚠️ HP LaserJet not found, using default printer`);
     return await getDefaultPrinter();
   } catch (error) {
-    console.error('❌ Failed to get printer name:', error);
     return await getDefaultPrinter();
   }
 };
@@ -141,23 +205,23 @@ const printFile = async (filePath, printSettings = {}, printerName = null, print
     
     console.log(`🖨️ Print options:`, printOptions);
     
-    // Execute print command
-    await printer.print(filePath, printOptions);
-    
-    const endTime = Date.now();
-    const processingTime = Math.round((endTime - startTime) / 1000); // seconds
-    
-    console.log(`✅ Print job completed successfully in ${processingTime}s`);
-    
-    return {
-      success: true,
-      printerName: targetPrinter,
-      processingTimeSeconds: processingTime,
-      printOptions: printOptions,
-      message: 'Print job completed successfully',
-    };
-    
-  } catch (error) {
+      // Execute print command
+      console.log(`📤 Sending print command to printer: ${targetPrinter}`);
+      await printer.print(filePath, printOptions);
+      
+      const endTime = Date.now();
+      const processingTime = Math.round((endTime - startTime) / 1000); // seconds
+      
+      console.log(`✅ Print command sent successfully to printer in ${processingTime}s`);
+      console.log(`📋 Job sent to printer queue - printer should process it now`);
+      
+      return {
+        success: true,
+        printerName: targetPrinter,
+        processingTimeSeconds: processingTime,
+        printOptions: printOptions,
+        message: 'Print command sent to printer successfully',
+      };  } catch (error) {
     const endTime = Date.now();
     const processingTime = Math.round((endTime - startTime) / 1000);
     

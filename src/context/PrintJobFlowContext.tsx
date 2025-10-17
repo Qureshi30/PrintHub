@@ -44,7 +44,7 @@ export interface SelectedPrinter {
 
 // Payment information
 export interface PaymentInfo {
-  method: 'student_credit' | 'card' | 'upi' | 'dev' | 'campus_card';
+  method: 'student_credit' | 'card' | 'upi' | 'dev' | 'campus_card' | 'cash';
   totalCost: number;
   transactionId?: string;
   breakdown: {
