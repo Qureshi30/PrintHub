@@ -41,9 +41,9 @@ export function AdminMobileTouchButton({
         "focus:ring-2 focus:ring-offset-2",
         sizeClasses[size],
         fullWidth && "w-full",
-        variant === "default" && "bg-red-600 hover:bg-red-700 focus:ring-red-500",
+        variant === "default" && "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500",
         variant === "destructive" && "focus:ring-red-500",
-        variant === "outline" && "border-red-200 text-red-700 hover:bg-red-50 focus:ring-red-500",
+        variant === "outline" && "border-blue-200 text-blue-700 hover:bg-blue-50 focus:ring-blue-500",
         className
       )}
     >

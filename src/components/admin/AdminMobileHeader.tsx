@@ -20,7 +20,7 @@ export function AdminMobileHeader({
   onMenuClick
 }: AdminMobileHeaderProps) {
   return (
-    <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90 border-b border-red-200 dark:border-red-800">
+    <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90 border-b border-blue-200 dark:border-blue-800">
       <div className="px-4 py-3">
         {/* Title row with hamburger menu, title and actions */}
         <div className="flex items-center justify-between">
@@ -28,10 +28,10 @@ export function AdminMobileHeader({
             {/* Hamburger Menu Button */}
             <button
               onClick={onMenuClick}
-              className="p-1 rounded-md hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors flex-shrink-0"
+              className="p-1 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors flex-shrink-0"
               aria-label="Open menu"
             >
-              <Menu className="h-5 w-5 text-red-700 dark:text-red-400" />
+              <Menu className="h-5 w-5 text-blue-700 dark:text-blue-400" />
             </button>
             
             {showBackButton && (
@@ -39,7 +39,7 @@ export function AdminMobileHeader({
                 variant="ghost"
                 size="sm"
                 onClick={onBack}
-                className="h-8 w-8 p-0 hover:bg-red-100 dark:hover:bg-red-900/20 flex-shrink-0"
+                className="h-8 w-8 p-0 hover:bg-blue-100 dark:hover:bg-blue-900/20 flex-shrink-0"
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
