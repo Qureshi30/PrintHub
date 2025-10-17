@@ -151,14 +151,14 @@ export default function Confirmation() {
           <div className="px-4 pb-20 space-y-4">
             {/* No Document Warning */}
             {jobSummary.file.pages === 0 && (
-              <Alert className="border-orange-200 bg-orange-50">
-                <AlertTriangle className="h-4 w-4 text-orange-600" />
-                <AlertDescription className="text-orange-800">
+              <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20">
+                <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                <AlertDescription className="text-orange-800 dark:text-orange-200">
                   No document selected. Please upload a document first.
                   <MobileTouchButton 
                     variant="secondary" 
                     size="sm" 
-                    className="mt-2 w-full bg-orange-100 text-orange-800 border-orange-200"
+                    className="mt-2 w-full bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-800/20 dark:text-orange-200 dark:border-orange-700"
                     onClick={() => navigate('/upload')}
                   >
                     Upload Document Now
@@ -178,19 +178,19 @@ export default function Confirmation() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className={`font-medium ${jobSummary.file.pages === 0 ? 'text-gray-500' : ''}`}>
+                    <span className={`font-medium ${jobSummary.file.pages === 0 ? 'text-muted-foreground' : 'text-foreground'}`}>
                       {jobSummary.file.name}
                     </span>
                     <MobileTouchButton
                       variant="ghost"
                       size="sm"
                       onClick={() => navigate('/settings')}
-                      className="text-blue-600 h-8 px-2"
+                      className="text-blue-600 dark:text-blue-400 h-8 px-2"
                     >
                       <Edit className="h-4 w-4" />
                     </MobileTouchButton>
                   </div>
-                  <div className="text-sm text-gray-600 mt-1">
+                  <div className="text-sm text-muted-foreground mt-1">
                     {jobSummary.file.pages} pages • {jobSummary.file.size}
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
@@ -216,23 +216,23 @@ export default function Confirmation() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium">{jobSummary.printer.name}</span>
+                    <span className="font-medium text-foreground">{jobSummary.printer.name}</span>
                     <MobileTouchButton
                       variant="ghost"
                       size="sm"
                       onClick={() => navigate('/select-printer')}
-                      className="text-blue-600 h-8 px-2"
+                      className="text-blue-600 dark:text-blue-400 h-8 px-2"
                     >
                       <Edit className="h-4 w-4" />
                     </MobileTouchButton>
                   </div>
-                  <div className="text-sm text-gray-600 mt-1">
+                  <div className="text-sm text-muted-foreground mt-1">
                     {jobSummary.printer.location}
                   </div>
                   <div className="flex items-center gap-4 mt-2">
                     <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3 text-gray-500" />
-                      <span className="text-xs text-gray-600">~{jobSummary.printer.estimatedWait} min wait</span>
+                      <Clock className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">~{jobSummary.printer.estimatedWait} min wait</span>
                     </div>
                     <Badge variant="outline" className="text-xs">
                       {jobSummary.printer.queueLength} in queue
@@ -250,26 +250,26 @@ export default function Confirmation() {
                     <DollarSign className="h-5 w-5 text-purple-600" />
                   </div>
                   <div className="flex-1">
-                    <div className="font-medium mb-3">Cost Breakdown</div>
+                    <div className="font-medium mb-3 text-foreground">Cost Breakdown</div>
                     <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between text-sm text-foreground">
                         <span>Base printing ({jobSummary.file.pages} pages)</span>
                         <span>${jobSummary.cost.base.toFixed(2)}</span>
                       </div>
                       {jobSummary.cost.color > 0 && (
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-sm text-foreground">
                           <span>Color printing</span>
                           <span>${jobSummary.cost.color.toFixed(2)}</span>
                         </div>
                       )}
                       {jobSummary.cost.duplex > 0 && (
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-sm text-foreground">
                           <span>Double-sided</span>
                           <span>${jobSummary.cost.duplex.toFixed(2)}</span>
                         </div>
                       )}
                       <Separator />
-                      <div className="flex justify-between font-medium">
+                      <div className="flex justify-between font-medium text-foreground">
                         <span>Total</span>
                         <span>${jobSummary.cost.total.toFixed(2)}</span>
                       </div>
@@ -286,12 +286,12 @@ export default function Confirmation() {
                   <Calendar className="h-5 w-5 text-orange-600" />
                 </div>
                 <div className="flex-1">
-                  <div className="font-medium mb-2">Print Schedule</div>
-                  <div className="text-sm text-gray-600">
-                    Scheduled for: <span className="font-medium text-gray-900">{jobSummary.timing.scheduledFor}</span>
+                  <div className="font-medium mb-2 text-foreground">Print Schedule</div>
+                  <div className="text-sm text-muted-foreground">
+                    Scheduled for: <span className="font-medium text-foreground">{jobSummary.timing.scheduledFor}</span>
                   </div>
-                  <div className="text-sm text-gray-600 mt-1">
-                    Est. completion: <span className="font-medium text-gray-900">{jobSummary.timing.estimatedCompletion}</span>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Est. completion: <span className="font-medium text-foreground">{jobSummary.timing.estimatedCompletion}</span>
                   </div>
                 </div>
               </div>
@@ -300,10 +300,10 @@ export default function Confirmation() {
             {/* Notification Preferences */}
             <MobileCard selected={false} className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
               <div className="space-y-4">
-                <div className="font-medium">Notification Preferences</div>
+                <div className="font-medium text-foreground">Notification Preferences</div>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="email-notify" className="text-sm">Email notifications</Label>
+                    <Label htmlFor="email-notify" className="text-sm text-foreground">Email notifications</Label>
                     <Switch 
                       id="email-notify" 
                       checked={notifyEmail} 
@@ -312,7 +312,7 @@ export default function Confirmation() {
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="sms-notify" className="text-sm">SMS notifications</Label>
+                    <Label htmlFor="sms-notify" className="text-sm text-foreground">SMS notifications</Label>
                     <Switch 
                       id="sms-notify" 
                       checked={notifySMS} 
@@ -362,24 +362,24 @@ export default function Confirmation() {
         </>
       ) : (
         /* Desktop Layout */
-        <div className="min-h-screen bg-gray-50 p-6">
+        <div className="min-h-screen bg-background p-6">
           <div className="max-w-4xl mx-auto space-y-6">
             <PrintFlowBreadcrumb currentStep="confirm" />
             
             <div className="text-center space-y-2">
-              <h1 className="text-3xl font-bold tracking-tight">Confirm Your Print Job</h1>
-              <p className="text-gray-600">Review your print settings and submit your job</p>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Confirm Your Print Job</h1>
+              <p className="text-muted-foreground">Review your print settings and submit your job</p>
             </div>
 
             {jobSummary.file.pages === 0 && (
-              <Alert className="border-orange-200 bg-orange-50">
-                <AlertTriangle className="h-4 w-4 text-orange-600" />
-                <AlertDescription className="text-orange-800">
+              <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20">
+                <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                <AlertDescription className="text-orange-800 dark:text-orange-200">
                   No document selected. Please upload a document first.
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="ml-3 bg-orange-100 text-orange-800 border-orange-200"
+                    className="ml-3 bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-800/20 dark:text-orange-200 dark:border-orange-700"
                     onClick={() => navigate('/upload')}
                   >
                     Upload Document Now
@@ -411,8 +411,8 @@ export default function Confirmation() {
                         <FileText className="h-5 w-5 text-blue-600" />
                       </div>
                       <div>
-                        <div className="font-medium">{jobSummary.file.name}</div>
-                        <div className="text-sm text-gray-600">
+                        <div className="font-medium text-foreground">{jobSummary.file.name}</div>
+                        <div className="text-sm text-muted-foreground">
                           {jobSummary.file.pages} pages • {jobSummary.file.size}
                         </div>
                       </div>
@@ -420,20 +420,20 @@ export default function Confirmation() {
                     
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <span className="text-gray-600">Page Range:</span>
-                        <div className="font-medium">{jobSummary.settings.pageRange}</div>
+                        <span className="text-muted-foreground">Page Range:</span>
+                        <div className="font-medium text-foreground">{jobSummary.settings.pageRange}</div>
                       </div>
                       <div>
-                        <span className="text-gray-600">Color Mode:</span>
-                        <div className="font-medium">{jobSummary.settings.colorMode}</div>
+                        <span className="text-muted-foreground">Color Mode:</span>
+                        <div className="font-medium text-foreground">{jobSummary.settings.colorMode}</div>
                       </div>
                       <div>
-                        <span className="text-gray-600">Duplex:</span>
-                        <div className="font-medium">{jobSummary.settings.duplex}</div>
+                        <span className="text-muted-foreground">Duplex:</span>
+                        <div className="font-medium text-foreground">{jobSummary.settings.duplex}</div>
                       </div>
                       <div>
-                        <span className="text-gray-600">Copies:</span>
-                        <div className="font-medium">{jobSummary.settings.copies}</div>
+                        <span className="text-muted-foreground">Copies:</span>
+                        <div className="font-medium text-foreground">{jobSummary.settings.copies}</div>
                       </div>
                     </div>
                   </CardContent>
@@ -459,12 +459,12 @@ export default function Confirmation() {
                         <Printer className="h-5 w-5 text-green-600" />
                       </div>
                       <div>
-                        <div className="font-medium">{jobSummary.printer.name}</div>
-                        <div className="text-sm text-gray-600">{jobSummary.printer.location}</div>
+                        <div className="font-medium text-foreground">{jobSummary.printer.name}</div>
+                        <div className="text-sm text-muted-foreground">{jobSummary.printer.location}</div>
                         <div className="flex items-center gap-4 mt-2">
                           <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3 text-gray-500" />
-                            <span className="text-xs text-gray-600">~{jobSummary.printer.estimatedWait} min wait</span>
+                            <Clock className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">~{jobSummary.printer.estimatedWait} min wait</span>
                           </div>
                           <Badge variant="outline" className="text-xs">
                             {jobSummary.printer.queueLength} in queue
@@ -488,24 +488,24 @@ export default function Confirmation() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <div className="flex justify-between">
+                      <div className="flex justify-between text-foreground">
                         <span>Base printing ({jobSummary.file.pages} pages)</span>
                         <span>${jobSummary.cost.base.toFixed(2)}</span>
                       </div>
                       {jobSummary.cost.color > 0 && (
-                        <div className="flex justify-between">
+                        <div className="flex justify-between text-foreground">
                           <span>Color printing</span>
                           <span>${jobSummary.cost.color.toFixed(2)}</span>
                         </div>
                       )}
                       {jobSummary.cost.duplex > 0 && (
-                        <div className="flex justify-between">
+                        <div className="flex justify-between text-foreground">
                           <span>Double-sided</span>
                           <span>${jobSummary.cost.duplex.toFixed(2)}</span>
                         </div>
                       )}
                       <Separator />
-                      <div className="flex justify-between text-lg font-semibold">
+                      <div className="flex justify-between text-lg font-semibold text-foreground">
                         <span>Total</span>
                         <span>${jobSummary.cost.total.toFixed(2)}</span>
                       </div>
@@ -522,11 +522,11 @@ export default function Confirmation() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between text-foreground">
                       <span>Scheduled for:</span>
                       <span className="font-medium">{jobSummary.timing.scheduledFor}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between text-foreground">
                       <span>Est. completion:</span>
                       <span className="font-medium">{jobSummary.timing.estimatedCompletion}</span>
                     </div>

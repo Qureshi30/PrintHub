@@ -139,13 +139,15 @@ export default function Schedule() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  disabled={isDateDisabled}
-                  className="w-full"
-                />
+                <div className="flex justify-center">
+                  <Calendar 
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    disabled={isDateDisabled}
+                    className="w-fit"
+                  />
+                </div>
                 
                 <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                   <div className="flex items-center gap-2 text-blue-800">

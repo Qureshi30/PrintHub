@@ -117,9 +117,9 @@ function History() {
           <div className="px-4 pb-6 space-y-4">
             {jobs.length === 0 ? (
               <div className="text-center py-12">
-                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No print jobs yet</h3>
-                <p className="text-gray-500 mb-6">Your print history will appear here once you submit jobs.</p>
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">No print jobs yet</h3>
+                <p className="text-muted-foreground mb-6">Your print history will appear here once you submit jobs.</p>
                 <MobileTouchButton 
                   variant="primary"
                   onClick={() => navigate("/upload")}
@@ -138,10 +138,10 @@ function History() {
                     {/* Job Header */}
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h3 className="font-medium text-gray-900 truncate">
+                        <h3 className="font-medium text-foreground truncate">
                           {job.file?.originalName || "Unknown File"}
                         </h3>
-                        <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                           <Calendar className="h-3 w-3" />
                           <span>{formatDate(job.timing?.submittedAt || new Date())}</span>
                         </div>
@@ -154,31 +154,31 @@ function History() {
                     {/* Job Details */}
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
-                        <span className="text-gray-500">Printer:</span>
-                        <div className="font-medium">
+                        <span className="text-muted-foreground">Printer:</span>
+                        <div className="font-medium text-foreground">
                           {(job.printerId as any)?.name || 'Unknown Printer'}
                         </div>
                       </div>
                       <div>
-                        <span className="text-gray-500">Pages:</span>
-                        <div className="font-medium">{pages} pages</div>
+                        <span className="text-muted-foreground">Pages:</span>
+                        <div className="font-medium text-foreground">{pages} pages</div>
                       </div>
                       <div>
-                        <span className="text-gray-500">Copies:</span>
-                        <div className="font-medium">{job.settings?.copies || 1}</div>
+                        <span className="text-muted-foreground">Copies:</span>
+                        <div className="font-medium text-foreground">{job.settings?.copies || 1}</div>
                       </div>
                       <div>
-                        <span className="text-gray-500">Cost:</span>
-                        <div className="font-medium text-green-600">
+                        <span className="text-muted-foreground">Cost:</span>
+                        <div className="font-medium text-green-600 dark:text-green-400">
                           ₹{job.pricing?.totalCost?.toFixed(2) || '0.00'}
                         </div>
                       </div>
                     </div>
 
                     {/* Payment Status */}
-                    <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="flex items-center justify-between pt-2 border-t border-border">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500">Payment:</span>
+                        <span className="text-sm text-muted-foreground">Payment:</span>
                         <Badge variant={job.payment?.status === 'paid' ? 'default' : 'secondary'}>
                           {job.payment?.status || 'pending'}
                         </Badge>
@@ -247,7 +247,6 @@ function History() {
               </div>
 
               <div className="space-y-4">
-                {/* Desktop content will be the same as mobile but in card format */}
                 {jobs.length === 0 ? (
                   <Card className="text-center py-12">
                     <CardContent>
@@ -260,26 +259,111 @@ function History() {
                     </CardContent>
                   </Card>
                 ) : (
-                  jobs.map((job) => (
-                    <Card key={job._id} className="p-6">
-                      <CardContent className="p-0">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-5 w-5 text-blue-600" />
+                  jobs.map((job) => {
+                    const pages = job.settings?.pages === "all"
+                      ? 10
+                      : parseInt(job.settings.pages.split("-")[1] || "1");
+
+                    return (
+                      <Card key={job._id} className="p-6 hover:shadow-lg transition-shadow">
+                        <CardContent className="p-0 space-y-4">
+                          {/* Job Header */}
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3 flex-1">
+                              <FileText className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                              <div className="min-w-0 flex-1">
+                                <h3 className="font-medium text-foreground truncate">
+                                  {job.file?.originalName || "Unknown File"}
+                                </h3>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>{formatDate(job.timing?.submittedAt || new Date())}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <Badge className={getStatusColor(job.status)}>
+                              {job.status}
+                            </Badge>
+                          </div>
+
+                          {/* Job Details Grid */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                             <div>
-                              <h3 className="font-medium">{job.file?.originalName || "Unknown File"}</h3>
-                              <div className="text-sm text-muted-foreground">
-                                {formatDate(job.timing?.submittedAt || new Date())}
+                              <span className="text-muted-foreground">Printer:</span>
+                              <div className="font-medium text-foreground">
+                                {(job.printerId as any)?.name || 'Unknown Printer'}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Pages:</span>
+                              <div className="font-medium text-foreground">{pages} pages</div>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Copies:</span>
+                              <div className="font-medium text-foreground">{job.settings?.copies || 1}</div>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Cost:</span>
+                              <div className="font-medium text-green-600">
+                                ₹{job.pricing?.totalCost?.toFixed(2) || '0.00'}
                               </div>
                             </div>
                           </div>
-                          <Badge className={getStatusColor(job.status)}>
-                            {job.status}
-                          </Badge>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
+
+                          {/* Payment Status and Actions */}
+                          <div className="flex items-center justify-between pt-2 border-t border-border">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-muted-foreground">Payment:</span>
+                              <Badge variant={job.payment?.status === 'paid' ? 'default' : 'secondary'}>
+                                {job.payment?.status || 'pending'}
+                              </Badge>
+                            </div>
+                            
+                            {/* Action Buttons */}
+                            <div className="flex gap-2">
+                              {job.status === 'completed' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => window.open(job.file?.cloudinaryUrl, '_blank')}
+                                >
+                                  <Download className="h-4 w-4 mr-1" />
+                                  Download
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {/* Add view details functionality */}}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                Details
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Refund Status for failed jobs */}
+                          {job.status === 'failed' && job.payment?.status === 'paid' && (
+                            <div className="pt-2 border-t border-border">
+                              <RefundStatus 
+                                jobId={job._id}
+                                trigger={
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Request Refund
+                                  </Button>
+                                }
+                              />
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })
                 )}
               </div>
             </div>
