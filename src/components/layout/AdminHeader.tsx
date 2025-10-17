@@ -25,12 +25,12 @@ export function AdminHeader() {
   ];
 
   return (
-    <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70 border-red-200 dark:border-red-800">
+    <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70 border-blue-200 dark:border-blue-800">
       <div className="container flex h-14 items-center justify-between">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
             <button 
-              className="text-lg font-semibold tracking-tight text-red-600 dark:text-red-400 cursor-pointer hover:opacity-80 bg-transparent border-none flex items-center gap-2"
+              className="text-lg font-semibold tracking-tight text-blue-600 dark:text-blue-400 cursor-pointer hover:opacity-80 bg-transparent border-none flex items-center gap-2"
               onClick={() => navigate("/admin")}
               aria-label="Go to Admin Dashboard"
             >
@@ -57,10 +57,10 @@ export function AdminHeader() {
                   variant={isActive ? "default" : "ghost"}
                   size="sm"
                   onClick={handleClick}
-                  className={`flex items-center gap-2 transition-colors !outline-none !ring-0 focus:!outline-none focus:!ring-red-500 focus:!ring-2 focus:!ring-offset-2 active:!bg-red-700 active:!outline-none border-0 focus:border-0 active:border-0 ${
+                  className={`flex items-center gap-2 transition-colors !outline-none !ring-0 focus:!outline-none focus:!ring-blue-500 focus:!ring-2 focus:!ring-offset-2 active:!bg-blue-700 active:!outline-none border-0 focus:border-0 active:border-0 ${
                     isActive 
-                      ? "bg-red-600 text-white hover:bg-red-700 focus:bg-red-700" 
-                      : "hover:bg-red-100 text-red-700 focus:bg-red-100 active:bg-red-200"
+                      ? "bg-blue-600 text-white hover:bg-blue-700 focus:bg-blue-700" 
+                      : "hover:bg-blue-100 text-blue-700 focus:bg-blue-100 active:bg-blue-200"
                   }`}
                   style={{ outline: 'none', border: 'none' }}
                 >

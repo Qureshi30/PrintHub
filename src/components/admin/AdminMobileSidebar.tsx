@@ -31,10 +31,10 @@ export function AdminMobileSidebar({ open, onOpenChange }: AdminMobileSidebarPro
         aria-label="Admin sidebar menu"
       >
         {/* Header with Logo */}
-        <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-red-600 to-red-700 dark:from-red-700 dark:to-red-800">
+        <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-              <Shield className="h-5 w-5 text-red-600" />
+              <Shield className="h-5 w-5 text-blue-600" />
             </div>
             <span className="font-bold text-lg text-white">PrintHub Admin</span>
           </div>
@@ -60,7 +60,7 @@ export function AdminMobileSidebar({ open, onOpenChange }: AdminMobileSidebarPro
                 onClick={() => onOpenChange(false)}
                 className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
                   isActive
-                    ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-700 shadow-sm"
+                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-700 shadow-sm"
                     : "text-foreground hover:bg-accent active:bg-accent/80"
                 }`}
                 aria-label={`Navigate to ${item.name}`}
