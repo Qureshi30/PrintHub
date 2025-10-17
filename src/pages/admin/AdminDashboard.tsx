@@ -132,52 +132,52 @@ export default function AdminDashboard() {
 
           {/* Admin Actions */}
           <div className="grid gap-4">
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/users')}>
-              <CardHeader>
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow flex flex-col" onClick={() => navigate('/admin/users')}>
+              <CardHeader className="flex-shrink-0">
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
                   User Management
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
+              <CardContent className="flex flex-col flex-grow">
+                <p className="text-sm text-muted-foreground mb-4 flex-grow">
                   Manage student accounts, permissions, and access controls
                 </p>
-                <Button className="w-full" onClick={(e) => { e.stopPropagation(); navigate('/admin/users'); }}>
+                <Button className="w-full mt-auto" onClick={(e) => { e.stopPropagation(); navigate('/admin/users'); }}>
                   Manage Users
                 </Button>
               </CardContent>
             </Card>
 
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/printers')}>
-              <CardHeader>
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow flex flex-col" onClick={() => navigate('/admin/printers')}>
+              <CardHeader className="flex-shrink-0">
                 <CardTitle className="flex items-center gap-2">
                   <Printer className="h-5 w-5" />
                   Printer Management
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
+              <CardContent className="flex flex-col flex-grow">
+                <p className="text-sm text-muted-foreground mb-4 flex-grow">
                   Monitor printer status, configure settings, and manage queues
                 </p>
-                <Button className="w-full" onClick={(e) => { e.stopPropagation(); navigate('/admin/printers'); }}>
+                <Button className="w-full mt-auto" onClick={(e) => { e.stopPropagation(); navigate('/admin/printers'); }}>
                   Manage Printers
                 </Button>
               </CardContent>
             </Card>
 
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/analytics')}>
-              <CardHeader>
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow flex flex-col" onClick={() => navigate('/admin/analytics')}>
+              <CardHeader className="flex-shrink-0">
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
                   Analytics & Reports
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
+              <CardContent className="flex flex-col flex-grow">
+                <p className="text-sm text-muted-foreground mb-4 flex-grow">
                   View detailed analytics and generate comprehensive reports
                 </p>
-                <Button className="w-full" onClick={(e) => { e.stopPropagation(); navigate('/admin/analytics'); }}>
+                <Button className="w-full mt-auto" onClick={(e) => { e.stopPropagation(); navigate('/admin/analytics'); }}>
                   View Analytics
                 </Button>
               </CardContent>
@@ -239,52 +239,52 @@ export default function AdminDashboard() {
 
       {/* Admin Actions */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/users')}>
-          <CardHeader>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow flex flex-col h-full" onClick={() => navigate('/admin/users')}>
+          <CardHeader className="flex-shrink-0">
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
               User Management
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
+          <CardContent className="flex flex-col flex-grow">
+            <p className="text-sm text-muted-foreground mb-4 flex-grow">
               Manage student accounts, permissions, and access controls
             </p>
-            <Button className="w-full" onClick={(e) => { e.stopPropagation(); navigate('/admin/users'); }}>
+            <Button className="w-full mt-auto" onClick={(e) => { e.stopPropagation(); navigate('/admin/users'); }}>
               Manage Users
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/printers')}>
-          <CardHeader>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow flex flex-col h-full" onClick={() => navigate('/admin/printers')}>
+          <CardHeader className="flex-shrink-0">
             <CardTitle className="flex items-center gap-2">
               <Printer className="h-5 w-5" />
               Printer Management
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
+          <CardContent className="flex flex-col flex-grow">
+            <p className="text-sm text-muted-foreground mb-4 flex-grow">
               Monitor printer status, configure settings, and manage queues
             </p>
-            <Button className="w-full" onClick={(e) => { e.stopPropagation(); navigate('/admin/printers'); }}>
+            <Button className="w-full mt-auto" onClick={(e) => { e.stopPropagation(); navigate('/admin/printers'); }}>
               Manage Printers
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/analytics')}>
-          <CardHeader>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow flex flex-col h-full" onClick={() => navigate('/admin/analytics')}>
+          <CardHeader className="flex-shrink-0">
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
               Analytics & Reports
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
+          <CardContent className="flex flex-col flex-grow">
+            <p className="text-sm text-muted-foreground mb-4 flex-grow">
               View detailed analytics, generate reports, and track usage
             </p>
-            <Button className="w-full" onClick={(e) => { e.stopPropagation(); navigate('/admin/analytics'); }}>
+            <Button className="w-full mt-auto" onClick={(e) => { e.stopPropagation(); navigate('/admin/analytics'); }}>
               View Reports
             </Button>
           </CardContent>
