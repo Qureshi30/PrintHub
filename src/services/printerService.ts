@@ -154,7 +154,7 @@ class PrinterService {
           paperSizes: ['A4', 'Letter', 'Legal']
         },
         pricing: {
-          baseCostPerPage: 1.00,
+          baseCostPerPage: 1,
           colorCostPerPage: 0,
           currency: 'INR'
         }
@@ -173,7 +173,7 @@ class PrinterService {
           paperSizes: ['A4', 'Letter', 'A3', 'Legal']
         },
         pricing: {
-          baseCostPerPage: 0.50,
+          baseCostPerPage: 0.5,
           colorCostPerPage: 0,
           currency: 'INR'
         }
@@ -192,7 +192,7 @@ class PrinterService {
       'HP LaserJet Pro M202 (Admin)': 'hp-laserjet-admin'
     };
     
-    return nameMap[printerName] || printerName.toLowerCase().replace(/\s+/g, '-');
+    return nameMap[printerName] || printerName.toLowerCase().split(/\s+/).join('-');
   }
 
   /**
@@ -229,15 +229,10 @@ class PrinterService {
    * Update printer status
    */
   async updatePrinterStatus(printerId: string, status: PrinterStatus, token: string | null): Promise<void> {
-    try {
-      await apiClient.put(`/printers/${printerId}/status`, { status }, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined
-      });
-    } catch (error) {
-      console.error('Error updating printer status:', error);
-      const errorMessage = (error as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to update printer status';
-      throw new Error(errorMessage);
-    }
+    // Don't catch the error here - let it bubble up with full response data
+    await apiClient.put(`/printers/${printerId}/status`, { status }, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined
+    });
   }
 
   /**

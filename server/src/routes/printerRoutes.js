@@ -5,6 +5,7 @@ const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
 const Printer = require('../models/Printer');
 const PrintJob = require('../models/PrintJob');
 const Queue = require('../models/Queue');
+const PrinterError = require('../models/PrinterError');
 const printerService = require('../services/printerService');
 const { getRealPrinterCapabilities } = require('../utils/printerCapabilities');
 
@@ -71,7 +72,7 @@ const createDefaultPrinters = async () => {
         paperSizes: printer.specifications.supportedPaperTypes
       },
       pricing: {
-        baseCostPerPage: 1.00,
+        baseCostPerPage: 1,
         colorCostPerPage: 0,
         currency: 'INR'
       },
@@ -94,6 +95,7 @@ const createDefaultPrinters = async () => {
 const validateRequest = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.error('❌ Validation failed:', JSON.stringify(errors.array(), null, 2));
     return res.status(400).json({
       success: false,
       error: {
@@ -253,7 +255,7 @@ router.get('/test', async (req, res) => {
         estimatedWait,
         capabilities,
         pricing: {
-          baseCostPerPage: 1.00,
+          baseCostPerPage: 1,
           colorCostPerPage: 0,
           currency: 'INR'
         },
@@ -534,8 +536,8 @@ router.get('/',
           
           // Ensure pricing is in INR format
           printerObj.pricing = {
-            baseCostPerPage: 1.00, // ₹1 per page
-            colorCostPerPage: 0,    // No extra for color
+            baseCostPerPage: 1, // ₹1 per page
+            colorCostPerPage: 0, // No extra for color
             currency: 'INR'
           };
 
@@ -994,10 +996,11 @@ router.put('/:id/location',
 
 // PUT /api/printers/:id/status - Update printer status only (Admin only)
 router.put('/:id/status',
+  requireAuth,
+  requireAdmin,
   [
     param('id').isMongoId().withMessage('Valid printer ID is required'),
-    body('status').isIn(['online', 'offline', 'maintenance', 'busy']).withMessage('Valid status is required'),
-    requireAdmin
+    body('status').isIn(['online', 'offline', 'maintenance', 'busy', 'error']).withMessage('Valid status is required'),
   ],
   validateRequest,
   async (req, res) => {
@@ -1005,13 +1008,13 @@ router.put('/:id/status',
       const { id } = req.params;
       const { status } = req.body;
 
-      const printer = await Printer.findByIdAndUpdate(
-        id,
-        { $set: { status, lastChecked: new Date() } },
-        { new: true, runValidators: true }
-      );
+      console.log(`🔄 Updating printer ${id} status to: ${status}`);
 
+      // First get the printer
+      const printer = await Printer.findById(id);
+      
       if (!printer) {
+        console.log(`❌ Printer ${id} not found`);
         return res.status(404).json({
           success: false,
           error: {
@@ -1020,6 +1023,34 @@ router.put('/:id/status',
           }
         });
       }
+
+      // If trying to set printer to online, check for active errors
+      if (status === 'online') {
+        // Check for active errors by printer name (since errors store printerName)
+        const activeErrors = await PrinterError.countDocuments({
+          printerName: printer.name,
+          status: { $in: ['unresolved', 'in_progress'] },
+        });
+
+        if (activeErrors > 0) {
+          console.log(`⚠️  Blocked: ${activeErrors} active error(s) for ${printer.name}`);
+          return res.status(400).json({
+            success: false,
+            error: {
+              message: 'This printer cannot be set online until all related errors are resolved.',
+              code: 'ACTIVE_ERRORS_EXIST',
+              activeErrorCount: activeErrors,
+            },
+          });
+        }
+      }
+
+      // Update printer status
+      printer.status = status;
+      printer.lastChecked = new Date();
+      await printer.save();
+
+      console.log(`✅ Printer ${printer.name} status updated to: ${status}`);
 
       res.json({
         success: true,
@@ -1033,6 +1064,236 @@ router.put('/:id/status',
         error: {
           message: 'Failed to update printer status',
           code: 'UPDATE_ERROR'
+        }
+      });
+    }
+  }
+);
+
+// GET /api/printers/:id/snmp-status - Get real-time printer status via SNMP
+router.get('/:id/snmp-status',
+  [
+    param('id').isMongoId().withMessage('Invalid printer ID'),
+    requireAuth
+  ],
+  validateRequest,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { getPrinterStatus } = require('../services/snmpPrinterMonitor');
+      
+      // Get printer from database
+      const printer = await Printer.findById(id);
+      
+      if (!printer) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            message: 'Printer not found',
+            code: 'PRINTER_NOT_FOUND'
+          }
+        });
+      }
+      
+      // Check if printer supports SNMP (not virtual)
+      if (!printer.systemInfo?.ipAddress || 
+          printer.systemInfo.ipAddress === 'localhost' || 
+          printer.systemInfo.connectionType === 'Virtual') {
+        return res.json({
+          success: true,
+          data: {
+            status: printer.status,
+            pageCount: null,
+            errors: [],
+            alertMessage: null,
+            snmpSupported: false,
+            message: 'This printer does not support SNMP monitoring (virtual printer)'
+          }
+        });
+      }
+      
+      // Get real-time status via SNMP
+      try {
+        const snmpStatus = await getPrinterStatus(printer.systemInfo.ipAddress);
+        
+        res.json({
+          success: true,
+          data: {
+            ...snmpStatus,
+            snmpSupported: true,
+            printerName: printer.name,
+            location: printer.location
+          }
+        });
+      } catch (snmpError) {
+        console.error('❌ SNMP query error:', snmpError.message);
+        
+        res.json({
+          success: false,
+          error: {
+            message: snmpError.message,
+            code: 'SNMP_ERROR'
+          },
+          data: {
+            status: 'offline',
+            errors: ['offline'],
+            alertMessage: 'Printer not reachable via SNMP',
+            snmpSupported: true
+          }
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Get SNMP status error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to get printer status',
+          code: 'STATUS_ERROR'
+        }
+      });
+    }
+  }
+);
+
+// POST /api/printers/monitor-all - Manually trigger monitoring of all printers
+router.post('/monitor-all',
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { monitorAllWindowsPrinters } = require('../services/windowsPrinterMonitor');
+      
+      // Trigger monitoring in background
+      monitorAllWindowsPrinters().catch(error => {
+        console.error('❌ Background monitoring error:', error);
+      });
+      
+      res.json({
+        success: true,
+        message: 'Printer monitoring started in background'
+      });
+      
+    } catch (error) {
+      console.error('❌ Monitor all printers error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to start printer monitoring',
+          code: 'MONITOR_ERROR'
+        }
+      });
+    }
+  }
+);
+
+/**
+ * @route   POST /api/printers/discover
+ * @desc    Automatically discover SNMP-enabled printers on the network
+ * @access  Admin
+ */
+router.post(
+  '/discover',
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { discoverPrinters } = require('../services/snmpDiscovery');
+      const { specificRange, timeout = 2000, addToDatabase = false } = req.body;
+
+      console.log('🔍 Starting printer discovery...');
+
+      // Prepare discovery options
+      const discoveryOptions = {
+        timeout,
+        includeMAC: true,
+        concurrency: 10,
+      };
+
+      if (specificRange) {
+        discoveryOptions.specificRange = {
+          baseIP: specificRange,
+          start: 1,
+          end: 254,
+        };
+      }
+
+      // Discover printers
+      const discoveredPrinters = await discoverPrinters(discoveryOptions);
+
+      if (discoveredPrinters.length === 0) {
+        return res.json({
+          success: true,
+          message: 'No SNMP-enabled printers found on the network',
+          data: {
+            discovered: [],
+            count: 0,
+          }
+        });
+      }
+
+      // Filter out printers that already exist
+      const existingPrinters = await Printer.find({});
+      const existingIPs = new Set(existingPrinters.map(p => p.systemInfo?.ipAddress).filter(Boolean));
+      
+      const newPrinters = discoveredPrinters.filter(p => !existingIPs.has(p.ipAddress));
+      const alreadyExists = discoveredPrinters.filter(p => existingIPs.has(p.ipAddress));
+
+      // Optionally add to database
+      const addedPrinters = [];
+      if (addToDatabase && newPrinters.length > 0) {
+        for (const discovered of newPrinters) {
+          const newPrinter = new Printer({
+            name: discovered.name,
+            model: discovered.model,
+            location: 'Auto-discovered',
+            status: 'online',
+            connectionType: 'Network',
+            systemInfo: {
+              ipAddress: discovered.ipAddress,
+              connectionType: 'Network',
+              macAddress: discovered.macAddress,
+              driverName: discovered.model,
+            },
+            capabilities: {
+              color: true,
+              duplex: true,
+              maxPaperSize: 'A4',
+              supportedPaperTypes: ['Plain', 'Photo'],
+            },
+            pricing: {
+              colorPerPage: 2,
+              bwPerPage: 1,
+            },
+            isActive: true,
+            lastKnownErrors: [],
+          });
+
+          const saved = await newPrinter.save();
+          addedPrinters.push(saved);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Discovered ${discoveredPrinters.length} printer(s)`,
+        data: {
+          discovered: discoveredPrinters,
+          count: discoveredPrinters.length,
+          new: newPrinters.length,
+          alreadyExists: alreadyExists.length,
+          addedToDatabase: addedPrinters.length,
+          printers: addedPrinters,
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Printer discovery error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to discover printers',
+          code: 'DISCOVERY_ERROR',
+          details: error.message,
         }
       });
     }

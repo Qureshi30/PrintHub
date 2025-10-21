@@ -89,7 +89,7 @@ router.get('/user/:clerkUserId',
           .populate('metadata.printerId', 'name location')
           .sort({ createdAt: -1 })
           .skip(skip)
-          .limit(parseInt(limit)),
+          .limit(Number.parseInt(limit, 10)),
         Notification.countDocuments(filter),
         Notification.getUnreadCount(clerkUserId)
       ]);
@@ -102,8 +102,8 @@ router.get('/user/:clerkUserId',
           notifications,
           unreadCount,
           pagination: {
-            page: parseInt(page),
-            limit: parseInt(limit),
+            page: Number.parseInt(page, 10),
+            limit: Number.parseInt(limit, 10),
             total,
             pages: Math.ceil(total / limit)
           }
@@ -321,6 +321,70 @@ router.get('/user/:clerkUserId/unread-count',
   }
 );
 
+// GET /api/notifications/system - Get system/admin notifications (printer errors, etc.)
+router.get('/system',
+  [
+    query('type').optional().isIn(['maintenance', 'system']),
+    query('priority').optional().isIn(['low', 'medium', 'high', 'urgent']),
+    query('read').optional().isBoolean(),
+    query('page').optional().isInt({ min: 1 }),
+    query('limit').optional().isInt({ min: 1, max: 100 }),
+    requireAuth
+  ],
+  validateRequest,
+  async (req, res) => {
+    try {
+      const { type, priority, read, page = 1, limit = 50 } = req.query;
+      const skip = (page - 1) * limit;
+
+      console.log('🔔 Fetching system notifications');
+
+      // Build filter for system/admin notifications
+      const filter = {
+        clerkUserId: 'system_admin',
+        type: type || { $in: ['maintenance', 'system'] }
+      };
+      
+      if (priority) filter.priority = priority;
+      if (read !== undefined) filter.read = read;
+
+      const [notifications, total] = await Promise.all([
+        Notification.find(filter)
+          .populate('metadata.printerId', 'name location')
+          .populate('jobId', 'file.originalName userName')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(Number.parseInt(limit, 10)),
+        Notification.countDocuments(filter)
+      ]);
+
+      console.log('📊 System notifications:', { count: notifications.length, total });
+
+      res.json({
+        success: true,
+        data: {
+          notifications,
+          pagination: {
+            page: Number.parseInt(page, 10),
+            limit: Number.parseInt(limit, 10),
+            total,
+            totalPages: Math.ceil(total / limit)
+          }
+        }
+      });
+    } catch (error) {
+      console.error('❌ Get system notifications error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to fetch system notifications',
+          code: 'FETCH_ERROR'
+        }
+      });
+    }
+  }
+);
+
 // DELETE /api/notifications/user/:clerkUserId/cleanup - Clean up old read notifications
 router.delete('/user/:clerkUserId/cleanup',
   [
@@ -333,7 +397,7 @@ router.delete('/user/:clerkUserId/cleanup',
   async (req, res) => {
     try {
       const { clerkUserId } = req.params;
-      const days = parseInt(req.query.days) || 30;
+      const days = Number.parseInt(req.query.days, 10) || 30;
 
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - days);

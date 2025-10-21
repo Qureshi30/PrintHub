@@ -2,12 +2,10 @@ const QueueManager = require('../services/queueManager');
 const PrintJob = require('../models/PrintJob');
 
 class QueueProcessor {
-  constructor() {
-    this.isProcessing = false;
-    this.processingInterval = null;
-    this.intervalMs = 5000; // Check every 5 seconds
-    this.isRunning = false;
-  }
+  isProcessing = false;
+  processingInterval = null;
+  intervalMs = 5000; // Check every 5 seconds
+  isRunning = false;
 
   /**
    * Start the queue processor
@@ -74,6 +72,20 @@ class QueueProcessor {
       // Mark job as in-progress
       await QueueManager.markInProgress(nextJob._id);
 
+      // Check printer health before sending
+      const { checkPrinterHealth } = require('./printErrorHandler');
+      const healthCheck = await checkPrinterHealth(nextJob.printJobId.printerId);
+      
+      if (!healthCheck.canPrint) {
+        console.error(`🚫 Printer health check failed: ${healthCheck.error}`);
+        const { handlePrintError } = require('./printErrorHandler');
+        await handlePrintError(nextJob.printJobId, healthCheck.error);
+        await QueueManager.failJob(nextJob.printJobId._id, healthCheck.error);
+        return;
+      }
+      
+      console.log(`✅ Printer health check passed`);
+
       // Simulate sending to printer and wait for result
       const success = await this.sendToPrinter(nextJob);
 
@@ -84,6 +96,14 @@ class QueueProcessor {
         console.log(`📋 Print command sent to physical printer successfully`);
       } else {
         // Job failed - print command could not be sent
+        const { handlePrintError } = require('./printErrorHandler');
+        
+        // Handle error with detailed analysis and notifications
+        await handlePrintError(
+          nextJob.printJobId, 
+          'Printer communication failed - physical printer did not receive print job'
+        );
+        
         await QueueManager.failJob(nextJob.printJobId._id, 'Printer communication failed - physical printer did not receive print job');
         console.log(`❌ Job ${nextJob.printJobId._id} failed`);
         console.log(`⚠️ WARNING: Print job marked as failed because printer communication failed`);
@@ -91,6 +111,12 @@ class QueueProcessor {
 
     } catch (error) {
       console.error('❌ Error processing queue:', error.message);
+      
+      // Handle unexpected errors
+      if (nextJob && nextJob.printJobId) {
+        const { handlePrintError } = require('./printErrorHandler');
+        await handlePrintError(nextJob.printJobId, error.message);
+      }
     } finally {
       this.isProcessing = false;
     }
@@ -147,7 +173,7 @@ class QueueProcessor {
       
       // Clean up temp file
       if (tempFilePath) {
-        const fs = require('fs').promises;
+        const fs = require('node:fs').promises;
         try {
           await fs.unlink(tempFilePath);
           console.log(`🗑️ Cleaned up temp file: ${tempFilePath}`);
@@ -162,13 +188,26 @@ class QueueProcessor {
       console.error(`🚫 Printer error for job ${printJob._id}:`, error.message);
       console.error(`📋 Error details:`, error);
       
+      // Handle error with detailed analysis and notifications
+      const { handlePrintError, logPrintError } = require('./printErrorHandler');
+      
+      // Log detailed error for diagnostics
+      await logPrintError(printJob, error, {
+        stage: 'sendToPrinter',
+        tempFilePath,
+        printerName: printJob.printer?.name,
+      });
+      
+      // Create notifications and trigger SNMP check if needed
+      await handlePrintError(printJob, error.message);
+      
       // Clean up temp file on error
       if (tempFilePath) {
-        const fs = require('fs').promises;
+        const fs = require('node:fs').promises;
         try {
           await fs.unlink(tempFilePath);
         } catch (cleanupError) {
-          // Ignore cleanup errors
+          console.debug('Temp file cleanup failed:', cleanupError.message);
         }
       }
       
