@@ -13,6 +13,7 @@ const { startAllSchedulers } = require('./services/printScheduler');
 const userRoutes = require('./routes/userRoutes');
 const printJobRoutes = require('./routes/printJobRoutes');
 const printerRoutes = require('./routes/printerRoutes');
+const printerErrorRoutes = require('./routes/printerErrorRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const adminLogRoutes = require('./routes/adminLogRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
@@ -30,6 +31,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Connect to MongoDB (non-blocking)
+// eslint-disable-next-line unicorn/prefer-top-level-await -- CommonJS module, cannot use top-level await
 connectDB().catch(err => {
   console.error('Initial MongoDB connection failed:', err.message);
   console.log('🚀 Server will start anyway. Database operations will retry automatically.');
@@ -135,6 +137,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/users', userRoutes);
 app.use('/api/print-jobs', printJobRoutes);
 app.use('/api/printers', printerRoutes);
+app.use('/api/printer-errors', printerErrorRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin-logs', adminLogRoutes);
 app.use('/api/upload', uploadRoutes);
@@ -183,6 +186,27 @@ app.listen(PORT, () => {
   // Start the print queue processor
   queueProcessor.start();
   console.log(`🖨️ Print queue processor started`);
+
+  // Start Windows printer monitoring (every 2 minutes)
+  const cron = require('node-cron');
+  const { monitorAllWindowsPrinters } = require('./services/windowsPrinterMonitor');
+  
+  // Run monitoring immediately on startup
+  setTimeout(() => {
+    monitorAllWindowsPrinters().catch(error => {
+      console.error('❌ Initial printer monitoring error:', error);
+    });
+  }, 5000); // Wait 5 seconds for database connection
+  
+  // Schedule monitoring every 2 minutes
+  cron.schedule('*/2 * * * *', () => {
+    console.log('🔍 Running scheduled printer monitoring...');
+    monitorAllWindowsPrinters().catch(error => {
+      console.error('❌ Scheduled printer monitoring error:', error);
+    });
+  });
+  
+  console.log(`📡 Windows printer monitoring scheduled (every 2 minutes)`);
 });
 
 module.exports = app;

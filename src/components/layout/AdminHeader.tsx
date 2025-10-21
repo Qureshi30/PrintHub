@@ -8,7 +8,6 @@ import {
   DollarSign
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import AuthButtons from "@/components/auth/AuthButtons";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -21,6 +20,7 @@ export function AdminHeader() {
     { path: "/admin", label: "Dashboard", icon: Home },
     { path: "/admin/users", label: "Users", icon: Users },
     { path: "/admin/printers", label: "Printers", icon: Printer },
+    { path: "/admin/error-logs", label: "Error Logs", icon: Shield },
     { path: "/admin/cash-payments", label: "Cash Payments", icon: DollarSign },
     { path: "/admin/analytics", label: "Analytics", icon: BarChart3 },
     { path: "/admin/email", label: "Email", icon: Mail },

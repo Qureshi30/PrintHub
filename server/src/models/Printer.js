@@ -18,7 +18,7 @@ const printerSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['online', 'offline', 'maintenance', 'busy'],
+    enum: ['online', 'offline', 'maintenance', 'busy', 'error'],
     default: 'online',
     index: true,
   },
@@ -139,6 +139,50 @@ const printerSchema = new mongoose.Schema({
   lastChecked: {
     type: Date,
     default: Date.now,
+  },
+  lastKnownErrors: [{
+    type: String,
+    enum: ['lowPaper', 'noPaper', 'lowToner', 'noToner', 'doorOpen', 'jammed', 'offline', 'serviceRequested'],
+  }],
+  systemInfo: {
+    driverName: {
+      type: String,
+      trim: true,
+    },
+    connectionType: {
+      type: String,
+      enum: ['Network', 'USB', 'Virtual', 'Wireless'],
+      default: 'Network',
+    },
+    ipAddress: {
+      type: String,
+      trim: true,
+    },
+    macAddress: {
+      type: String,
+      trim: true,
+    },
+  },
+  pricing: {
+    baseCostPerPage: {
+      type: Number,
+      default: 1,
+      min: 0,
+    },
+    colorCostPerPage: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    duplexCostPerPage: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    currency: {
+      type: String,
+      default: 'INR',
+    },
   },
   isActive: {
     type: Boolean,
