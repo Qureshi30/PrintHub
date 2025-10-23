@@ -27,8 +27,6 @@ import UserManagement from "./pages/admin/UserManagement";
 import PrinterManagement from "./pages/admin/PrinterManagement";
 import Analytics from "./pages/admin/Analytics";
 import EmailConfiguration from "./pages/admin/EmailConfiguration";
-import CashPayments from "./pages/admin/CashPayments";
-import PrinterErrorLogs from "./pages/admin/PrinterErrorLogs";
 import AuthTestPage from "./pages/AuthTestPage";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import Layout from "@/components/layout/Layout";
@@ -66,7 +64,7 @@ const App = () => (
                 </SignedIn>
               </>
             } />
-
+            
             {/* Dashboard route that uses role-based rendering */}
             <Route path="/dashboard" element={
               <SignedIn>
@@ -75,7 +73,7 @@ const App = () => (
             } />
             {/* Student routes (require authentication) */}
             <Route path="/student/dashboard" element={<SignedIn><Layout><StudentDashboard /></Layout></SignedIn>} />
-
+            
             {/* Print flow routes */}
             <Route path="/upload" element={<SignedIn><Layout><Upload /></Layout></SignedIn>} />
             <Route path="/print-settings" element={<SignedIn><Layout><PrintSettings /></Layout></SignedIn>} />
@@ -174,16 +172,6 @@ const App = () => (
           <Route path="/admin/email" element={
             <ProtectedRoute requiredRole="admin">
               <AdminLayout><EmailConfiguration /></AdminLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/cash-payments" element={
-            <ProtectedRoute requiredRole="admin">
-              <AdminLayout><CashPayments /></AdminLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/error-logs" element={
-            <ProtectedRoute requiredRole="admin">
-              <AdminLayout><PrinterErrorLogs /></AdminLayout>
             </ProtectedRoute>
           } />
           
