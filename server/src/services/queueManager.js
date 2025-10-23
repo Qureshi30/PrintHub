@@ -31,15 +31,49 @@ class QueueManager {
         throw new Error('Print job is already in queue');
       }
 
-      // Get the next available position
-      const lastPosition = await Queue.findOne(
-        { status: { $in: ['pending', 'in-progress'] } }
-      )
-        .sort({ position: -1 })
-        .select('position')
-        .session(session);
+      // Priority-based positioning
+      let nextPosition;
 
-      const nextPosition = lastPosition ? lastPosition.position + 1 : 1;
+      if (printJob.priority === 'high') {
+        // High priority jobs go before all normal priority jobs
+        // Find the last high priority job in queue
+        const lastHighPriorityJob = await Queue.findOne({ status: { $in: ['pending', 'in-progress'] } })
+          .sort({ position: -1 })
+          .populate('printJobId')
+          .session(session);
+
+        // Check if the last job has high priority
+        if (lastHighPriorityJob && lastHighPriorityJob.printJobId?.priority === 'high') {
+          // Add after the last high priority job
+          nextPosition = lastHighPriorityJob.position + 1;
+        } else if (lastHighPriorityJob) {
+          // There are jobs but no high priority ones, insert at position 1
+          nextPosition = 1;
+        } else {
+          // Queue is empty
+          nextPosition = 1;
+        }
+
+        // Shift all jobs at or after this position down
+        await Queue.updateMany(
+          {
+            position: { $gte: nextPosition },
+            status: { $in: ['pending', 'in-progress'] }
+          },
+          { $inc: { position: 1 } },
+          { session }
+        );
+      } else {
+        // Normal priority jobs go to the end of the queue
+        const lastPosition = await Queue.findOne(
+          { status: { $in: ['pending', 'in-progress'] } }
+        )
+          .sort({ position: -1 })
+          .select('position')
+          .session(session);
+
+        nextPosition = lastPosition ? lastPosition.position + 1 : 1;
+      }
 
       // Create queue item
       const queueItem = new Queue({
@@ -51,7 +85,8 @@ class QueueManager {
       await queueItem.save({ session });
       await session.commitTransaction();
 
-      console.log(`✅ Print job ${printJobId} added to queue at position ${nextPosition}`);
+      const priorityLabel = printJob.priority === 'high' ? ' (HIGH PRIORITY)' : '';
+      console.log(`✅ Print job ${printJobId} added to queue at position ${nextPosition}${priorityLabel}`);
       return queueItem;
 
     } catch (error) {
@@ -109,7 +144,7 @@ class QueueManager {
         { $set: { status: 'in-progress', updatedAt: new Date() } },
         { session, new: true }
       );
-      
+
       if (!updatedQueueItem) {
         await session.abortTransaction();
         throw new Error('Queue item was modified by another process');
@@ -118,7 +153,7 @@ class QueueManager {
       // Update print job status
       await PrintJob.findByIdAndUpdate(
         queueItem.printJobId,
-        { 
+        {
           status: 'in-progress',
           updatedAt: new Date()
         },
@@ -177,7 +212,7 @@ class QueueManager {
       }
 
       // Update print job status
-      const updateData = { 
+      const updateData = {
         status: finalStatus,
         updatedAt: new Date()
       };
@@ -200,8 +235,8 @@ class QueueManager {
             clerkUserId: printJob.clerkUserId,
             jobId: printJobId,
             type: finalStatus === 'completed' ? 'job_completed' : 'job_failed',
-            title: finalStatus === 'completed' 
-              ? 'Print Job Completed' 
+            title: finalStatus === 'completed'
+              ? 'Print Job Completed'
               : 'Print Job Failed',
             message: finalStatus === 'completed'
               ? `Your print job "${printJob.file.originalName}" is ready for pickup`
@@ -232,10 +267,10 @@ class QueueManager {
       await this._reassignPositions(session);
 
       await session.commitTransaction();
-      
+
       const emoji = finalStatus === 'completed' ? '✅' : '❌';
       console.log(`${emoji} Print job ${printJobId} ${finalStatus}, removed from queue`);
-      
+
       return true;
 
     } catch (error) {
@@ -293,7 +328,7 @@ class QueueManager {
         .limit(limit)
         .populate({
           path: 'printJobId',
-          select: 'clerkUserId userName file.originalName totalCost estimatedPages status createdAt'
+          select: 'clerkUserId userName file.originalName totalCost estimatedPages status priority createdAt'
         });
 
       return queue;

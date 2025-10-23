@@ -87,6 +87,12 @@ const printJobSchema = new mongoose.Schema({
     default: 'pending',
     index: true,
   },
+  priority: {
+    type: String,
+    enum: ['normal', 'high'],
+    default: 'normal',
+    index: true,
+  },
   queuePosition: {
     type: Number,
     min: 0,
@@ -97,7 +103,7 @@ const printJobSchema = new mongoose.Schema({
   actualCompletionTime: {
     type: Date,
   },
-  
+
   // Pause/Resume Tracking
   pauseHistory: [{
     pausedAt: {
@@ -238,6 +244,7 @@ printJobSchema.index({ 'payment.razorpayOrderId': 1 });
 printJobSchema.index({ 'payment.status': 1 });
 printJobSchema.index({ status: 1, createdAt: -1 });
 printJobSchema.index({ queuePosition: 1 });
+printJobSchema.index({ priority: -1, createdAt: 1 });
 
 // Pre-save middleware to calculate total cost
 printJobSchema.pre('save', function (next) {
