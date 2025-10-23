@@ -31,7 +31,7 @@ export function AdminHeader() {
       <div className="container flex h-14 items-center justify-between">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-            <button 
+            <button
               className="text-lg font-semibold tracking-tight text-blue-600 dark:text-blue-400 cursor-pointer hover:opacity-80 bg-transparent border-none flex items-center gap-2"
               onClick={() => navigate("/admin")}
               aria-label="Go to Admin Dashboard"
@@ -59,14 +59,9 @@ export function AdminHeader() {
                   variant={isActive ? "default" : "ghost"}
                   size="sm"
                   onClick={handleClick}
-                  className={`flex items-center gap-2 transition-colors !outline-none !ring-0 focus:!outline-none focus:!ring-blue-500 focus:!ring-2 focus:!ring-offset-2 active:!bg-blue-700 active:!outline-none border-0 focus:border-0 active:border-0 ${
-                    isActive 
-                      ? "bg-blue-600 text-white hover:bg-blue-700 focus:bg-blue-700" 
+                  className={`flex items-center gap-2 transition-colors !outline-none !ring-0 focus:!outline-none focus:!ring-blue-500 focus:!ring-2 focus:!ring-offset-2 active:!bg-blue-700 active:!outline-none border-0 focus:border-0 active:border-0 ${isActive
+                      ? "bg-blue-600 text-white hover:bg-blue-700 focus:bg-blue-700"
                       : "hover:bg-blue-100 text-blue-700 focus:bg-blue-100 active:bg-blue-200"
-                  }`}
-                  className={`flex items-center gap-2 transition-colors !outline-none !ring-0 focus:!outline-none focus:!ring-red-500 focus:!ring-2 focus:!ring-offset-2 active:!bg-red-700 active:!outline-none border-0 focus:border-0 active:border-0 ${isActive
-                      ? "bg-red-600 text-white hover:bg-red-700 focus:bg-red-700"
-                      : "hover:bg-red-100 text-red-700 focus:bg-red-100 active:bg-red-200"
                     }`}
                   style={{ outline: 'none', border: 'none' }}
                 >
