@@ -89,7 +89,7 @@ export default function PrinterManagement() {
   const refreshData = () => {
     // Force a small delay then reload to ensure data is fresh
     setTimeout(() => {
-      globalThis.location.reload();
+      window.location.reload();
     }, 500);
   };
 
@@ -130,29 +130,13 @@ export default function PrinterManagement() {
       } else {
         throw new Error(result.error?.message || 'Failed to update printer status');
       }
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('Error toggling printer status:', error);
-      
-      // Type guard for Axios error with our custom error structure
-      const isAxiosError = (err: unknown): err is { response?: { data?: { error?: { code?: string; activeErrorCount?: number } } } } => {
-        return typeof err === 'object' && err !== null && 'response' in err;
-      };
-      
-      // Check if it's the ACTIVE_ERRORS_EXIST error
-      if (isAxiosError(error) && error.response?.data?.error?.code === 'ACTIVE_ERRORS_EXIST') {
-        const errorCount = error.response.data.error.activeErrorCount || 0;
-        toast({
-          title: "Cannot Set Printer Online",
-          description: `This printer has ${errorCount} active error${errorCount === 1 ? '' : 's'}. Please resolve all errors before setting it online.`,
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to update printer status",
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update printer status",
+        variant: "destructive"
+      });
     } finally {
       setTogglingPrinter(null);
     }

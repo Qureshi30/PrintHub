@@ -2,9 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { useAuth } from "@clerk/clerk-react";
-import { apiClient } from "@/lib/apiClient";
+import { useState } from "react";
 import { useAdminStats } from "@/hooks/useDatabase";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AdminMobileHeader } from "@/components/admin/AdminMobileHeader";
@@ -15,56 +13,15 @@ import {
   FileText, 
   DollarSign, 
   BarChart3,
-  AlertTriangle,
-  AlertCircle,
-  Info,
-  CheckCircle,
-  ArrowRight
+  Settings,
+  AlertTriangle
 } from "lucide-react";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { getToken } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [recentErrors, setRecentErrors] = useState<Array<{
-    _id: string;
-    printerName: string;
-    errorType: string;
-    description: string;
-    status: string;
-    priority: 'urgent' | 'high' | 'medium' | 'low';
-    timestamp: string;
-    metadata?: { location?: string };
-  }>>([]);
-  const [errorsLoading, setErrorsLoading] = useState(true);
   const isMobile = useIsMobile();
   const { stats, loading, error } = useAdminStats();
-
-  // Fetch recent printer errors
-  useEffect(() => {
-    const fetchRecentErrors = async () => {
-      try {
-        const token = await getToken();
-        const response = await apiClient.get('/printer-errors/recent-activity', {
-          params: { limit: 10 },
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        
-        if (response.data.success) {
-          setRecentErrors(response.data.data);
-        }
-      } catch (error) {
-        console.error('Error fetching recent errors:', error);
-      } finally {
-        setErrorsLoading(false);
-      }
-    };
-
-    fetchRecentErrors();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchRecentErrors, 30000);
-    return () => clearInterval(interval);
-  }, [getToken]);
 
   // Default stats to prevent errors
   const defaultStats = {
@@ -80,21 +37,6 @@ export default function AdminDashboard() {
   };
 
   const displayStats = stats || defaultStats;
-
-  // Helper function to format time ago
-  const getTimeAgo = (dateString: string) => {
-    const now = new Date();
-    const date = new Date(dateString);
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
-    if (seconds < 60) return `${seconds} second${seconds === 1 ? '' : 's'} ago`;
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
-    const days = Math.floor(hours / 24);
-    return `${days} day${days === 1 ? '' : 's'} ago`;
-  };
 
   if (loading) {
     return (
@@ -115,7 +57,7 @@ export default function AdminDashboard() {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <p className="text-red-600">Error loading dashboard: {error}</p>
-            <Button onClick={() => globalThis.location.reload()} className="mt-2">
+            <Button onClick={() => window.location.reload()} className="mt-2">
               Retry
             </Button>
           </div>
@@ -351,77 +293,35 @@ export default function AdminDashboard() {
 
       {/* Recent Activity */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle>Recent System Activity</CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/admin/error-logs')}
-            className="text-blue-600 hover:text-blue-700"
-          >
-            View All Errors
-            <ArrowRight className="h-4 w-4 ml-1" />
-          </Button>
         </CardHeader>
         <CardContent>
-          {errorsLoading && (
-            <div className="text-center py-4 text-muted-foreground">
-              Loading recent activity...
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-green-500 dark:bg-green-400 rounded-full"></div>
+                <span className="text-sm text-green-800 dark:text-green-200">Printer "Library-A4-01" came online</span>
+              </div>
+              <span className="text-xs text-muted-foreground">2 minutes ago</span>
             </div>
-          )}
-          
-          {!errorsLoading && recentErrors.length === 0 && (
-            <div className="text-center py-4 text-muted-foreground flex flex-col items-center gap-2">
-              <CheckCircle className="h-8 w-8 text-green-500" />
-              <p>No active system alerts</p>
-              <p className="text-xs">All systems operational</p>
+            
+            <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full"></div>
+                <span className="text-sm text-blue-800 dark:text-blue-200">New user registration: john.doe@university.edu</span>
+              </div>
+              <span className="text-xs text-muted-foreground">5 minutes ago</span>
             </div>
-          )}
-          
-          {!errorsLoading && recentErrors.length > 0 && (
-            <div className="space-y-3">
-              {recentErrors.slice(0, 5).map((error) => {
-                const priorityConfig = {
-                  urgent: { bg: 'bg-red-50 dark:bg-red-950/30', dot: 'bg-red-500 dark:bg-red-400', text: 'text-red-800 dark:text-red-200', icon: AlertCircle },
-                  high: { bg: 'bg-orange-50 dark:bg-orange-950/30', dot: 'bg-orange-500 dark:bg-orange-400', text: 'text-orange-800 dark:text-orange-200', icon: AlertTriangle },
-                  medium: { bg: 'bg-yellow-50 dark:bg-yellow-950/30', dot: 'bg-yellow-500 dark:bg-yellow-400', text: 'text-yellow-800 dark:text-yellow-200', icon: AlertTriangle },
-                  low: { bg: 'bg-blue-50 dark:bg-blue-950/30', dot: 'bg-blue-500 dark:bg-blue-400', text: 'text-blue-800 dark:text-blue-200', icon: Info }
-                };
-                
-                const config = priorityConfig[error.priority];
-                const Icon = config.icon;
-                const timeAgo = getTimeAgo(error.timestamp);
-                
-                // Badge for status
-                const statusBadge = error.status === 'unresolved' ? 
-                  <Badge className="bg-red-100 text-red-800 text-xs">Unresolved</Badge> : 
-                  <Badge className="bg-yellow-100 text-yellow-800 text-xs">In Progress</Badge>;
-                
-                return (
-                  <div key={error._id} className={`flex items-start justify-between p-3 ${config.bg} rounded-lg`}>
-                    <div className="flex items-start gap-3 flex-1">
-                      <Icon className={`h-4 w-4 ${config.text} mt-0.5 flex-shrink-0`} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className={`text-sm font-medium ${config.text}`}>
-                            {error.errorType}: {error.printerName}
-                          </p>
-                          {statusBadge}
-                        </div>
-                        <p className={`text-xs ${config.text} opacity-80 mt-0.5`}>{error.description}</p>
-                        {error.metadata?.location && (
-                          <p className={`text-xs ${config.text} opacity-60 mt-1`}>
-                            📍 {error.metadata.location}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">{timeAgo}</span>
-                  </div>
-                );
-              })}
+            
+            <div className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-yellow-500 dark:bg-yellow-400 rounded-full"></div>
+                <span className="text-sm text-yellow-800 dark:text-yellow-200">Paper low warning: Computer Lab 1</span>
+              </div>
+              <span className="text-xs text-muted-foreground">12 minutes ago</span>
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
     </div>
