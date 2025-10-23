@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const { body, param, query, validationResult } = require('express-validator');
-const { requireAuth, requireAdmin, validateUserAccess } = require('../middleware/authMiddleware');
+const { requireAuth, requireAdmin, requireStaff, validateUserAccess } = require('../middleware/authMiddleware');
 const PrintJob = require('../models/PrintJob');
 const Printer = require('../models/Printer');
 const User = require('../models/User');
@@ -47,6 +47,17 @@ router.post('/',
     try {
       const { clerkUserId, printerId, file, settings = {}, notes } = req.body;
 
+      // Block admin users from uploading files
+      if (req.user?.role === 'admin') {
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: 'Admin users cannot upload files. Only staff members can upload.',
+            code: 'ADMIN_UPLOAD_FORBIDDEN'
+          }
+        });
+      }
+
       // Verify user can create jobs for this clerkUserId
       if (req.auth.userId !== clerkUserId && req.user?.role !== 'admin') {
         return res.status(403).json({
@@ -80,6 +91,9 @@ router.post('/',
         });
       }
 
+      // Determine priority based on user role
+      const priority = req.user?.role === 'staff' ? 'high' : 'normal';
+
       // Create print job
       const printJob = new PrintJob({
         clerkUserId,
@@ -92,6 +106,7 @@ router.post('/',
           duplex: settings.duplex || false,
           paperType: settings.paperType || 'A4'
         },
+        priority, // Set priority based on user role
         notes,
         status: 'pending'
       });
@@ -105,7 +120,7 @@ router.post('/',
       // Add to print queue using QueueManager
       let queuePosition = null;
       let queueError = null;
-      
+
       try {
         const queueItem = await QueueManager.enqueue(printJob._id);
         queuePosition = queueItem.position;
@@ -137,10 +152,10 @@ router.post('/',
 
       // Create notification (with timeout and error handling)
       try {
-        const queueMessage = queuePosition 
+        const queueMessage = queuePosition
           ? `Your print job for "${file.originalName}" has been added to the queue at position ${queuePosition}`
           : `Your print job for "${file.originalName}" has been added to the queue`;
-          
+
         await Notification.createNotification({
           clerkUserId,
           jobId: printJob._id,
@@ -176,17 +191,17 @@ router.post('/',
             queueError: queueError
           }
         },
-        message: queuePosition 
+        message: queuePosition
           ? `Print job created and added to queue at position ${queuePosition}`
           : 'Print job created (queue addition failed)'
       });
     } catch (error) {
       console.error('❌ Create print job error:', error);
-      
+
       // Handle MongoDB connection errors
-      if (error.name === 'MongoTimeoutError' || error.name === 'MongoNetworkError' || 
-          error.message.includes('buffering timed out') || error.message.includes('ENOTFOUND') ||
-          error.message.includes('connection')) {
+      if (error.name === 'MongoTimeoutError' || error.name === 'MongoNetworkError' ||
+        error.message.includes('buffering timed out') || error.message.includes('ENOTFOUND') ||
+        error.message.includes('connection')) {
         return res.status(503).json({
           success: false,
           error: {
@@ -195,7 +210,7 @@ router.post('/',
           }
         });
       }
-      
+
       res.status(500).json({
         success: false,
         error: {
@@ -231,7 +246,7 @@ router.get('/user/:clerkUserId',
       const [jobs, total] = await Promise.all([
         PrintJob.find(filter)
           .populate('printerId', 'name location status')
-          .sort({ createdAt: -1 })
+          .sort({ priority: -1, createdAt: 1 })
           .skip(skip)
           .limit(parseInt(limit)),
         PrintJob.countDocuments(filter)
@@ -476,7 +491,7 @@ router.get('/',
       const [jobs, total] = await Promise.all([
         PrintJob.find(filter)
           .populate('printerId', 'name location status')
-          .sort({ createdAt: -1 })
+          .sort({ priority: -1, createdAt: 1 })
           .skip(skip)
           .limit(parseInt(limit)),
         PrintJob.countDocuments(filter)
