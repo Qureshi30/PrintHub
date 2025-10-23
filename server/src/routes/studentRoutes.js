@@ -14,44 +14,44 @@ router.get('/dashboard-stats', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     console.log(`📊 Student dashboard stats requested by: ${req.user.fullName} (${req.user.email})`);
-// Get real stats from database
-const [pendingJobs, completedJobs, totalSpentResult, availablePrintersCount] = await Promise.all([
-  // Count pending jobs for this user
-  PrintJob.countDocuments({ 
-    clerkUserId: userId, 
-    status: { $in: ['pending', 'queued', 'printing', 'payment_verified'] } 
-  }),
+    // Get real stats from database
+    const [pendingJobs, completedJobs, totalSpentResult, availablePrintersCount] = await Promise.all([
+      // Count pending jobs for this user
+      PrintJob.countDocuments({
+        clerkUserId: userId,
+        status: { $in: ['pending', 'queued', 'printing', 'payment_verified'] }
+      }),
 
-  // Count completed jobs for this user
-  PrintJob.countDocuments({ 
-    clerkUserId: userId, 
-    status: 'completed' 
-  }),
+      // Count completed jobs for this user
+      PrintJob.countDocuments({
+        clerkUserId: userId,
+        status: 'completed'
+      }),
 
-  // Calculate total money spent by this user from Revenue collection
-  Revenue.aggregate([
-    { 
-      $match: { 
-        clerkUserId: userId
-      } 
-    },
-    { 
-      $group: { 
-        _id: null, 
-        totalSpent: { $sum: '$price' } 
-      } 
-    }
-  ]),
+      // Calculate total money spent by this user from Revenue collection
+      Revenue.aggregate([
+        {
+          $match: {
+            clerkUserId: userId
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalSpent: { $sum: '$price' }
+          }
+        }
+      ]),
 
-  // Count available (online & active) printers
-  Printer.countDocuments({ 
-    status: 'online', 
-    isActive: true 
-  })
-]);
+      // Count available (online & active) printers
+      Printer.countDocuments({
+        status: 'online',
+        isActive: true
+      })
+    ]);
 
-// Extract total spent value safely from Revenue collection
-const totalSpent = totalSpentResult[0]?.totalSpent || 0;
+    // Extract total spent value safely from Revenue collection
+    const totalSpent = totalSpentResult[0]?.totalSpent || 0;
     const stats = {
       pendingJobs,
       completedJobs,
@@ -120,7 +120,7 @@ router.get('/print-jobs', requireAuth, async (req, res) => {
 
     const printJobs = await PrintJob.find({ clerkUserId: userId })
       .populate('printerId', 'name location')
-      .sort({ createdAt: -1 });
+      .sort({ priority: -1, createdAt: 1 });
 
     console.log(`✅ Found ${printJobs.length} print jobs for student: ${userId}`);
 

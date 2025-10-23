@@ -31,13 +31,13 @@ const validateRequest = (req, res, next) => {
  * @access  Admin only
  */
 router.post('/create-user',
+  requireAdmin,
   [
     body('firstName').trim().notEmpty().withMessage('First name is required'),
     body('lastName').trim().notEmpty().withMessage('Last name is required'),
     body('email').isEmail().withMessage('Valid email is required'),
     body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
-    body('role').isIn(['admin', 'staff', 'student']).withMessage('Invalid role'),
-    requireAdmin
+    body('role').isIn(['admin', 'staff', 'student']).withMessage('Invalid role')
   ],
   validateRequest,
   async (req, res) => {
@@ -46,19 +46,21 @@ router.post('/create-user',
 
       console.log(`👤 Admin ${req.user?.fullName || 'Unknown'} creating new ${role} user: ${email}`);
 
-      // Create user in Clerk
+      // Create user in Clerk using SDK v5 format
+      // Reference: https://clerk.com/docs/references/backend/user/create-user
       const clerkUser = await clerkClient.users.createUser({
         firstName,
         lastName,
         emailAddress: [email],
         password,
         publicMetadata: {
-          role: role
+          role
         },
         privateMetadata: {
           createdBy: req.user.id,
           createdAt: new Date().toISOString()
-        }
+        },
+        skipPasswordChecks: true
       });
 
       // Create user record in our database
@@ -96,14 +98,23 @@ router.post('/create-user',
     } catch (error) {
       console.error('❌ Create user error:', error);
 
+      // Log detailed Clerk error information
+      if (error.clerkError && error.errors) {
+        console.error('Clerk Error Details:', JSON.stringify(error.errors, null, 2));
+        if (error.errors[0]?.meta) {
+          console.error('Error Meta:', JSON.stringify(error.errors[0].meta, null, 2));
+        }
+      }
+
       // Handle Clerk-specific errors
       if (error.errors && error.errors[0]) {
         const clerkError = error.errors[0];
         return res.status(400).json({
           success: false,
           error: {
-            message: clerkError.message || 'User creation failed',
-            code: clerkError.code || 'CREATE_USER_ERROR'
+            message: clerkError.longMessage || clerkError.message || 'User creation failed',
+            code: clerkError.code || 'CREATE_USER_ERROR',
+            details: error.errors
           }
         });
       }
@@ -111,7 +122,7 @@ router.post('/create-user',
       res.status(500).json({
         success: false,
         error: {
-          message: 'Failed to create user',
+          message: error.message || 'Failed to create user',
           code: 'CREATE_USER_ERROR'
         }
       });
@@ -344,9 +355,9 @@ router.get('/overview', requireAuth, requireAdmin, async (req, res) => {
 router.get('/dashboard-stats', requireAuth, requireAdmin, async (req, res) => {
   try {
     // Fetch actual stats from database
-    
+
     // Count active students (users with role 'student' and status 'active')
-    const activeStudents = await User.countDocuments({ 
+    const activeStudents = await User.countDocuments({
       role: 'student',
       status: 'active'
     });
@@ -364,16 +375,16 @@ router.get('/dashboard-stats', requireAuth, requireAdmin, async (req, res) => {
 
     // Calculate revenue today
     const revenueTodayResult = await Revenue.aggregate([
-      { 
-        $match: { 
-          createdAt: { $gte: startOfDay, $lte: endOfDay } 
-        } 
+      {
+        $match: {
+          createdAt: { $gte: startOfDay, $lte: endOfDay }
+        }
       },
-      { 
-        $group: { 
-          _id: null, 
-          total: { $sum: '$price' } 
-        } 
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$price' }
+        }
       }
     ]);
     const revenueToday = revenueTodayResult.length > 0 ? revenueTodayResult[0].total : 0;
@@ -479,11 +490,11 @@ router.get('/analytics', requireAuth, requireAdmin, async (req, res) => {
     // Printer Usage Statistics
     const printerUsageAgg = await PrintJob.aggregate([
       { $match: { status: 'completed' } },
-      { 
-        $group: { 
+      {
+        $group: {
           _id: '$printerId',
           jobCount: { $sum: 1 }
-        } 
+        }
       },
       {
         $lookup: {
@@ -518,11 +529,11 @@ router.get('/analytics', requireAuth, requireAdmin, async (req, res) => {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     const dailyJobsAgg = await PrintJob.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           status: 'completed',
           createdAt: { $gte: sevenDaysAgo }
-        } 
+        }
       },
       {
         $group: {
@@ -534,10 +545,10 @@ router.get('/analytics', requireAuth, requireAdmin, async (req, res) => {
     ]);
 
     const dailyRevenueAgg = await Revenue.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           paidAt: { $gte: sevenDaysAgo }
-        } 
+        }
       },
       {
         $group: {

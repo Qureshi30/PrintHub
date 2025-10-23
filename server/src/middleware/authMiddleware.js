@@ -33,13 +33,13 @@ const requireAuth = async (req, res, next) => {
           fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
           metadata: user.publicMetadata
         };
-        
-        console.log('👤 User loaded:', { 
-          id: req.user.id, 
-          role: req.user.role, 
-          email: req.user.email 
+
+        console.log('👤 User loaded:', {
+          id: req.user.id,
+          role: req.user.role,
+          email: req.user.email
         });
-        
+
         next();
       } catch (userError) {
         console.error('❌ Failed to fetch user from Clerk:', userError);
@@ -95,10 +95,74 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-// Validate user access middleware - users can access their own data, admins can access any
+// Staff-only middleware that verifies staff role
+const requireStaff = async (req, res, next) => {
+  try {
+    // First ensure user is authenticated
+    await requireAuth(req, res, () => {
+      // Check if user has staff role
+      if (req.user?.role !== 'staff') {
+        console.log(`❌ Access denied: User ${req.user?.id} has role "${req.user?.role}" but "staff" required`);
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: 'Staff access required. Only staff members can upload files.',
+            code: 'STAFF_REQUIRED'
+          }
+        });
+      }
+
+      console.log(`✅ Staff access granted for user: ${req.user.id}`);
+      next();
+    });
+  } catch (error) {
+    console.error('❌ Staff auth error:', error);
+    res.status(403).json({
+      success: false,
+      error: {
+        message: 'Staff access required',
+        code: 'STAFF_REQUIRED'
+      }
+    });
+  }
+};
+
+// Staff or Admin middleware - allows both staff and admin roles
+const requireStaffOrAdmin = async (req, res, next) => {
+  try {
+    // First ensure user is authenticated
+    await requireAuth(req, res, () => {
+      // Check if user has staff or admin role
+      if (req.user?.role !== 'staff' && req.user?.role !== 'admin') {
+        console.log(`❌ Access denied: User ${req.user?.id} has role "${req.user?.role}" but "staff" or "admin" required`);
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: 'Staff or admin access required',
+            code: 'STAFF_OR_ADMIN_REQUIRED'
+          }
+        });
+      }
+
+      console.log(`✅ Staff/Admin access granted for user: ${req.user.id}`);
+      next();
+    });
+  } catch (error) {
+    console.error('❌ Staff/Admin auth error:', error);
+    res.status(403).json({
+      success: false,
+      error: {
+        message: 'Staff or admin access required',
+        code: 'STAFF_OR_ADMIN_REQUIRED'
+      }
+    });
+  }
+};
+
+// Validate user access middleware - users can access their own data, unless they're admin
 const validateUserAccess = (req, res, next) => {
   const { clerkUserId } = req.params;
-  
+
   // Users can only access their own data, unless they're admin
   if (req.user?.id !== clerkUserId && req.user?.role !== 'admin') {
     console.log(`❌ Access denied: User ${req.user?.id} tried to access data for ${clerkUserId}`);
@@ -118,5 +182,7 @@ const validateUserAccess = (req, res, next) => {
 module.exports = {
   requireAuth,
   requireAdmin,
+  requireStaff,
+  requireStaffOrAdmin,
   validateUserAccess,
 };

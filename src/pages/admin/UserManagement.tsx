@@ -61,7 +61,7 @@ export default function UserManagement() {
       required: true
     },
     {
-      id: 'lastName', 
+      id: 'lastName',
       label: 'Last Name',
       type: 'text' as const,
       placeholder: 'Enter last name',
@@ -119,6 +119,14 @@ export default function UserManagement() {
       // Get authentication token
       const token = await getToken();
 
+      console.log('Creating user with data:', {
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email,
+        role: newUser.role,
+        passwordLength: newUser.password.length
+      });
+
       // Create user via your backend endpoint that will use Clerk Admin API
       const response = await apiClient.post('/admin/create-user', {
         firstName: newUser.firstName,
@@ -155,12 +163,37 @@ export default function UserManagement() {
       } else {
         throw new Error(result.error?.message || 'Failed to create user');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating user:', error);
+
+      // Log the full error response for debugging
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+      }
 
       let errorMessage = "An unexpected error occurred.";
 
-      if (error instanceof Error) {
+      // Check if it's an Axios error with response data
+      if (error.response?.data?.error) {
+        const serverError = error.response.data.error;
+
+        // Check for validation errors
+        if (serverError.details && Array.isArray(serverError.details)) {
+          // Check for specific error codes
+          const emailExistsError = serverError.details.find(
+            (d: any) => d.code === 'form_identifier_exists'
+          );
+
+          if (emailExistsError) {
+            errorMessage = "This email address is already registered. Please use a different email.";
+          } else {
+            errorMessage = serverError.details.map((d: any) => d.message || d.msg).join(', ');
+          }
+        } else {
+          errorMessage = serverError.message || "An unexpected error occurred.";
+        }
+      } else if (error instanceof Error) {
         if (error.message.includes("Password has been found in an online data breach")) {
           errorMessage = "Password is too weak or has been compromised. Please use a stronger, unique password.";
         } else if (error.message.includes("email")) {
@@ -277,7 +310,7 @@ export default function UserManagement() {
     return (
       <div className="min-h-screen bg-background">
         <AdminMobileSidebar open={isSidebarOpen} onOpenChange={setIsSidebarOpen} />
-        
+
         <AdminMobileHeader
           title="User Management"
           subtitle={`${userList.length} total users`}
@@ -307,19 +340,19 @@ export default function UserManagement() {
 
           {/* User Statistics Cards */}
           <div className="grid grid-cols-3 gap-3">
-            <AdminMobileCard padding="sm">
+            <AdminMobileCard key="admin-stats" padding="sm">
               <div className="text-center">
                 <div className="text-lg font-bold text-red-600 dark:text-red-400">{userList.filter(u => u.role === 'admin').length}</div>
                 <div className="text-xs text-muted-foreground">Admins</div>
               </div>
             </AdminMobileCard>
-            <AdminMobileCard padding="sm">
+            <AdminMobileCard key="staff-stats" padding="sm">
               <div className="text-center">
                 <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{userList.filter(u => u.role === 'staff').length}</div>
                 <div className="text-xs text-muted-foreground">Staff</div>
               </div>
             </AdminMobileCard>
-            <AdminMobileCard padding="sm">
+            <AdminMobileCard key="student-stats" padding="sm">
               <div className="text-center">
                 <div className="text-lg font-bold text-green-600 dark:text-green-400">{userList.filter(u => u.role === 'student').length}</div>
                 <div className="text-xs text-muted-foreground">Students</div>
@@ -349,7 +382,7 @@ export default function UserManagement() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-foreground truncate">
-                          {user.fullName || (user.firstName && user.lastName 
+                          {user.fullName || (user.firstName && user.lastName
                             ? `${user.firstName} ${user.lastName}`
                             : `User ${user.clerkUserId.substring(0, 8)}`)}
                         </div>
@@ -384,6 +417,12 @@ export default function UserManagement() {
         {/* Mobile Add User Dialog */}
         <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
           <DialogContent className="w-[95vw] max-w-md mx-auto">
+            <DialogHeader>
+              <DialogTitle>Add New User</DialogTitle>
+              <DialogDescription>
+                Create a new user account. Fill in the details below.
+              </DialogDescription>
+            </DialogHeader>
             <AdminMobileForm
               title="Add New User"
               fields={mobileFormFields}
@@ -399,14 +438,13 @@ export default function UserManagement() {
         {/* Mobile Delete Confirmation */}
         <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <DialogContent className="w-[95vw] max-w-md mx-auto">
+            <DialogHeader>
+              <DialogTitle>Delete User</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this user? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
             <div className="space-y-4">
-              <div className="text-center">
-                <h2 className="text-xl font-bold text-foreground">Delete User</h2>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Are you sure you want to delete this user? This action cannot be undone.
-                </p>
-              </div>
-              
               {userToDelete && (
                 <AdminMobileCard className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
                   <div className="flex items-center gap-3">
@@ -654,7 +692,7 @@ export default function UserManagement() {
                   </div>
                   <div>
                     <div className="font-medium">
-                      {user.fullName || (user.firstName && user.lastName 
+                      {user.fullName || (user.firstName && user.lastName
                         ? `${user.firstName} ${user.lastName}`
                         : `User ${user.clerkUserId.substring(0, 8)}`)}
                     </div>
@@ -678,9 +716,9 @@ export default function UserManagement() {
                   {getRoleBadge(user.role)}
 
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       onClick={() => openDeleteDialog(user)}
                     >
@@ -728,8 +766,8 @@ export default function UserManagement() {
             </div>
           )}
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setIsDeleteDialogOpen(false);
                 setUserToDelete(null);
@@ -738,8 +776,8 @@ export default function UserManagement() {
             >
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={handleDeleteUser}
               disabled={isDeletingUser}
             >
