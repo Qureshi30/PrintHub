@@ -36,17 +36,17 @@ interface FileSettings {
 
 export default function PrintSettings() {
   const navigate = useNavigate();
-  const { files, updateFileSettings: updateContextFileSettings } = usePrintJobContext();
+  const { files, settings: contextSettings, updateFileSettings: updateContextFileSettings } = usePrintJobContext();
   const [activeTab, setActiveTab] = useState<string>("");
   const [showSpecialPaperAlert, setShowSpecialPaperAlert] = useState(false);
   const [specialPaperType, setSpecialPaperType] = useState<"A3" | "certificate" | "photo" | "cardstock">("A3");
-  const [expandedSections, setExpandedSections] = useState<{[key: string]: boolean}>({});
+  const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({});
   const isMobile = useIsMobile();
-  
+
   // Get selected files from flow context
   const selectedFiles = files || [];
 
-  // Initialize settings for each file
+  // Initialize settings for each file - load from context if available
   const [fileSettings, setFileSettings] = useState<FileSettings>(() => {
     const defaultSettings: PrintSettings = {
       pageRange: "all",
@@ -56,12 +56,26 @@ export default function PrintSettings() {
       paperSize: "A4",
       paperType: "regular"
     };
-    
+
     const initialSettings: FileSettings = {};
     selectedFiles.forEach(file => {
-      initialSettings[file.id] = { ...defaultSettings };
+      // Load from context if available, otherwise use defaults
+      const savedSettings = contextSettings[file.id];
+      if (savedSettings) {
+        initialSettings[file.id] = {
+          pageRange: savedSettings.pages === 'all' ? 'all' : (savedSettings.pages === '1' ? 'current' : 'custom'),
+          customPages: savedSettings.pages !== 'all' && savedSettings.pages !== '1' ? savedSettings.pages : undefined,
+          colorMode: savedSettings.color ? 'color' : 'blackwhite',
+          duplex: savedSettings.duplex ? 'double' : 'single',
+          copies: savedSettings.copies || 1,
+          paperSize: savedSettings.paperType || 'A4',
+          paperType: 'regular'
+        };
+      } else {
+        initialSettings[file.id] = { ...defaultSettings };
+      }
     });
-    
+
     return initialSettings;
   });
 
@@ -106,13 +120,13 @@ export default function PrintSettings() {
     setFileSettings(prev => {
       const currentSettings = prev[fileId];
       const updatedSettings = { ...currentSettings, ...newSettings };
-      
+
       return {
         ...prev,
         [fileId]: updatedSettings
       };
     });
-    
+
     // Update global context - convert string values to proper types
     let pageValue: string;
     if (newSettings.pageRange === 'custom' && newSettings.customPages) {
@@ -122,7 +136,7 @@ export default function PrintSettings() {
     } else {
       pageValue = 'all';
     }
-    
+
     const contextSettings = {
       pages: pageValue,
       copies: newSettings.copies,
@@ -149,11 +163,9 @@ export default function PrintSettings() {
     const settings = fileSettings[fileId];
     if (!file || !settings) return { perPage: 0, total: 0, pages: 0 };
 
-    // INR pricing: ₹1 per page for all types
-    const baseCosts = {
-      blackwhite: { regular: 1.00, photo: 1.00, cardstock: 1.00, transparency: 1.00 },
-      color: { regular: 1.00, photo: 1.00, cardstock: 1.00, transparency: 1.00 }
-    };
+    // INR pricing: ₹2 per page for B&W, ₹5 per page for color
+    const BLACK_AND_WHITE_RATE = 2.00;
+    const COLOR_RATE = 5.00;
 
     const paperSizeMultiplier = {
       A4: 1.0,
@@ -195,11 +207,17 @@ export default function PrintSettings() {
         pagesToPrint = file.pages;
       }
     }
-    
-    const baseCost = baseCosts[settings.colorMode][settings.paperType as keyof typeof baseCosts.color];
+
+    // Determine base cost based on color mode
+    const baseCost = settings.colorMode === "color" ? COLOR_RATE : BLACK_AND_WHITE_RATE;
     const sizeMultiplier = paperSizeMultiplier[settings.paperSize as keyof typeof paperSizeMultiplier];
-    const totalCost = pagesToPrint * settings.copies * baseCost * sizeMultiplier;
-    
+    let totalCost = pagesToPrint * settings.copies * baseCost * sizeMultiplier;
+
+    // Apply duplex discount (10% off) if double-sided is enabled
+    if (settings.duplex === "double") {
+      totalCost = totalCost * 0.9; // 10% discount
+    }
+
     return {
       perPage: baseCost * sizeMultiplier,
       total: totalCost,
@@ -220,8 +238,8 @@ export default function PrintSettings() {
 
   return (
     <ProtectedRoute>
-      <MobileHeader 
-        title="Print Settings" 
+      <MobileHeader
+        title="Print Settings"
         showBackButton={true}
         backTo="/upload"
         rightAction={
@@ -230,11 +248,11 @@ export default function PrintSettings() {
           </Badge>
         }
       />
-      
+
       <div className={`${isMobile ? 'pb-24' : ''} container mx-auto py-8 px-4`}>
         <div className="max-w-6xl mx-auto space-y-6">
           {!isMobile && <PrintFlowBreadcrumb currentStep="/student/print-settings" />}
-          
+
           <div className={`text-center space-y-2 ${isMobile ? 'px-4' : ''}`}>
             <h1 className={`font-bold tracking-tight text-blue-600 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>
               Configure Print Settings
@@ -265,8 +283,8 @@ export default function PrintSettings() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className={`${isMobile ? 'w-full h-auto flex-col space-y-1' : 'grid grid-cols-2 lg:grid-cols-3'}`}>
               {selectedFiles.map((file) => (
-                <TabsTrigger 
-                  key={file.id} 
+                <TabsTrigger
+                  key={file.id}
                   value={file.id}
                   className={`${isMobile ? 'w-full justify-start' : ''} flex items-center gap-2`}
                 >
@@ -336,12 +354,12 @@ export default function PrintSettings() {
                                 <FileStack className="h-4 w-4" />
                                 Page Settings
                               </h4>
-                              
+
                               <div className="space-y-3">
                                 <div>
                                   <Label htmlFor="pageRange">Page Range</Label>
-                                  <Select 
-                                    value={settings.pageRange} 
+                                  <Select
+                                    value={settings.pageRange}
                                     onValueChange={(value) => updateFileSettings(file.id, { pageRange: value })}
                                   >
                                     <SelectTrigger className={isMobile ? 'h-12' : ''}>
@@ -354,15 +372,15 @@ export default function PrintSettings() {
                                     </SelectContent>
                                   </Select>
                                   {settings.pageRange === "custom" && (
-                                    <Input 
-                                      placeholder="e.g., 1-5, 8, 10-12" 
+                                    <Input
+                                      placeholder="e.g., 1-5, 8, 10-12"
                                       className={`mt-2 ${isMobile ? 'h-12' : ''}`}
                                       value={settings.customPages || ""}
                                       onChange={(e) => updateFileSettings(file.id, { customPages: e.target.value })}
                                     />
                                   )}
                                 </div>
-                                
+
                                 <div>
                                   <Label htmlFor="copies">Number of Copies</Label>
                                   <Input
@@ -384,12 +402,12 @@ export default function PrintSettings() {
                                 <Palette className="h-4 w-4" />
                                 Print Quality
                               </h4>
-                              
+
                               <div className="space-y-3">
                                 <div>
                                   <Label htmlFor="colorMode">Color Mode</Label>
-                                  <Select 
-                                    value={settings.colorMode} 
+                                  <Select
+                                    value={settings.colorMode}
                                     onValueChange={(value: "color" | "blackwhite") => updateFileSettings(file.id, { colorMode: value })}
                                   >
                                     <SelectTrigger className={isMobile ? 'h-12' : ''}>
@@ -401,7 +419,7 @@ export default function PrintSettings() {
                                     </SelectContent>
                                   </Select>
                                 </div>
-                                
+
                                 <div className="flex items-center justify-between">
                                   <Label htmlFor="duplex">Double-sided</Label>
                                   <Switch
@@ -419,12 +437,12 @@ export default function PrintSettings() {
                                 <Printer className="h-4 w-4" />
                                 Paper Settings
                               </h4>
-                              
+
                               <div className="space-y-3">
                                 <div>
                                   <Label htmlFor="paperSize">Paper Size</Label>
-                                  <Select 
-                                    value={settings.paperSize} 
+                                  <Select
+                                    value={settings.paperSize}
                                     onValueChange={(value) => {
                                       updateFileSettings(file.id, { paperSize: value });
                                       if (value === "A3") {
@@ -444,11 +462,11 @@ export default function PrintSettings() {
                                     </SelectContent>
                                   </Select>
                                 </div>
-                                
+
                                 <div>
                                   <Label htmlFor="paperType">Paper Type</Label>
-                                  <Select 
-                                    value={settings.paperType} 
+                                  <Select
+                                    value={settings.paperType}
                                     onValueChange={(value) => {
                                       updateFileSettings(file.id, { paperType: value });
                                       // Check if special paper type is selected
@@ -491,7 +509,7 @@ export default function PrintSettings() {
                             <Calculator className="h-5 w-5" />
                             <h3 className="font-semibold">Cost Breakdown</h3>
                           </div>
-                          
+
                           <div className="space-y-2">
                             <div className="flex justify-between text-sm">
                               <span>Pages to print:</span>

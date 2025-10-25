@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -75,26 +75,64 @@ export default function Payment() {
     },
   });
 
+  // Log payment context on mount and when it changes
+  useEffect(() => {
+    console.log('🔄 PAYMENT - Component mounted/payment changed');
+    console.log('🔄 PAYMENT - Current payment:', payment);
+    console.log('🔄 PAYMENT - Files:', files);
+    console.log('🔄 PAYMENT - Settings:', settings);
+  }, [payment, files, settings]);
 
 
   // Calculate total cost from files and settings
   const calculateTotalCost = () => {
+    console.log('💰 PAYMENT - calculateTotalCost called');
+    console.log('💰 PAYMENT - payment context:', payment);
+    console.log('💰 PAYMENT - files:', files);
+    console.log('💰 PAYMENT - settings:', settings);
+
+    // Use backend-calculated total from payment context if available
+    if (payment?.totalCost) {
+      console.log('✅ PAYMENT - Using payment.totalCost:', payment.totalCost);
+      return payment.totalCost;
+    }
+
+    console.log('⚠️ PAYMENT - No payment.totalCost, calculating from files...');
+
+    // Fallback calculation if backend total not available
     let total = 0;
     files.forEach(file => {
       const fileSettings = settings[file.id];
+      console.log(`📄 PAYMENT - Processing file ${file.name}:`, {
+        hasSettings: !!fileSettings,
+        settings: fileSettings,
+        pages: file.pages
+      });
+
       if (fileSettings) {
-        const baseCost = 1.00; // ₹1.00 per page
-        const colorMultiplier = fileSettings.color ? 2 : 1;
-        const pages = file.pages;
-        const copies = fileSettings.copies;
-        total += baseCost * colorMultiplier * pages * copies;
+        const blackAndWhiteRate = 2.00; // ₹2.00 per page for B&W
+        const colorRate = 5.00; // ₹5.00 per page for color
+        const baseCost = fileSettings.color ? colorRate : blackAndWhiteRate;
+        const pages = file.pages || 1;
+        const copies = fileSettings.copies || 1;
+        const fileCost = baseCost * pages * copies;
+
+        console.log(`💵 PAYMENT - File cost: ${fileCost} (${baseCost}/page × ${pages} pages × ${copies} copies)`);
+        total += fileCost;
       }
     });
+
+    console.log('💰 PAYMENT - Total calculated:', total);
     return total;
   };
 
+  const calculatedAmount = calculateTotalCost();
+  const safeAmount = isNaN(calculatedAmount) || calculatedAmount === undefined ? 0 : calculatedAmount;
+
+  console.log('💰 PAYMENT - Final amount:', { calculatedAmount, safeAmount });
+
   const paymentInfo = {
-    amount: calculateTotalCost(),
+    amount: safeAmount,
     fileCount: files.length,
     totalPages: files.reduce((sum, file) => sum + file.pages, 0),
     printerName: selectedPrinter?.name || "Unknown Printer",

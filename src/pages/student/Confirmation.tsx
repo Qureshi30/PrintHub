@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,12 +14,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { MobileStepNavigation } from "@/components/mobile/MobileStepNavigation";
 import { MobileCard, MobileTouchButton } from "@/components/mobile/MobileComponents";
-import { 
-  FileText, 
-  Printer, 
-  CreditCard, 
-  Clock, 
-  CheckCircle, 
+import {
+  FileText,
+  Printer,
+  CreditCard,
+  Clock,
+  CheckCircle,
   AlertTriangle,
   Calendar,
   DollarSign,
@@ -61,15 +61,91 @@ interface JobSummary {
 
 export default function Confirmation() {
   const navigate = useNavigate();
-  const { files, settings, selectedPrinter, payment } = usePrintJobContext();
+  const { files, settings, selectedPrinter, payment, setPaymentInfo } = usePrintJobContext();
   const isMobile = useIsMobile();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifySMS, setNotifySMS] = useState(false);
 
   // Get the first file for display (assuming single file upload for now)
   const currentFile = files[0];
   const currentFileSettings = currentFile ? settings[currentFile.id] : null;
+
+  // Debug logging
+  console.log('🔍 CONFIRMATION PAGE - Debug:', {
+    hasFile: !!currentFile,
+    fileName: currentFile?.name,
+    hasSettings: !!currentFileSettings,
+    settings: currentFileSettings,
+    color: currentFileSettings?.color,
+    duplex: currentFileSettings?.duplex,
+    paperType: currentFileSettings?.paperType
+  });
+
+  // Calculate cost using backend pricing logic
+  // Calculate cost using backend pricing logic - recalculates when settings change
+  const calculatedCost = useMemo(() => {
+    if (!currentFile || !currentFileSettings) {
+      return { base: 0, color: 0, duplex: 0, paperSurcharge: 0, total: 0 };
+    }
+
+    const BLACK_AND_WHITE_RATE = 2.00; // ₹2.00 per page
+    const COLOR_RATE = 5.00; // ₹5.00 per page
+
+    // Paper type surcharges (per page)
+    const paperSurcharges: { [key: string]: number } = {
+      'A4': 0,
+      'A3': 3.00,
+      'Letter': 0.50,
+      'Legal': 1.00,
+      'Certificate': 5.00
+    };
+
+    const pages = currentFile.pages || 1;
+    const copies = currentFileSettings.copies || 1;
+    const isColor = currentFileSettings.color || false;
+    const isDuplex = currentFileSettings.duplex || false;
+    const paperType = currentFileSettings.paperType || 'A4';
+
+    console.log('📊 CONFIRMATION - Cost calculation inputs:', {
+      pages,
+      copies,
+      isColor,
+      isDuplex,
+      paperType
+    });
+
+    // Base printing cost
+    const baseRate = isColor ? COLOR_RATE : BLACK_AND_WHITE_RATE;
+    const baseCost = baseRate * pages * copies;
+
+    // Paper surcharge
+    const paperSurcharge = (paperSurcharges[paperType] || 0) * pages * copies;
+
+    // Total before duplex discount
+    let total = baseCost + paperSurcharge;
+
+    // Apply duplex discount (10% off)
+    const duplexDiscount = isDuplex ? total * 0.10 : 0;
+    total = total - duplexDiscount;
+
+    console.log('💰 CONFIRMATION - Calculated breakdown:', {
+      baseCost,
+      paperSurcharge,
+      subtotal: baseCost + paperSurcharge,
+      duplexDiscount,
+      total
+    });
+
+    return {
+      base: baseCost,
+      color: isColor ? baseCost : 0,
+      duplex: duplexDiscount,
+      paperSurcharge: paperSurcharge,
+      total: total
+    };
+  }, [currentFile, currentFileSettings]);
+
+  console.log('💰 CONFIRMATION PAGE - Calculated Cost:', calculatedCost);
 
   // Mock job summary data - replace with actual data from context
   const jobSummary: JobSummary = {
@@ -93,10 +169,10 @@ export default function Confirmation() {
       estimatedWait: selectedPrinter?.estimatedWait || 8
     },
     cost: {
-      base: payment?.breakdown?.baseCost || 0,
-      color: payment?.breakdown?.colorCost || 0,
-      duplex: 0, // Add duplex cost calculation if needed
-      total: payment?.totalCost || 0
+      base: calculatedCost.base,
+      color: calculatedCost.color,
+      duplex: calculatedCost.duplex,
+      total: calculatedCost.total
     },
     timing: {
       scheduledFor: "Now",
@@ -104,39 +180,43 @@ export default function Confirmation() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     // Prevent submission if no document is selected
-    if (jobSummary.file.pages === 0) {
+    if (jobSummary.file.pages === 0 || !currentFile) {
       navigate('/upload');
       return;
     }
 
-    setIsSubmitting(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setIsSubmitting(false);
-    
-    // Navigate to payment or queue based on cost
-    if (jobSummary.cost.total > 0) {
-      navigate("/payment");
-    } else {
-      navigate("/queue");
-    }
+    console.log('📤 CONFIRMATION - Submitting with cost:', calculatedCost);
+
+    // Store the calculated cost in payment context
+    setPaymentInfo({
+      method: 'upi', // Default method, will be updated on payment page
+      totalCost: calculatedCost.total,
+      breakdown: {
+        baseCost: calculatedCost.base,
+        colorCost: calculatedCost.color,
+        paperCost: calculatedCost.paperSurcharge
+      }
+    });
+
+    console.log('✅ CONFIRMATION - Navigating to payment page');
+
+    // Always navigate to payment when there's a file
+    navigate("/payment");
   };
 
   const getSubmitButtonText = () => {
-    if (isSubmitting) return "Submitting...";
     if (jobSummary.file.pages === 0) return "Upload Document First";
-    return jobSummary.cost.total > 0 ? "Submit Print Job & Pay" : "Submit Print Job";
+    // Always show pay button if file exists, cost will be calculated
+    return "Submit Print Job & Pay";
   };
 
   return (
     <ProtectedRoute>
       {isMobile ? (
         <>
-          <MobileHeader 
+          <MobileHeader
             title="Confirm Print Job"
             rightAction={
               <MobileTouchButton
@@ -155,9 +235,9 @@ export default function Confirmation() {
                 <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                 <AlertDescription className="text-orange-800 dark:text-orange-200">
                   No document selected. Please upload a document first.
-                  <MobileTouchButton 
-                    variant="secondary" 
-                    size="sm" 
+                  <MobileTouchButton
+                    variant="secondary"
+                    size="sm"
                     className="mt-2 w-full bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-800/20 dark:text-orange-200 dark:border-orange-700"
                     onClick={() => navigate('/upload')}
                   >
@@ -254,24 +334,18 @@ export default function Confirmation() {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm text-foreground">
                         <span>Base printing ({jobSummary.file.pages} pages)</span>
-                        <span>${jobSummary.cost.base.toFixed(2)}</span>
+                        <span>₹{jobSummary.cost.base.toFixed(2)}</span>
                       </div>
-                      {jobSummary.cost.color > 0 && (
-                        <div className="flex justify-between text-sm text-foreground">
-                          <span>Color printing</span>
-                          <span>${jobSummary.cost.color.toFixed(2)}</span>
-                        </div>
-                      )}
                       {jobSummary.cost.duplex > 0 && (
-                        <div className="flex justify-between text-sm text-foreground">
-                          <span>Double-sided</span>
-                          <span>${jobSummary.cost.duplex.toFixed(2)}</span>
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Duplex discount (10%)</span>
+                          <span>-₹{jobSummary.cost.duplex.toFixed(2)}</span>
                         </div>
                       )}
                       <Separator />
                       <div className="flex justify-between font-medium text-foreground">
                         <span>Total</span>
-                        <span>${jobSummary.cost.total.toFixed(2)}</span>
+                        <span>₹{jobSummary.cost.total.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
@@ -304,18 +378,18 @@ export default function Confirmation() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="email-notify" className="text-sm text-foreground">Email notifications</Label>
-                    <Switch 
-                      id="email-notify" 
-                      checked={notifyEmail} 
+                    <Switch
+                      id="email-notify"
+                      checked={notifyEmail}
                       onCheckedChange={setNotifyEmail}
                       disabled={jobSummary.file.pages === 0}
                     />
                   </div>
                   <div className="flex items-center justify-between">
                     <Label htmlFor="sms-notify" className="text-sm text-foreground">SMS notifications</Label>
-                    <Switch 
-                      id="sms-notify" 
-                      checked={notifySMS} 
+                    <Switch
+                      id="sms-notify"
+                      checked={notifySMS}
                       onCheckedChange={setNotifySMS}
                       disabled={jobSummary.file.pages === 0}
                     />
@@ -330,19 +404,12 @@ export default function Confirmation() {
                 variant="primary"
                 size="lg"
                 onClick={handleSubmit}
-                disabled={isSubmitting || jobSummary.file.pages === 0}
+                disabled={jobSummary.file.pages === 0}
                 className="w-full"
               >
-                {isSubmitting ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Submitting...
-                  </div>
-                ) : (
-                  getSubmitButtonText()
-                )}
+                {getSubmitButtonText()}
               </MobileTouchButton>
-              
+
               <MobileTouchButton
                 variant="secondary"
                 size="lg"
@@ -355,7 +422,7 @@ export default function Confirmation() {
             </div>
           </div>
 
-          <MobileStepNavigation 
+          <MobileStepNavigation
             currentStep={4}
             totalSteps={5}
           />
@@ -365,7 +432,7 @@ export default function Confirmation() {
         <div className="min-h-screen bg-background p-6">
           <div className="max-w-4xl mx-auto space-y-6">
             <PrintFlowBreadcrumb currentStep="confirm" />
-            
+
             <div className="text-center space-y-2">
               <h1 className="text-3xl font-bold tracking-tight text-foreground">Confirm Your Print Job</h1>
               <p className="text-muted-foreground">Review your print settings and submit your job</p>
@@ -376,9 +443,9 @@ export default function Confirmation() {
                 <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                 <AlertDescription className="text-orange-800 dark:text-orange-200">
                   No document selected. Please upload a document first.
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="ml-3 bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-800/20 dark:text-orange-200 dark:border-orange-700"
                     onClick={() => navigate('/upload')}
                   >
@@ -395,9 +462,9 @@ export default function Confirmation() {
                 <Card className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-lg">Document</CardTitle>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => navigate('/settings')}
                       className="text-blue-600"
                     >
@@ -417,7 +484,7 @@ export default function Confirmation() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="text-muted-foreground">Page Range:</span>
@@ -443,9 +510,9 @@ export default function Confirmation() {
                 <Card className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-lg">Printer</CardTitle>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => navigate('/select-printer')}
                       className="text-blue-600"
                     >
@@ -490,24 +557,18 @@ export default function Confirmation() {
                     <CardContent className="space-y-3">
                       <div className="flex justify-between text-foreground">
                         <span>Base printing ({jobSummary.file.pages} pages)</span>
-                        <span>${jobSummary.cost.base.toFixed(2)}</span>
+                        <span>₹{jobSummary.cost.base.toFixed(2)}</span>
                       </div>
-                      {jobSummary.cost.color > 0 && (
-                        <div className="flex justify-between text-foreground">
-                          <span>Color printing</span>
-                          <span>${jobSummary.cost.color.toFixed(2)}</span>
-                        </div>
-                      )}
                       {jobSummary.cost.duplex > 0 && (
-                        <div className="flex justify-between text-foreground">
-                          <span>Double-sided</span>
-                          <span>${jobSummary.cost.duplex.toFixed(2)}</span>
+                        <div className="flex justify-between text-green-600">
+                          <span>Duplex discount (10%)</span>
+                          <span>-₹{jobSummary.cost.duplex.toFixed(2)}</span>
                         </div>
                       )}
                       <Separator />
                       <div className="flex justify-between text-lg font-semibold text-foreground">
                         <span>Total</span>
-                        <span>${jobSummary.cost.total.toFixed(2)}</span>
+                        <span>₹{jobSummary.cost.total.toFixed(2)}</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -541,18 +602,18 @@ export default function Confirmation() {
                   <CardContent className="space-y-4">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="email-notify-desktop">Email notifications</Label>
-                      <Switch 
-                        id="email-notify-desktop" 
-                        checked={notifyEmail} 
+                      <Switch
+                        id="email-notify-desktop"
+                        checked={notifyEmail}
                         onCheckedChange={setNotifyEmail}
                         disabled={jobSummary.file.pages === 0}
                       />
                     </div>
                     <div className="flex items-center justify-between">
                       <Label htmlFor="sms-notify-desktop">SMS notifications</Label>
-                      <Switch 
-                        id="sms-notify-desktop" 
-                        checked={notifySMS} 
+                      <Switch
+                        id="sms-notify-desktop"
+                        checked={notifySMS}
                         onCheckedChange={setNotifySMS}
                         disabled={jobSummary.file.pages === 0}
                       />
@@ -576,17 +637,10 @@ export default function Confirmation() {
               <Button
                 size="lg"
                 onClick={handleSubmit}
-                disabled={isSubmitting || jobSummary.file.pages === 0}
+                disabled={jobSummary.file.pages === 0}
                 className="px-8"
               >
-                {isSubmitting ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Submitting...
-                  </div>
-                ) : (
-                  getSubmitButtonText()
-                )}
+                {getSubmitButtonText()}
               </Button>
             </div>
           </div>
