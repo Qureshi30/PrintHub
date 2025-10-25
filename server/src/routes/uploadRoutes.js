@@ -17,9 +17,9 @@ router.post('/cloudinary-signature',
   async (req, res) => {
     try {
       const { generateSignedUploadUrl } = require('../config/cloudinary');
-      
+
       console.log('🔐 Generating signature for user:', req.auth.userId);
-      
+
       // Generate signed upload parameters
       const signedParams = generateSignedUploadUrl({
         folder: `print_jobs/${req.auth.userId}`,
@@ -56,7 +56,7 @@ router.get('/test-cloudinary', (req, res) => {
   try {
     const { validateCloudinaryConfig } = require('../config/cloudinary');
     validateCloudinaryConfig();
-    
+
     res.json({
       success: true,
       message: 'Cloudinary configuration is valid',
@@ -86,7 +86,7 @@ const validateRequest = (req, res, next) => {
     errorCount: errors.array().length,
     errors: errors.array()
   });
-  
+
   if (!errors.isEmpty()) {
     console.log('❌ Validation failed:', errors.array());
     return res.status(400).json({
@@ -97,7 +97,7 @@ const validateRequest = (req, res, next) => {
       }
     });
   }
-  
+
   console.log('✅ Validation passed');
   next();
 };
@@ -537,20 +537,32 @@ router.post('/print-job',
         });
       }
 
-      // Calculate pricing
-      const baseCostPerPage = 0.10; // $0.10 per page
-      const colorSurcharge = settings.color ? 0.05 : 0; // $0.05 extra for color
-      
+      // ==================== PRICING CALCULATION ====================
+      // Base rates per page
+      const BLACK_AND_WHITE_RATE = 2.00; // ₹2 per page for B&W
+      const COLOR_RATE = 5.00;            // ₹5 per page for color
+
+      // Additional charges based on settings
+      let baseCostPerPage = settings.color ? COLOR_RATE : BLACK_AND_WHITE_RATE;
+
+      // Paper type surcharge
       let paperTypeSurcharge = 0;
       if (settings.paperType === 'A3') {
-        paperTypeSurcharge = 0.05;
+        paperTypeSurcharge = 3.00; // ₹3 extra per page for A3
+      } else if (settings.paperType === 'Letter') {
+        paperTypeSurcharge = 0.50; // ₹0.50 extra per page for Letter
+      } else if (settings.paperType === 'Legal') {
+        paperTypeSurcharge = 1.00; // ₹1 extra per page for Legal
       } else if (settings.paperType === 'Certificate') {
-        paperTypeSurcharge = 0.10;
+        paperTypeSurcharge = 5.00; // ₹5 extra per page for Certificate paper
       }
-      
+
+      // Duplex (double-sided) discount - 10% off total
+      const duplexDiscount = settings.duplex ? 0.10 : 0;
+
       // Estimate pages (rough calculation - in real scenario you'd use a PDF parser)
       const estimatedPages = fileData.sizeKB > 0 ? Math.max(1, Math.ceil(fileData.sizeKB / 100)) : 1;
-      
+
       let actualPages = estimatedPages;
       if (settings.pages) {
         if (settings.pages === 'all') {
@@ -559,10 +571,28 @@ router.post('/print-job',
           actualPages = settings.pages.split(',').length;
         }
       }
-      
+
       const copies = settings.copies || 1;
       const totalPages = actualPages * copies;
-      const totalCost = (baseCostPerPage + colorSurcharge + paperTypeSurcharge) * totalPages;
+
+      // Calculate costs
+      const baseCost = baseCostPerPage * totalPages;
+      const paperCost = paperTypeSurcharge * totalPages;
+      const subtotal = baseCost + paperCost;
+      const discountAmount = subtotal * duplexDiscount;
+      const totalCost = subtotal - discountAmount;
+
+      console.log('💰 Pricing Breakdown:', {
+        pages: actualPages,
+        copies,
+        totalPages,
+        baseRate: `₹${baseCostPerPage}/page`,
+        baseCost: `₹${baseCost.toFixed(2)}`,
+        paperTypeCost: `₹${paperCost.toFixed(2)}`,
+        duplexDiscount: `₹${discountAmount.toFixed(2)}`,
+        totalCost: `₹${totalCost.toFixed(2)}`
+      });
+      // ============================================================
 
       // Get user info for additional fields
       const user = await User.findOne({ clerkUserId });
@@ -573,10 +603,10 @@ router.post('/print-job',
         clerkUserId,
         userName: user?.profile?.firstName ? `${user.profile.firstName} ${user.profile.lastName || ''}`.trim() : undefined,
         userEmail: user?.profile?.email,
-        
+
         // Printer Details
         printerId,
-        
+
         // File Details
         file: {
           cloudinaryUrl: fileData.cloudinaryUrl,
@@ -585,7 +615,7 @@ router.post('/print-job',
           format: fileData.format,
           sizeKB: fileData.sizeKB,
         },
-        
+
         // Print Settings
         settings: {
           pages: settings.pages || 'all',
@@ -594,33 +624,33 @@ router.post('/print-job',
           duplex: settings.duplex || false,
           paperType: settings.paperType || 'A4',
         },
-        
+
         // Queue & Status
         status: 'queued',
         queuePosition: printer.queue.length + 1,
         estimatedCompletionTime: new Date(Date.now() + (printer.queue.length * 3 + 5) * 60000), // Rough estimate
-        
+
         // Cost Details
         cost: {
-          baseCost: baseCostPerPage * totalPages,
-          colorCost: settings.color ? colorSurcharge * totalPages : 0,
-          paperCost: paperTypeSurcharge * totalPages,
-          totalCost,
+          baseCost: baseCost,
+          colorCost: 0, // Included in baseCost (color is ₹5/page, B&W is ₹2/page)
+          paperCost: paperCost,
+          totalCost: totalCost,
         },
-        
+
         // Payment Status
         payment: {
           status: 'unpaid',
           method: 'student_credit',
         },
-        
+
         // Job History
         timing: {
           submittedAt: new Date(),
         },
         misprint: false,
         reprintCount: 0,
-        
+
         // Additional fields
         notes,
       });
