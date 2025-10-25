@@ -9,31 +9,32 @@ class UnifiedEmailService {
   }
 
   init() {
-    // Email functionality temporarily disabled - keeping code structure
-    this.isConfigured = false;
-    console.log('📧 Email service disabled - notifications will be logged only');
-    
-    /* EMAIL SETUP CODE (DISABLED)
-    // For backend, we'll use SMTP with your EmailJS email account
-    // This requires an app password from your Gmail account
-    const emailUser = 'zaheensiddiqui71@gmail.com'; // Your EmailJS sender email
-    const emailPassword = process.env.EMAIL_APP_PASSWORD; // App password needed
+    // Email service for print completion notifications
+    const emailUser = 'qureshihassan1268@gmail.com'; // Your EmailJS sender email
+    const emailPassword = process.env.EMAIL_APP_PASSWORD; // App password from .env
 
     if (emailPassword) {
-      this.transporter = nodemailer.createTransporter({
-        service: 'gmail',
-        auth: {
-          user: emailUser,
-          pass: emailPassword
-        }
-      });
-      this.isConfigured = true;
-      console.log('✅ Email service initialized with Gmail SMTP');
+      try {
+        this.transporter = nodemailer.createTransporter({
+          service: 'gmail',
+          auth: {
+            user: emailUser,
+            pass: emailPassword
+          }
+        });
+        this.isConfigured = true;
+        console.log('✅ Email service initialized with Gmail SMTP');
+        console.log('📧 Print completion emails will be sent to users');
+      } catch (error) {
+        console.error('❌ Failed to initialize email service:', error.message);
+        this.isConfigured = false;
+      }
     } else {
+      this.isConfigured = false;
       console.log('📧 Email service not configured - notifications will be logged only');
       console.log('💡 To enable emails, add EMAIL_APP_PASSWORD to your .env file');
+      console.log('💡 Get app password from: https://myaccount.google.com/apppasswords');
     }
-    */
   }
 
   // ADMIN NOTIFICATIONS

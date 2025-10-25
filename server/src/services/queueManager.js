@@ -1,6 +1,8 @@
 const Queue = require('../models/Queue');
 const PrintJob = require('../models/PrintJob');
 const Notification = require('../models/Notification');
+const User = require('../models/User');
+const { clerkClient } = require('@clerk/clerk-sdk-node');
 const emailService = require('./unifiedEmailService');
 const mongoose = require('mongoose');
 
@@ -252,9 +254,35 @@ class QueueManager {
           // Send email notification (only for completed jobs for now)
           if (finalStatus === 'completed') {
             try {
-              // Send email notification using the unified email service
-              await emailService.sendPrintCompletionNotification(printJob);
-              console.log(`📧 ✅ Email notification sent for completed job ${printJobId}`);
+              // Get user email from Clerk or MongoDB User model
+              let userEmail = printJob.userEmail;
+
+              if (!userEmail) {
+                // Try to get from MongoDB User model first
+                const user = await User.findOne({ clerkUserId: printJob.clerkUserId });
+                if (user && user.profile?.email) {
+                  userEmail = user.profile.email;
+                } else {
+                  // Fallback to Clerk API
+                  try {
+                    const clerkUser = await clerkClient.users.getUser(printJob.clerkUserId);
+                    userEmail = clerkUser.emailAddresses?.[0]?.emailAddress;
+                  } catch (clerkError) {
+                    console.warn('⚠️ Could not fetch user email from Clerk:', clerkError.message);
+                  }
+                }
+              }
+
+              if (userEmail) {
+                // Add userEmail to printJob object for email service
+                const printJobWithEmail = { ...printJob.toObject(), userEmail };
+
+                // Send email notification using the unified email service
+                await emailService.sendPrintCompletionNotification(printJobWithEmail);
+                console.log(`📧 ✅ Email notification sent to ${userEmail} for completed job ${printJobId}`);
+              } else {
+                console.warn(`⚠️ No email found for user ${printJob.clerkUserId}, skipping email notification`);
+              }
             } catch (emailError) {
               console.error('📧 ❌ Failed to send email notification:', emailError.message);
               // Don't throw error - email failure shouldn't prevent job completion
