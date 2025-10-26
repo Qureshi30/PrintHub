@@ -138,6 +138,229 @@ Check your PrintHub dashboard for more details.
     }
   }
 
+  // QUERY/SUPPORT TICKET NOTIFICATIONS
+  async sendQueryResponseNotification(query) {
+    try {
+      if (!this.isConfigured) {
+        console.log('📧 Query Response Notification (Email not configured):');
+        console.log(`Query Response: ${query.subject} - Status: ${query.status}`);
+        return { success: false, error: 'Email not configured' };
+      }
+
+      const statusEmoji = {
+        'open': '🔵',
+        'in-progress': '🟡',
+        'resolved': '✅',
+        'closed': '⚫'
+      };
+
+      const mailOptions = {
+        from: `"PrintHub Support" <zaheensiddiqui71@gmail.com>`,
+        to: query.studentEmail,
+        subject: `${statusEmoji[query.status] || '📧'} Update on Your Support Ticket - ${query.subject}`,
+        html: this.generateQueryResponseEmail(query),
+        text: this.generateQueryResponseText(query)
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log('📧 Query response email sent successfully:', result.messageId);
+      return { success: true, messageId: result.messageId };
+    } catch (error) {
+      console.error('❌ Failed to send query response email:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  generateQueryResponseText(query) {
+    const formatDate = (date) => new Date(date).toLocaleString('en-IN');
+
+    return `
+PrintHub Support - Ticket Update
+
+Hi ${query.studentName},
+
+Your support ticket has been updated!
+
+Ticket Details:
+---------------
+Subject: ${query.subject}
+Category: ${query.category}
+Status: ${query.status.toUpperCase()}
+Priority: ${query.priority.toUpperCase()}
+Submitted: ${formatDate(query.createdAt)}
+${query.respondedAt ? `Responded: ${formatDate(query.respondedAt)}` : ''}
+
+Your Message:
+${query.message}
+
+${query.adminResponse ? `Admin Response:\n${query.adminResponse}\n` : 'Our team is reviewing your ticket and will respond shortly.'}
+
+${query.status === 'resolved' ? '✅ Your issue has been marked as RESOLVED. If you need further assistance, please submit a new ticket.' : ''}
+${query.status === 'closed' ? '⚫ This ticket has been closed. If you need further assistance, please submit a new ticket.' : ''}
+${query.status === 'in-progress' ? '🟡 Our team is actively working on your ticket.' : ''}
+
+---
+Best regards,
+PrintHub Support Team
+
+Need more help? Visit: http://localhost:8000/support
+    `.trim();
+  }
+
+  generateQueryResponseEmail(query) {
+    const formatDate = (date) => new Date(date).toLocaleString('en-IN');
+
+    const statusColors = {
+      'open': '#ef4444',
+      'in-progress': '#3b82f6',
+      'resolved': '#10b981',
+      'closed': '#6b7280'
+    };
+
+    const priorityColors = {
+      'low': '#6b7280',
+      'medium': '#3b82f6',
+      'high': '#f59e0b',
+      'urgent': '#ef4444'
+    };
+
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            .email-container { max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; }
+            .header { background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; padding: 30px 20px; text-align: center; }
+            .content { padding: 30px 20px; background: #f8fafc; }
+            .ticket-card { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+            .status-badge { 
+              display: inline-block; 
+              background: ${statusColors[query.status] || '#6b7280'}; 
+              color: white; 
+              padding: 6px 12px; 
+              border-radius: 20px; 
+              font-size: 12px; 
+              font-weight: bold;
+              text-transform: uppercase;
+            }
+            .priority-badge { 
+              display: inline-block; 
+              background: ${priorityColors[query.priority] || '#6b7280'}; 
+              color: white; 
+              padding: 4px 10px; 
+              border-radius: 15px; 
+              font-size: 11px; 
+              font-weight: bold;
+              text-transform: uppercase;
+            }
+            .detail-row { padding: 10px 0; border-bottom: 1px solid #e2e8f0; }
+            .detail-label { font-weight: bold; color: #64748b; font-size: 13px; }
+            .detail-value { color: #1e293b; margin-top: 5px; }
+            .message-box { background: #f1f5f9; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #3b82f6; }
+            .response-box { background: #ecfdf5; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #10b981; }
+            .footer { text-align: center; padding: 20px; color: #64748b; font-size: 13px; }
+            .button { 
+              display: inline-block; 
+              background: #3b82f6; 
+              color: white; 
+              padding: 12px 24px; 
+              border-radius: 6px; 
+              text-decoration: none; 
+              font-weight: bold;
+              margin: 10px 0;
+            }
+            .alert-success { background: #d1fae5; color: #065f46; padding: 12px; border-radius: 6px; margin: 15px 0; }
+            .alert-info { background: #dbeafe; color: #1e40af; padding: 12px; border-radius: 6px; margin: 15px 0; }
+        </style>
+    </head>
+    <body>
+        <div class="email-container">
+            <div class="header">
+                <h1>📧 Support Ticket Update</h1>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;">Your ticket has been updated</p>
+            </div>
+            
+            <div class="content">
+                <p>Hi <strong>${query.studentName}</strong>,</p>
+                <p>We have an update on your support ticket:</p>
+                
+                <div class="ticket-card">
+                    <div style="margin-bottom: 15px;">
+                        <h2 style="margin: 0 0 10px 0; color: #1e293b;">${query.subject}</h2>
+                        <span class="status-badge">${query.status.replace('-', ' ')}</span>
+                        <span class="priority-badge" style="margin-left: 8px;">${query.priority} Priority</span>
+                    </div>
+                    
+                    <div class="detail-row">
+                        <div class="detail-label">Category</div>
+                        <div class="detail-value">${query.category}</div>
+                    </div>
+                    
+                    <div class="detail-row">
+                        <div class="detail-label">Submitted</div>
+                        <div class="detail-value">${formatDate(query.createdAt)}</div>
+                    </div>
+                    
+                    ${query.respondedAt ? `
+                    <div class="detail-row">
+                        <div class="detail-label">Last Updated</div>
+                        <div class="detail-value">${formatDate(query.respondedAt)}</div>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="detail-row" style="border-bottom: none;">
+                        <div class="detail-label">Your Message</div>
+                        <div class="message-box">${query.message.replace(/\n/g, '<br>')}</div>
+                    </div>
+                </div>
+                
+                ${query.adminResponse ? `
+                <div class="response-box">
+                    <h3 style="margin: 0 0 10px 0; color: #065f46;">💬 Admin Response</h3>
+                    <p style="margin: 0; white-space: pre-wrap;">${query.adminResponse.replace(/\n/g, '<br>')}</p>
+                </div>
+                ` : `
+                <div class="alert-info">
+                    🟡 Our support team is reviewing your ticket and will respond shortly.
+                </div>
+                `}
+                
+                ${query.status === 'resolved' ? `
+                <div class="alert-success">
+                    ✅ <strong>Your issue has been resolved!</strong><br>
+                    If you need further assistance, please submit a new ticket.
+                </div>
+                ` : ''}
+                
+                ${query.status === 'closed' ? `
+                <div class="alert-info">
+                    ⚫ This ticket has been closed. If you need further assistance, please submit a new ticket.
+                </div>
+                ` : ''}
+                
+                <div style="text-align: center; margin: 25px 0;">
+                    <a href="http://localhost:8000/support" class="button">View Support Portal</a>
+                </div>
+                
+                <p style="color: #64748b; font-size: 14px; margin-top: 20px;">
+                    If you have any questions or need further assistance, don't hesitate to reach out to us.
+                </p>
+            </div>
+            
+            <div class="footer">
+                <p><strong>PrintHub Support Team</strong></p>
+                <p>Email: support@printhub.com | Phone: +1 (555) 123-4567</p>
+                <p style="font-size: 12px; color: #94a3b8;">
+                    This is an automated notification. Please do not reply to this email.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    `.trim();
+  }
+
   // UTILITY METHODS
   async sendEmail({ to, subject, text, html, logMessage }) {
     if (!this.isConfigured) {

@@ -1,433 +1,53 @@
-# 🖨️ PrintHub - Advanced University Printing Management System
+# PrintHub - Complete Printing Management System
 
-[![React](https://img.shields.io/badge/React-18.x-blue.svg)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-18.x-green.svg)](https://nodejs.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Latest-green.svg)](https://www.mongodb.com/)
-[![Vite](https://img.shields.io/badge/Vite-Latest-purple.svg)](https://vitejs.dev/)
-[![Tailwind](https://img.shields.io/badge/Tailwind-CSS-teal.svg)](https://tailwindcss.com/)
-[![Clerk](https://img.shields.io/badge/Clerk-Auth-orange.svg)](https://clerk.dev/)
+A comprehensive full-stack application for managing print jobs in educational institutions, featuring React frontend, Node.js backend, MongoDB database, and Cloudinary file storage.
 
-A comprehensive, enterprise-grade printing management system designed for educational institutions. PrintHub revolutionizes campus printing with intelligent queue management, real-time monitoring, cash payment support, mobile-responsive design, and advanced analytics.
+## 🏗️ Architecture Overview
 
-## 🌟 Key Features
+- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui
+- **Authentication**: Clerk for secure user management
+- **Backend**: Node.js + Express + MongoDB + Mongoose
+- **File Storage**: Cloudinary for document uploads
+- **State Management**: React Query + Context API
+- **Database**: MongoDB with comprehensive schemas
 
-### 👥 Multi-Role System
-- **Student Portal**: Upload, schedule, and track print jobs
-- **Admin Dashboard**: Comprehensive system management and analytics
-- **Staff Features**: Priority printing and advanced controls
+![React](https://img.shields.io/badge/React-18.x-blue.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)
+![Node.js](https://img.shields.io/badge/Node.js-18.x-green.svg)
+![MongoDB](https://img.shields.io/badge/MongoDB-Latest-green.svg)
+![Vite](https://img.shields.io/badge/Vite-Latest-purple.svg)
+![Tailwind](https://img.shields.io/badge/Tailwind-CSS-teal.svg)
 
-### 💳 Flexible Payment Options
-- **Digital Payments**: Razorpay integration for secure online transactions
-- **Cash Payment System**: Offline payment support with admin approval workflow
-- **Payment Tracking**: Complete transaction history and refund management
-
-### 🖨️ Advanced Printer Management
-- **SNMP Discovery**: Automatic printer detection and monitoring
-- **Real-time Status**: Live printer status, queue length, and ink levels
-- **Error Handling**: Comprehensive error logging and notification system
-- **Queue Management**: Intelligent job prioritization and processing
-
-### 📱 Mobile-First Design
-- **Responsive UI**: Optimized for all device sizes
-- **Dark/Light Mode**: System-wide theme support
-- **Touch-Optimized**: Mobile-friendly interactions and navigation
-- **Progressive Web App**: Installable on mobile devices
-
-### 🔐 Enterprise Security
-- **Clerk Authentication**: Industry-standard user management
-- **Role-Based Access**: Granular permission system
-- **API Security**: Rate limiting, validation, and encryption
-- **File Security**: Secure upload and storage with Cloudinary
-
-## 🏗️ Technical Architecture
-
-### Frontend Stack
-```
-React 18 + TypeScript + Vite
-├── UI Framework: shadcn/ui + Radix UI + Tailwind CSS
-├── State Management: TanStack Query + React Context
-├── Routing: React Router DOM v6
-├── Forms: React Hook Form + Zod validation
-├── Authentication: Clerk React SDK
-├── Charts: Recharts for analytics
-└── File Processing: PDF.js + Mammoth.js
-```
-
-### Backend Stack
-```
-Node.js + Express.js
-├── Database: MongoDB + Mongoose ODM
-├── Authentication: Clerk Node SDK
-├── File Storage: Cloudinary API
-├── Payment: Razorpay Gateway
-├── Email: EmailJS + Nodemailer
-├── Real-time: Socket.io
-├── Validation: Express Validator
-├── Security: Helmet + CORS + Rate Limiting
-└── Monitoring: SNMP for printer discovery
-```
-
-### Database Schema
-```
-Collections:
-├── Users (students, staff, admins)
-├── PrintJobs (job details, status, pricing)
-├── Printers (SNMP data, status, queues)
-├── CashPrintRequests (offline payment workflow)
-├── PrinterErrors (error logs and monitoring)
-├── Notifications (system alerts)
-├── AdminLogs (audit trail)
-└── Revenue (financial tracking)
-```
-
-## 🚀 Quick Start Guide
+## 🚀 Quick Start
 
 ### Prerequisites
-- **Node.js** (v18 or higher)
-- **MongoDB** (local installation or MongoDB Atlas)
-- **Cloudinary Account** (for file storage)
-- **Clerk Account** (for authentication)
-- **Razorpay Account** (for payments, optional)
 
-### 1. Repository Setup
+- Node.js (v18 or higher)
+- MongoDB (local or MongoDB Atlas)
+- Cloudinary account
+- Clerk account
+
+### 1. Clone and Setup
+
 ```bash
-git clone https://github.com/Qureshi30/PrintHub.git
+git clone <repository-url>
 cd PrintHub
 ```
 
-### 2. Backend Configuration
+### 2. Backend Setup
+
 ```bash
 cd server
 npm install
 
-# Create environment configuration
+# Copy and configure environment
 cp .env.example .env
-```
+# Edit .env with your configuration
 
-**Environment Variables (.env):**
-```env
-# Database
-MONGODB_URI=mongodb://localhost:27017/printhub
-# or MongoDB Atlas: mongodb+srv://username:password@cluster.mongodb.net/printhub
+# Seed database with sample data
+node seed-printers.js
 
-# Clerk Authentication
-CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
-CLERK_WEBHOOK_SECRET=whsec_...
-
-# Cloudinary File Storage
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-
-# Razorpay Payment Gateway
-RAZORPAY_KEY_ID=rzp_test_...
-RAZORPAY_KEY_SECRET=your_key_secret
-
-# EmailJS Configuration
-EMAILJS_SERVICE_ID=your_service_id
-EMAILJS_TEMPLATE_ID=your_template_id
-EMAILJS_PUBLIC_KEY=your_public_key
-
-# Server Configuration
-PORT=3001
-NODE_ENV=development
-```
-
-### 3. Frontend Configuration
-```bash
-cd .. # Return to root directory
-npm install
-
-# Create environment configuration
-cp .env.example .env.local
-```
-
-**Environment Variables (.env.local):**
-```env
-# Clerk Authentication
-VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
-
-# API Configuration
-VITE_API_URL=http://localhost:3001/api
-
-# Cloudinary (for frontend uploads)
-VITE_CLOUDINARY_CLOUD_NAME=your_cloud_name
-VITE_CLOUDINARY_UPLOAD_PRESET=your_upload_preset
-
-# Razorpay (for frontend integration)
-VITE_RAZORPAY_KEY_ID=rzp_test_...
-```
-
-### 4. Database Setup
-```bash
-cd server
-
-# Initialize database with sample data
-node scripts/initDatabase.js
-
-# Seed printers (optional)
-node scripts/seedPrinters.js
-```
-
-### 5. Start Development Servers
-
-**Backend Server:**
-```bash
-cd server
-npm run dev
-# Server runs on http://localhost:3001
-```
-
-**Frontend Application:**
-```bash
-# In new terminal, from root directory
-npm run dev
-# Application runs on http://localhost:8080
-```
-
-## 📂 Project Structure
-
-```
-PrintHub/
-├── 📁 src/                          # Frontend source code
-│   ├── 📁 components/               # Reusable UI components
-│   │   ├── 📁 admin/               # Admin-specific components
-│   │   ├── 📁 auth/                # Authentication components
-│   │   ├── 📁 layout/              # Layout components
-│   │   ├── 📁 mobile/              # Mobile-optimized components
-│   │   └── 📁 ui/                  # Base UI components (shadcn/ui)
-│   ├── 📁 pages/                   # Application pages
-│   │   ├── 📁 admin/               # Admin dashboard pages
-│   │   ├── 📁 features/            # Feature showcase pages
-│   │   ├── 📁 shared/              # Shared pages (auth, errors)
-│   │   └── 📁 student/             # Student portal pages
-│   ├── 📁 hooks/                   # Custom React hooks
-│   ├── 📁 context/                 # React context providers
-│   ├── 📁 services/                # API service functions
-│   ├── 📁 lib/                     # Utility libraries
-│   ├── 📁 types/                   # TypeScript type definitions
-│   └── 📁 utils/                   # Helper functions
-├── 📁 server/                       # Backend source code
-│   └── 📁 src/
-│       ├── 📁 config/              # Configuration files
-│       ├── 📁 controllers/         # Route controllers
-│       ├── 📁 middleware/          # Express middleware
-│       ├── 📁 models/              # Mongoose schemas
-│       ├── 📁 routes/              # API route definitions
-│       ├── 📁 services/            # Business logic services
-│       ├── 📁 scripts/             # Database scripts
-│       └── 📁 utils/               # Server utilities
-├── 📁 public/                      # Static assets
-└── 📄 Configuration files          # Package.json, configs, etc.
-```
-
-## 🔑 Core Features
-
-### Student Portal Features
-- **📄 Document Upload**: Multi-format support (PDF, DOCX, images)
-- **⚙️ Print Settings**: Page range, copies, color, duplex options
-- **🖨️ Printer Selection**: Real-time availability and queue status
-- **📅 Job Scheduling**: Schedule prints for specific times
-- **💳 Payment Processing**: Secure online and offline payment options
-- **📊 Queue Monitoring**: Real-time job status and queue position
-- **📈 Print History**: Complete transaction and job history
-- **🔔 Notifications**: Email and SMS alerts for job updates
-- **⚙️ User Settings**: Profile management and preferences
-
-### Admin Dashboard Features
-- **👥 User Management**: Student/staff account management
-- **🖨️ Printer Management**: Add, configure, and monitor printers
-- **📊 Analytics Dashboard**: Usage statistics and revenue tracking
-- **💰 Cash Payment Approval**: Manual payment verification workflow
-- **🔧 System Configuration**: Email templates and notification settings
-- **📋 Error Monitoring**: Printer error logs and system health
-- **📈 Revenue Tracking**: Financial reports and analytics
-- **🔐 Admin Logs**: Complete audit trail of admin actions
-
-### Advanced Features
-- **🔍 SNMP Printer Discovery**: Automatic network printer detection
-- **⚡ Real-time Updates**: Socket.io for live status updates
-- **📱 Mobile Progressive Web App**: Installable mobile experience
-- **🌙 Dark/Light Mode**: System-wide theme switching
-- **🔒 Role-Based Security**: Granular permission system
-- **📧 Email Integration**: Automated notifications and alerts
-- **💾 File Processing**: Advanced document parsing and validation
-- **🔄 Queue Optimization**: Intelligent job prioritization
-
-## 🔧 API Endpoints
-
-### Authentication Routes
-```
-POST   /api/auth/login              # User login
-POST   /api/auth/logout             # User logout
-POST   /api/auth/register           # User registration
-GET    /api/auth/profile            # Get user profile
-```
-
-### Print Job Management
-```
-POST   /api/print-jobs              # Create new print job
-GET    /api/print-jobs              # Get user's print jobs
-GET    /api/print-jobs/:id          # Get specific print job
-PUT    /api/print-jobs/:id          # Update print job
-DELETE /api/print-jobs/:id          # Cancel print job
-```
-
-### Printer Management
-```
-GET    /api/printers                # Get all printers
-GET    /api/printers/:id            # Get specific printer
-POST   /api/printers                # Add new printer (admin)
-PUT    /api/printers/:id            # Update printer (admin)
-DELETE /api/printers/:id            # Remove printer (admin)
-GET    /api/printers/:id/status     # Get printer status
-```
-
-### Payment Processing
-```
-POST   /api/payments/create         # Create payment intent
-POST   /api/payments/verify         # Verify payment
-GET    /api/payments/history        # Get payment history
-POST   /api/cash-payment/upload     # Submit cash payment request
-GET    /api/cash-payment/pending    # Get pending cash payments (admin)
-PUT    /api/cash-payment/:id/approve # Approve cash payment (admin)
-```
-
-### Admin Operations
-```
-GET    /api/admin/users             # Get all users
-PUT    /api/admin/users/:id         # Update user role
-GET    /api/admin/analytics         # Get system analytics
-GET    /api/admin/logs              # Get admin logs
-POST   /api/admin/notifications     # Send system notifications
-```
-
-## 🎨 UI Components
-
-### Design System
-- **Component Library**: shadcn/ui + Radix UI primitives
-- **Styling**: Tailwind CSS with custom design tokens
-- **Icons**: Lucide React icon library
-- **Responsive Design**: Mobile-first approach with breakpoints
-- **Accessibility**: WCAG 2.1 AA compliance
-- **Theme System**: CSS variables for dark/light mode switching
-
-### Mobile Components
-- **AdminMobileHeader**: Navigation header for admin pages
-- **AdminMobileSidebar**: Collapsible navigation menu
-- **MobileCard**: Touch-optimized card component
-- **MobileTouchButton**: Large, accessible button component
-- **MobileStepNavigation**: Progress indicator for multi-step flows
-
-## 🔒 Security Features
-
-### Authentication & Authorization
-- **Clerk Integration**: Enterprise-grade authentication
-- **JWT Tokens**: Secure session management
-- **Role-Based Access Control**: Student, Staff, Admin roles
-- **API Security**: Request validation and rate limiting
-
-### Data Protection
-- **Input Validation**: Server-side validation with express-validator
-- **SQL Injection Prevention**: Mongoose ODM protection
-- **File Upload Security**: Type validation and size limits
-- **CORS Configuration**: Cross-origin request security
-- **Helmet.js**: Security headers and XSS protection
-
-## 📊 Monitoring & Analytics
-
-### System Monitoring
-- **Printer Status**: Real-time SNMP monitoring
-- **Error Logging**: Comprehensive error tracking
-- **Performance Metrics**: API response times and usage statistics
-- **Queue Analytics**: Job processing times and efficiency metrics
-
-### Business Analytics
-- **Revenue Tracking**: Daily, weekly, monthly financial reports
-- **Usage Statistics**: Print volume and user activity analysis
-- **Printer Utilization**: Equipment usage optimization data
-- **User Behavior**: Printing patterns and preferences
-
-## 🚀 Deployment
-
-### Production Deployment
-```bash
-# Build frontend
-npm run build
-
-# Start production server
-cd server
-npm start
-```
-
-### Docker Deployment (Optional)
-```bash
-# Build and run with Docker Compose
-docker-compose up -d
-```
-
-### Environment Setup
-- **Frontend**: Deploy to Vercel, Netlify, or AWS S3
-- **Backend**: Deploy to Railway, Heroku, or AWS EC2
-- **Database**: MongoDB Atlas for managed database
-- **File Storage**: Cloudinary for scalable file management
-
-## 🤝 Contributing
-
-### Development Workflow
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
-
-### Code Standards
-- **TypeScript**: Strict type checking enabled
-- **ESLint**: Code linting and formatting
-- **Prettier**: Code formatting standards
-- **Conventional Commits**: Standardized commit messages
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-### Getting Help
-- **Documentation**: Check this README and inline code comments
-- **Issues**: Report bugs via GitHub Issues
-- **Discussions**: Join GitHub Discussions for questions
-- **Email**: Contact the development team
-
-### Common Issues
-- **Authentication**: Ensure Clerk keys are properly configured
-- **Database**: Verify MongoDB connection string
-- **File Uploads**: Check Cloudinary configuration
-- **Payments**: Confirm Razorpay credentials are set
-
-## 🎯 Future Roadmap
-
-### Planned Features
-- **Mobile App**: Native iOS/Android applications
-- **Advanced Analytics**: Machine learning insights
-- **Multi-University**: Support for multiple institutions
-- **API v2**: GraphQL API implementation
-- **Blockchain**: Immutable audit trails
-- **AI Integration**: Smart document processing
-
-### Performance Improvements
-- **Caching**: Redis implementation for faster responses
-- **CDN**: Content delivery network for global performance
-- **Microservices**: Service decomposition for scalability
-- **Load Balancing**: Horizontal scaling capabilities
-
----
-
-**PrintHub** - Transforming university printing with modern technology 🖨️✨
-
-*Built with ❤️ by the PrintHub development team*
+# Start backend server
 npm start
 ```
 
