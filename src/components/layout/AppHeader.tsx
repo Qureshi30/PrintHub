@@ -21,7 +21,7 @@ export function AppHeader() {
     <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70">
       <div className="container flex h-14 items-center justify-between">
         <div className="flex items-center gap-6">
-          <button 
+          <button
             className="flex items-center gap-2 text-lg font-semibold tracking-tight text-blue-600 cursor-pointer hover:opacity-80 bg-transparent border-none"
             onClick={() => navigate("/dashboard")}
             aria-label="Go to PrintHub dashboard"
@@ -31,7 +31,7 @@ export function AppHeader() {
             </div>
             PrintHub
           </button>
-          
+
           {/* Navigation Menu */}
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
@@ -43,9 +43,10 @@ export function AppHeader() {
                   variant={isActive ? "default" : "ghost"}
                   size="sm"
                   onClick={() => navigate(item.path)}
-                  className={`flex items-center gap-2 ${
-                    isActive ? "bg-blue-600 text-white" : "hover:bg-blue-50"
-                  }`}
+                  className={`flex items-center gap-2 ${isActive
+                      ? "bg-blue-600 text-white hover:bg-blue-700"
+                      : "hover:bg-blue-100 dark:hover:bg-blue-950 hover:text-blue-900 dark:hover:text-blue-100"
+                    }`}
                 >
                   <Icon className="h-4 w-4" />
                   {item.label}
@@ -54,12 +55,12 @@ export function AppHeader() {
             })}
           </nav>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          <Button 
-            onClick={() => navigate("/user-settings")} 
-            className="hover-scale bg-gradient-hero hover:shadow-glow transition-all duration-300" 
+          <Button
+            onClick={() => navigate("/user-settings")}
+            className="hover-scale bg-gradient-hero hover:shadow-glow transition-all duration-300"
             aria-label="Go to user profile"
           >
             <User className="mr-2 h-4 w-4" />

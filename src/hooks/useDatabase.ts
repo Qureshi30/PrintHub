@@ -18,6 +18,12 @@ interface NotificationData {
   read: boolean;
   actionRequired?: boolean;
   relatedPrintJobId?: string;
+  metadata?: {
+    category?: string;
+    queryId?: string;
+    newStatus?: string;
+    [key: string]: any;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -156,12 +162,12 @@ interface Printer {
 const createAuthenticatedFetch = (getToken: () => Promise<string | null>) => {
   return async (url: string, options: RequestInit = {}) => {
     const token = await getToken();
-    
+
     const headers: Record<string, string> = {};
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
-    
+
     // Use apiClient instead of fetch to get ngrok headers automatically
     const response = await apiClient.request({
       url,
@@ -372,7 +378,7 @@ export const useCreatePrintJob = () => {
       return response.data;
     } catch (err) {
       let errorMessage = 'Failed to create print job';
-      
+
       if (err instanceof Error) {
         if (err.message.includes('Failed to fetch') || err.message.includes('ECONNREFUSED')) {
           errorMessage = 'Cannot connect to server. Please check if the backend is running.';
@@ -386,7 +392,7 @@ export const useCreatePrintJob = () => {
           errorMessage = err.message;
         }
       }
-      
+
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {

@@ -7,7 +7,6 @@ const PrintJob = require('../models/PrintJob');
 const Printer = require('../models/Printer');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
-const PricingConfig = require('../models/PricingConfig');
 const emailService = require('../services/unifiedEmailService');
 
 const router = express.Router();
@@ -539,28 +538,27 @@ router.post('/print-job',
       }
 
       // ==================== PRICING CALCULATION ====================
-      // Get current pricing configuration from database
-      const pricing = await PricingConfig.getCurrentPricing();
-      
-      console.log('💰 Using pricing configuration:', {
-        baseRates: pricing.baseRates,
-        paperSurcharges: pricing.paperSurcharges,
-        discounts: pricing.discounts
-      });
-
-      // Base rates per page from pricing config
-      const BLACK_AND_WHITE_RATE = pricing.baseRates.blackAndWhite;
-      const COLOR_RATE = pricing.baseRates.color;
+      // Base rates per page
+      const BLACK_AND_WHITE_RATE = 2.00; // ₹2 per page for B&W
+      const COLOR_RATE = 5.00;            // ₹5 per page for color
 
       // Additional charges based on settings
       let baseCostPerPage = settings.color ? COLOR_RATE : BLACK_AND_WHITE_RATE;
 
-      // Paper type surcharge from pricing config
-      const paperTypeSurcharge = pricing.paperSurcharges[settings.paperType?.toLowerCase()] || 0;
+      // Paper type surcharge
+      let paperTypeSurcharge = 0;
+      if (settings.paperType === 'A3') {
+        paperTypeSurcharge = 3.00; // ₹3 extra per page for A3
+      } else if (settings.paperType === 'Letter') {
+        paperTypeSurcharge = 0.50; // ₹0.50 extra per page for Letter
+      } else if (settings.paperType === 'Legal') {
+        paperTypeSurcharge = 1.00; // ₹1 extra per page for Legal
+      } else if (settings.paperType === 'Certificate') {
+        paperTypeSurcharge = 5.00; // ₹5 extra per page for Certificate paper
+      }
 
-      // Duplex (double-sided) discount from pricing config
-      const duplexDiscountPercentage = pricing.discounts.duplexPercentage;
-      const duplexDiscount = settings.duplex ? (duplexDiscountPercentage / 100) : 0;
+      // Duplex (double-sided) discount - 10% off total
+      const duplexDiscount = settings.duplex ? 0.10 : 0;
 
       // Estimate pages (rough calculation - in real scenario you'd use a PDF parser)
       const estimatedPages = fileData.sizeKB > 0 ? Math.max(1, Math.ceil(fileData.sizeKB / 100)) : 1;
@@ -577,7 +575,7 @@ router.post('/print-job',
       const copies = settings.copies || 1;
       const totalPages = actualPages * copies;
 
-      // Calculate costs using dynamic pricing
+      // Calculate costs
       const baseCost = baseCostPerPage * totalPages;
       const paperCost = paperTypeSurcharge * totalPages;
       const subtotal = baseCost + paperCost;
@@ -591,7 +589,7 @@ router.post('/print-job',
         baseRate: `₹${baseCostPerPage}/page`,
         baseCost: `₹${baseCost.toFixed(2)}`,
         paperTypeCost: `₹${paperCost.toFixed(2)}`,
-        duplexDiscount: `₹${discountAmount.toFixed(2)} (${duplexDiscountPercentage}%)`,
+        duplexDiscount: `₹${discountAmount.toFixed(2)}`,
         totalCost: `₹${totalCost.toFixed(2)}`
       });
       // ============================================================
