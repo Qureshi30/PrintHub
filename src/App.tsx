@@ -25,10 +25,12 @@ import { PrintJobProvider } from "./context/PrintJobFlowContext";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UserManagement from "./pages/admin/UserManagement";
 import PrinterManagement from "./pages/admin/PrinterManagement";
+import PricingSettings from "./pages/admin/PricingSettings";
 import Analytics from "./pages/admin/Analytics";
 import EmailConfiguration from "./pages/admin/EmailConfiguration";
 import AuthTestPage from "./pages/AuthTestPage";
 import StudentDashboard from "./pages/student/StudentDashboard";
+import UserDebugInfo from "./components/debug/UserDebugInfo";
 import Layout from "@/components/layout/Layout";
 import LandingLayout from "@/components/layout/LandingLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
@@ -135,6 +137,9 @@ const App = () => (
           {/* Test route for authentication */}
           <Route path="/auth-test" element={<SignedIn><Layout><AuthTestPage /></Layout></SignedIn>} />
           
+          {/* Debug route for troubleshooting authentication */}
+          <Route path="/debug/user" element={<SignedIn><Layout><UserDebugInfo /></Layout></SignedIn>} />
+          
           {/* Feature Pages */}
           <Route path="/features/security-privacy" element={<Layout><SecurityPrivacy /></Layout>} />
           <Route path="/features/schedule-print-job" element={<Layout><SchedulePrintJob /></Layout>} />
@@ -162,6 +167,11 @@ const App = () => (
           <Route path="/admin/printers" element={
             <ProtectedRoute requiredRole="admin">
               <AdminLayout><PrinterManagement /></AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/pricing" element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLayout><PricingSettings /></AdminLayout>
             </ProtectedRoute>
           } />
           <Route path="/admin/analytics" element={

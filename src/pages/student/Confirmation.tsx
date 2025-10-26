@@ -10,6 +10,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
 import { useNavigate } from "react-router-dom";
 import { usePrintJobContext } from "@/hooks/usePrintJobContext";
+import { usePricing } from "@/hooks/usePricing";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { MobileStepNavigation } from "@/components/mobile/MobileStepNavigation";
@@ -62,6 +63,7 @@ interface JobSummary {
 export default function Confirmation() {
   const navigate = useNavigate();
   const { files, settings, selectedPrinter, payment, setPaymentInfo } = usePrintJobContext();
+  const { pricing, loading: pricingLoading, error: pricingError } = usePricing();
   const isMobile = useIsMobile();
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifySMS, setNotifySMS] = useState(false);
@@ -81,24 +83,15 @@ export default function Confirmation() {
     paperType: currentFileSettings?.paperType
   });
 
-  // Calculate cost using backend pricing logic
-  // Calculate cost using backend pricing logic - recalculates when settings change
+  // Calculate cost using dynamic pricing configuration
   const calculatedCost = useMemo(() => {
-    if (!currentFile || !currentFileSettings) {
+    if (!currentFile || !currentFileSettings || pricingLoading || !pricing) {
       return { base: 0, color: 0, duplex: 0, paperSurcharge: 0, total: 0 };
     }
 
-    const BLACK_AND_WHITE_RATE = 2.00; // ₹2.00 per page
-    const COLOR_RATE = 5.00; // ₹5.00 per page
-
-    // Paper type surcharges (per page)
-    const paperSurcharges: { [key: string]: number } = {
-      'A4': 0,
-      'A3': 3.00,
-      'Letter': 0.50,
-      'Legal': 1.00,
-      'Certificate': 5.00
-    };
+    // Get dynamic pricing rates
+    const BLACK_AND_WHITE_RATE = pricing.baseRates.blackAndWhite;
+    const COLOR_RATE = pricing.baseRates.color;
 
     const pages = currentFile.pages || 1;
     const copies = currentFileSettings.copies || 1;
@@ -111,39 +104,43 @@ export default function Confirmation() {
       copies,
       isColor,
       isDuplex,
-      paperType
+      paperType,
+      pricingRates: { BLACK_AND_WHITE_RATE, COLOR_RATE }
     });
 
     // Base printing cost
     const baseRate = isColor ? COLOR_RATE : BLACK_AND_WHITE_RATE;
     const baseCost = baseRate * pages * copies;
 
-    // Paper surcharge
-    const paperSurcharge = (paperSurcharges[paperType] || 0) * pages * copies;
+    // Paper surcharge from dynamic pricing
+    const paperSizeLower = paperType.toLowerCase();
+    const paperSurcharge = (pricing.paperSurcharges[paperSizeLower as keyof typeof pricing.paperSurcharges] || 0) * pages * copies;
 
     // Total before duplex discount
     let total = baseCost + paperSurcharge;
 
-    // Apply duplex discount (10% off)
-    const duplexDiscount = isDuplex ? total * 0.10 : 0;
+    // Apply duplex discount from dynamic pricing
+    const duplexDiscountPercentage = pricing.discounts.duplexPercentage;
+    const duplexDiscount = isDuplex ? total * (duplexDiscountPercentage / 100) : 0;
     total = total - duplexDiscount;
 
     console.log('💰 CONFIRMATION - Calculated breakdown:', {
       baseCost,
       paperSurcharge,
       subtotal: baseCost + paperSurcharge,
+      duplexDiscountPercentage,
       duplexDiscount,
       total
     });
 
     return {
-      base: baseCost,
-      color: isColor ? baseCost : 0,
-      duplex: duplexDiscount,
-      paperSurcharge: paperSurcharge,
-      total: total
+      base: Math.round(baseCost * 100) / 100,
+      color: isColor ? Math.round(baseCost * 100) / 100 : 0,
+      duplex: Math.round(duplexDiscount * 100) / 100,
+      paperSurcharge: Math.round(paperSurcharge * 100) / 100,
+      total: Math.round(total * 100) / 100
     };
-  }, [currentFile, currentFileSettings]);
+  }, [currentFile, currentFileSettings, pricing, pricingLoading]);
 
   console.log('💰 CONFIRMATION PAGE - Calculated Cost:', calculatedCost);
 

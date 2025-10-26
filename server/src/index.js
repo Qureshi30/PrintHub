@@ -23,6 +23,7 @@ const queueRoutes = require('./routes/queueRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const webhookRoutes = require('./routes/webhookRoutes');
 const cashPaymentRoutes = require('./routes/cashPaymentRoutes');
+const pricingRoutes = require('./routes/pricingRoutes');
 
 // Import queue processor
 const queueProcessor = require('./services/queueProcessor');
@@ -146,6 +147,7 @@ app.use('/api/students', studentRoutes);
 app.use('/api/queue', queueRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/cash-payment', cashPaymentRoutes);
+app.use('/api/pricing', pricingRoutes);
 // Webhook routes (no rate limiting for webhooks)
 app.use('/webhooks', webhookRoutes);
 
