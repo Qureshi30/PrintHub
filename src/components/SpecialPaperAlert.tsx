@@ -131,6 +131,8 @@ export function SpecialPaperAlert({
             </div>
           </div>
 
+
+
           {/* Delay Warning */}
           <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <Clock className="h-5 w-5 text-yellow-600" />
