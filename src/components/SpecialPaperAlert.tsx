@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
+
   AlertTriangle, 
   Clock, 
   FileText, 
@@ -140,6 +141,7 @@ export function SpecialPaperAlert({
               </p>
             </div>
           </div>
+
 
           {/* Job Summary */}
           {files.length > 0 && (
