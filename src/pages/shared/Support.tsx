@@ -6,13 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import { useUser } from "@clerk/clerk-react";
+import { useUser, useAuth } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  HelpCircle, 
-  MessageCircle, 
-  Mail, 
-  Phone, 
+import {
+  HelpCircle,
+  MessageCircle,
+  Mail,
+  Phone,
   Search,
   FileText,
   Printer,
@@ -32,12 +32,15 @@ interface FAQ {
 
 export default function Support() {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const { toast } = useToast();
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [ticketSubject, setTicketSubject] = useState("");
   const [ticketMessage, setTicketMessage] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("general");
+  const [ticketCategory, setTicketCategory] = useState("Printing Issues");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const faqs: FAQ[] = [
     {
@@ -48,7 +51,7 @@ export default function Support() {
       helpful: 24
     },
     {
-      id: "2", 
+      id: "2",
       category: "printing",
       question: "What file formats are supported?",
       answer: "We support PDF, DOC, DOCX, TXT, and most image formats (JPG, PNG, GIF). For best results, we recommend converting your documents to PDF before uploading.",
@@ -63,7 +66,7 @@ export default function Support() {
     },
     {
       id: "4",
-      category: "payment", 
+      category: "payment",
       question: "How do I get a refund?",
       answer: "Refunds are available for unprinted jobs or technical issues on our end. Submit a support ticket with your job ID and reason for refund. Processing takes 3-5 business days.",
       helpful: 15
@@ -102,7 +105,7 @@ export default function Support() {
     setSearchTerm(term);
   };
 
-  const handleSubmitTicket = () => {
+  const handleSubmitTicket = async () => {
     if (!ticketSubject || !ticketMessage) {
       toast({
         title: "Missing information",
@@ -112,16 +115,50 @@ export default function Support() {
       return;
     }
 
-    toast({
-      title: "Support ticket submitted!",
-      description: "We'll respond to your inquiry within 24 hours via email.",
-    });
+    setIsSubmitting(true);
 
-    setTicketSubject("");
-    setTicketMessage("");
+    try {
+      const response = await fetch('http://localhost:3001/api/queries', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await getToken()}`
+        },
+        body: JSON.stringify({
+          category: ticketCategory,
+          subject: ticketSubject,
+          message: ticketMessage
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast({
+          title: "✅ Support ticket submitted!",
+          description: "We'll respond to your inquiry within 24 hours via email.",
+        });
+
+        // Clear form
+        setTicketSubject("");
+        setTicketMessage("");
+        setTicketCategory("Printing Issues");
+      } else {
+        throw new Error(data.message || 'Failed to submit ticket');
+      }
+    } catch (error) {
+      console.error('Error submitting ticket:', error);
+      toast({
+        title: "❌ Failed to submit ticket",
+        description: "Please try again or contact support directly.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const filteredFAQs = faqs.filter(faq => 
+  const filteredFAQs = faqs.filter(faq =>
     faq.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
     faq.answer.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (selectedCategory !== "all" && faq.category === selectedCategory)
@@ -152,34 +189,34 @@ export default function Support() {
 
           {/* Quick Actions */}
           <div className="grid gap-4 md:grid-cols-3">
-            <Card className="border-blue-200 bg-blue-50">
+            <Card className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30">
               <CardContent className="p-4 text-center">
-                <MessageCircle className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-                <h3 className="font-medium text-blue-900">Live Chat</h3>
-                <p className="text-sm text-blue-700 mb-3">Get instant help</p>
-                <Button size="sm" variant="outline" className="border-blue-300">
+                <MessageCircle className="h-8 w-8 mx-auto mb-2 text-blue-600 dark:text-blue-400" />
+                <h3 className="font-medium text-blue-900 dark:text-blue-100">Live Chat</h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">Get instant help</p>
+                <Button size="sm" variant="outline" className="border-blue-300 dark:border-blue-700 dark:text-blue-200">
                   Start Chat
                 </Button>
               </CardContent>
             </Card>
 
-            <Card className="border-green-200 bg-green-50">
+            <Card className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30">
               <CardContent className="p-4 text-center">
-                <Mail className="h-8 w-8 mx-auto mb-2 text-green-600" />
-                <h3 className="font-medium text-green-900">Email Support</h3>
-                <p className="text-sm text-green-700 mb-3">Response in 24h</p>
-                <Button size="sm" variant="outline" className="border-green-300">
+                <Mail className="h-8 w-8 mx-auto mb-2 text-green-600 dark:text-green-400" />
+                <h3 className="font-medium text-green-900 dark:text-green-100">Email Support</h3>
+                <p className="text-sm text-green-700 dark:text-green-300 mb-3">Response in 24h</p>
+                <Button size="sm" variant="outline" className="border-green-300 dark:border-green-700 dark:text-green-200">
                   Send Email
                 </Button>
               </CardContent>
             </Card>
 
-            <Card className="border-purple-200 bg-purple-50">
+            <Card className="border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/30">
               <CardContent className="p-4 text-center">
-                <Phone className="h-8 w-8 mx-auto mb-2 text-purple-600" />
-                <h3 className="font-medium text-purple-900">Phone Support</h3>
-                <p className="text-sm text-purple-700 mb-3">Mon-Fri 9AM-5PM</p>
-                <Button size="sm" variant="outline" className="border-purple-300">
+                <Phone className="h-8 w-8 mx-auto mb-2 text-purple-600 dark:text-purple-400" />
+                <h3 className="font-medium text-purple-900 dark:text-purple-100">Phone Support</h3>
+                <p className="text-sm text-purple-700 dark:text-purple-300 mb-3">Mon-Fri 9AM-5PM</p>
+                <Button size="sm" variant="outline" className="border-purple-300 dark:border-purple-700 dark:text-purple-200">
                   Call Now
                 </Button>
               </CardContent>
@@ -195,7 +232,7 @@ export default function Support() {
                     <Search className="h-5 w-5" />
                     Frequently Asked Questions
                   </CardTitle>
-                  
+
                   {/* Search */}
                   <div className="space-y-4">
                     <div className="relative">
@@ -277,15 +314,16 @@ export default function Support() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="ticketCategory">Category</Label>
-                    <select 
+                    <select
                       id="ticketCategory"
+                      value={ticketCategory}
+                      onChange={(e) => setTicketCategory(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="printing">Printing Issues</option>
-                      <option value="payment">Payment & Billing</option>
-                      <option value="account">Account Settings</option>
-                      <option value="technical">Technical Problems</option>
-                      <option value="other">Other</option>
+                      <option value="Printing Issues">Printing Issues</option>
+                      <option value="Payment & Billing">Payment & Billing</option>
+                      <option value="Account Settings">Account Settings</option>
+                      <option value="General">General</option>
                     </select>
                   </div>
 
@@ -311,16 +349,20 @@ export default function Support() {
                   </div>
 
                   {user && (
-                    <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                      <p><strong>Contact Info:</strong></p>
-                      <p>{user.firstName} {user.lastName}</p>
-                      <p>{user.primaryEmailAddress?.emailAddress}</p>
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-sm">
+                      <p className="dark:text-gray-200"><strong>Contact Info:</strong></p>
+                      <p className="dark:text-gray-300">{user.firstName} {user.lastName}</p>
+                      <p className="dark:text-gray-300">{user.primaryEmailAddress?.emailAddress}</p>
                     </div>
                   )}
 
-                  <Button onClick={handleSubmitTicket} className="w-full bg-gradient-hero">
+                  <Button
+                    onClick={handleSubmitTicket}
+                    className="w-full bg-gradient-hero"
+                    disabled={isSubmitting}
+                  >
                     <Send className="h-4 w-4 mr-2" />
-                    Submit Ticket
+                    {isSubmitting ? 'Submitting...' : 'Submit Ticket'}
                   </Button>
                 </CardContent>
               </Card>
@@ -336,26 +378,26 @@ export default function Support() {
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
-                      <Mail className="h-4 w-4 text-gray-600" />
+                      <Mail className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                       <div>
-                        <p className="font-medium">Email Support</p>
-                        <p className="text-sm text-gray-600">support@printmate.com</p>
+                        <p className="font-medium dark:text-gray-200">Email Support</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">support@printmate.com</p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <Phone className="h-4 w-4 text-gray-600" />
+                      <Phone className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                       <div>
-                        <p className="font-medium">Phone Support</p>
-                        <p className="text-sm text-gray-600">+1 (555) 123-4567</p>
+                        <p className="font-medium dark:text-gray-200">Phone Support</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">+1 (555) 123-4567</p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <Clock className="h-4 w-4 text-gray-600" />
+                      <Clock className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                       <div>
-                        <p className="font-medium">Business Hours</p>
-                        <p className="text-sm text-gray-600">Mon-Fri: 9:00 AM - 5:00 PM EST</p>
+                        <p className="font-medium dark:text-gray-200">Business Hours</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Mon-Fri: 9:00 AM - 5:00 PM EST</p>
                       </div>
                     </div>
                   </div>

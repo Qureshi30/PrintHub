@@ -18,9 +18,8 @@ const { getSocketIO } = require('./socketService');
  */
 async function getWindowsPrinterStatus(printerName) {
   try {
-    // PowerShell command to get printer status - properly escape printer name
-    const escapedPrinterName = printerName.replace(/"/g, '""').replace(/'/g, "''");
-    const psCommand = `Get-Printer -Name '${escapedPrinterName}' | Select-Object Name, PrinterStatus, JobCount | ConvertTo-Json`;
+    // PowerShell command to get printer status
+    const psCommand = `Get-Printer -Name "${printerName}" | Select-Object Name, PrinterStatus, JobCount | ConvertTo-Json`;
     
     const { stdout, stderr } = await execAsync(`powershell.exe -Command "${psCommand}"`, {
       timeout: 10000

@@ -23,7 +23,7 @@ const queueRoutes = require('./routes/queueRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const webhookRoutes = require('./routes/webhookRoutes');
 const cashPaymentRoutes = require('./routes/cashPaymentRoutes');
-const pricingRoutes = require('./routes/pricingRoutes');
+const queryRoutes = require('./routes/queryRoutes');
 
 // Import queue processor
 const queueProcessor = require('./services/queueProcessor');
@@ -147,7 +147,7 @@ app.use('/api/students', studentRoutes);
 app.use('/api/queue', queueRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/cash-payment', cashPaymentRoutes);
-app.use('/api/pricing', pricingRoutes);
+app.use('/api/queries', queryRoutes);
 // Webhook routes (no rate limiting for webhooks)
 app.use('/webhooks', webhookRoutes);
 
@@ -192,14 +192,14 @@ app.listen(PORT, () => {
   // Start Windows printer monitoring (every 2 minutes)
   const cron = require('node-cron');
   const { monitorAllWindowsPrinters } = require('./services/windowsPrinterMonitor');
-  
+
   // Run monitoring immediately on startup
   setTimeout(() => {
     monitorAllWindowsPrinters().catch(error => {
       console.error('❌ Initial printer monitoring error:', error);
     });
   }, 5000); // Wait 5 seconds for database connection
-  
+
   // Schedule monitoring every 2 minutes
   cron.schedule('*/2 * * * *', () => {
     console.log('🔍 Running scheduled printer monitoring...');
@@ -207,7 +207,7 @@ app.listen(PORT, () => {
       console.error('❌ Scheduled printer monitoring error:', error);
     });
   });
-  
+
   console.log(`📡 Windows printer monitoring scheduled (every 2 minutes)`);
 });
 
