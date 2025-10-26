@@ -5,7 +5,8 @@ import {
   Home,
   Shield,
   Mail,
-  DollarSign
+  DollarSign,
+  MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -20,6 +21,7 @@ export function AdminHeader() {
     { path: "/admin", label: "Dashboard", icon: Home },
     { path: "/admin/users", label: "Users", icon: Users },
     { path: "/admin/printers", label: "Printers", icon: Printer },
+    { path: "/admin/queries", label: "Queries", icon: MessageSquare },
     { path: "/admin/error-logs", label: "Error Logs", icon: Shield },
     { path: "/admin/cash-payments", label: "Cash Payments", icon: DollarSign },
     { path: "/admin/analytics", label: "Analytics", icon: BarChart3 },
@@ -60,8 +62,8 @@ export function AdminHeader() {
                   size="sm"
                   onClick={handleClick}
                   className={`flex items-center gap-2 transition-colors !outline-none !ring-0 focus:!outline-none focus:!ring-blue-500 focus:!ring-2 focus:!ring-offset-2 active:!bg-blue-700 active:!outline-none border-0 focus:border-0 active:border-0 ${isActive
-                      ? "bg-blue-600 text-white hover:bg-blue-700 focus:bg-blue-700"
-                      : "hover:bg-blue-100 text-blue-700 focus:bg-blue-100 active:bg-blue-200"
+                    ? "bg-blue-600 text-white hover:bg-blue-700 focus:bg-blue-700"
+                    : "hover:bg-blue-100 dark:hover:bg-blue-950 text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 focus:bg-blue-100 dark:focus:bg-blue-950 active:bg-blue-200 dark:active:bg-blue-900"
                     }`}
                   style={{ outline: 'none', border: 'none' }}
                 >

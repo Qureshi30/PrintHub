@@ -1,32 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import MobileSidebar from "@/components/layout/MobileSidebar";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@clerk/clerk-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserNotifications, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from "@/hooks/useDatabase";
-import { 
-  Bell, 
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle, 
-  Clock, 
+import {
+  Bell,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Clock,
   Printer,
   FileText,
-  RefreshCw
+  RefreshCw,
+  ExternalLink,
+  MessageCircle
 } from "lucide-react";
 
 export default function Notifications() {
   const { toast } = useToast();
-  const { userId } = useAuth();
+  const { userId, getToken } = useAuth();
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<"all" | "unread" | "action_required">("all");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
-  
+  const [selectedQuery, setSelectedQuery] = useState<any>(null);
+  const [isQueryDialogOpen, setIsQueryDialogOpen] = useState(false);
+  const [loadingQuery, setLoadingQuery] = useState(false);
+
   // Use hooks with user ID
   const { notifications, loading: isLoading, error } = useUserNotifications(userId || undefined);
   const markAsReadMutation = useMarkNotificationAsRead();
@@ -47,6 +61,83 @@ export default function Notifications() {
         title: "All notifications marked as read",
         description: "All notifications have been marked as read.",
       });
+    }
+  };
+
+  const handleNotificationClick = async (notification: any) => {
+    console.log('🔔 Notification clicked!', {
+      id: notification._id,
+      type: notification.type,
+      title: notification.title,
+      metadata: notification.metadata,
+      hasQueryId: !!notification.metadata?.queryId
+    });
+
+    // Mark as read
+    if (!notification.read) {
+      handleMarkAsRead(notification._id);
+    }
+
+    // If it's a query notification, fetch and show query details
+    if (notification.metadata?.queryId) {
+      console.log('📋 Fetching query details for:', notification.metadata.queryId);
+      await fetchQueryDetails(notification.metadata.queryId);
+    } else if (notification.type === 'system' && notification.metadata?.category) {
+      // Navigate to support page
+      console.log('🔗 Navigating to support page');
+      navigate('/support');
+    } else {
+      console.log('ℹ️ No queryId found, notification not clickable');
+    }
+  };
+
+  const fetchQueryDetails = async (queryId: string) => {
+    setLoadingQuery(true);
+    try {
+      const token = await getToken();
+      const response = await fetch(`http://localhost:3001/api/queries/${queryId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedQuery(data.data);
+        setIsQueryDialogOpen(true);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load query details",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching query:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load query details",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingQuery(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'resolved': return 'text-green-600 bg-green-100';
+      case 'in-progress': return 'text-blue-600 bg-blue-100';
+      case 'closed': return 'text-gray-600 bg-gray-100';
+      default: return 'text-yellow-600 bg-yellow-100';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'text-red-600 bg-red-100';
+      case 'medium': return 'text-orange-600 bg-orange-100';
+      default: return 'text-blue-600 bg-blue-100';
     }
   };
 
@@ -112,12 +203,12 @@ export default function Notifications() {
   return (
     <ProtectedRoute>
       {isMobile && (
-        <MobileSidebar 
+        <MobileSidebar
           open={isSidebarOpen}
           onOpenChange={setIsSidebarOpen}
         />
       )}
-      <MobileHeader 
+      <MobileHeader
         title="Notifications"
         showBackButton={true}
         backTo="/student/dashboard"
@@ -156,7 +247,7 @@ export default function Notifications() {
               Action Required
             </Button>
           </div>
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -185,56 +276,109 @@ export default function Notifications() {
               </CardContent>
             </Card>
           ) : (
-            filteredNotifications.map((notification) => (
-              <Card 
-                key={notification._id} 
-                className={`transition-all duration-200 hover:shadow-md ${
-                  !notification.read ? 'border-blue-200 bg-blue-50/50' : ''
-                }`}
-              >
-                <CardContent className="pt-6">
-                  <div className="flex items-start gap-4">
-                    <div className="mt-1">
-                      {getNotificationIcon(notification.type)}
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-sm">{notification.title}</h3>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {notification.message}
-                          </p>
-                          <div className="flex items-center gap-2 mt-2">
-                            {getNotificationBadge(notification.type)}
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(notification.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </div>
-                        
-                        <div className="flex gap-2">
-                          {!notification.read && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleMarkAsRead(notification._id)}
-                              disabled={markAsReadMutation.isLoading}
-                            >
-                              {markAsReadMutation.isLoading ? (
-                                <RefreshCw className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <CheckCircle className="h-4 w-4" />
+            filteredNotifications.map((notification) => {
+              const hasQueryId = notification.metadata?.queryId;
+              return (
+                <Card
+                  key={notification._id}
+                  className={`transition-all duration-200 ${hasQueryId ? 'cursor-pointer hover:shadow-lg hover:border-blue-400 hover:bg-blue-50/30' : ''
+                    } ${!notification.read ? 'border-blue-200 bg-blue-50/50' : ''
+                    }`}
+                  onClick={() => {
+                    console.log('🖱️ Notification clicked:', notification._id, 'Has queryId:', hasQueryId);
+                    handleNotificationClick(notification);
+                  }}
+                >
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-4">
+                      <div className="mt-1">
+                        {getNotificationIcon(notification.type)}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold text-sm">{notification.title}</h3>
+                              {hasQueryId && (
+                                <div className="flex items-center gap-1">
+                                  <ExternalLink className="h-3 w-3 text-blue-500" />
+                                  <span className="text-xs text-blue-500">Click to view</span>
+                                </div>
                               )}
-                            </Button>
-                          )}
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {notification.message}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2">
+                              {/* Show View Details button only for resolved query notifications */}
+                              {hasQueryId && notification.title.toLowerCase().includes('resolved') ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 px-2 text-xs border-green-500 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleNotificationClick(notification);
+                                  }}
+                                >
+                                  <ExternalLink className="h-3 w-3 mr-1" />
+                                  View Details
+                                </Button>
+                              ) : (
+                                getNotificationBadge(notification.type)
+                              )}
+                              {notification.metadata?.category && (
+                                <Badge variant="outline" className="text-xs">
+                                  {notification.metadata.category}
+                                </Badge>
+                              )}
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(notification.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2">
+                            {hasQueryId && (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="bg-blue-600 hover:bg-blue-700"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleNotificationClick(notification);
+                                }}
+                              >
+                                <MessageCircle className="h-4 w-4 mr-1" />
+                                View Ticket
+                              </Button>
+                            )}
+                            {!notification.read && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMarkAsRead(notification._id);
+                                }}
+                                disabled={markAsReadMutation.isLoading}
+                              >
+                                {markAsReadMutation.isLoading ? (
+                                  <RefreshCw className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </div>
 
@@ -247,6 +391,139 @@ export default function Notifications() {
           </div>
         )}
       </div>
+
+      {/* Query Detail Dialog */}
+      <Dialog open={isQueryDialogOpen} onOpenChange={setIsQueryDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5" />
+              Support Ticket Details
+            </DialogTitle>
+            <DialogDescription>
+              View your support ticket and admin response
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingQuery ? (
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
+            </div>
+          ) : selectedQuery ? (
+            <div className="space-y-4">
+              {/* Status and Priority */}
+              <div className="flex items-center gap-2">
+                <Badge className={getStatusColor(selectedQuery.status)}>
+                  {selectedQuery.status === 'resolved' && '✅ '}
+                  {selectedQuery.status === 'in-progress' && '🔄 '}
+                  {selectedQuery.status === 'open' && '🔵 '}
+                  {selectedQuery.status === 'closed' && '⚫ '}
+                  {selectedQuery.status.toUpperCase()}
+                </Badge>
+                <Badge className={getPriorityColor(selectedQuery.priority)}>
+                  {selectedQuery.priority.toUpperCase()}
+                </Badge>
+                <Badge variant="outline">{selectedQuery.category}</Badge>
+              </div>
+
+              {/* Ticket Info */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">Ticket ID:</span>
+                  <span className="text-sm text-muted-foreground">#{selectedQuery._id.slice(-8)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">Submitted:</span>
+                  <span className="text-sm text-muted-foreground">
+                    {new Date(selectedQuery.createdAt).toLocaleString()}
+                  </span>
+                </div>
+                {selectedQuery.updatedAt && selectedQuery.updatedAt !== selectedQuery.createdAt && (
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Last Updated:</span>
+                    <span className="text-sm text-muted-foreground">
+                      {new Date(selectedQuery.updatedAt).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Subject */}
+              <div>
+                <h4 className="font-semibold text-sm mb-2">Subject</h4>
+                <p className="text-sm">{selectedQuery.subject}</p>
+              </div>
+
+              {/* Your Message */}
+              <div>
+                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                  <span className="w-1 h-4 bg-blue-500 rounded"></span>
+                  Your Message
+                </h4>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm whitespace-pre-wrap">{selectedQuery.message}</p>
+                </div>
+              </div>
+
+              {/* Admin Response */}
+              {selectedQuery.adminResponse && (
+                <div>
+                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                    <span className="w-1 h-4 bg-green-500 rounded"></span>
+                    Admin Response
+                  </h4>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-sm whitespace-pre-wrap">{selectedQuery.adminResponse}</p>
+                    {selectedQuery.respondedAt && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Responded on {new Date(selectedQuery.respondedAt).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* No Response Yet */}
+              {!selectedQuery.adminResponse && selectedQuery.status !== 'closed' && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-yellow-600" />
+                    <p className="text-sm text-yellow-800">
+                      {selectedQuery.status === 'in-progress'
+                        ? 'Our team is working on your ticket. You will receive an email when we respond.'
+                        : 'Our support team will respond within 24 hours. You will receive an email notification.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setIsQueryDialogOpen(false)}
+                >
+                  Close
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    setIsQueryDialogOpen(false);
+                    navigate('/support');
+                  }}
+                >
+                  View All Tickets
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>Failed to load ticket details</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </ProtectedRoute>
   );
 }
