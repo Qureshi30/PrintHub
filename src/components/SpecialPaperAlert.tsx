@@ -143,6 +143,8 @@ export function SpecialPaperAlert({
           </div>
 
 
+
+
           {/* Job Summary */}
           {files.length > 0 && (
             <div className="space-y-3">
