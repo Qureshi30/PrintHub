@@ -7,6 +7,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
 import { useNavigate } from "react-router-dom";
 import { usePrintJobContext } from "@/hooks/usePrintJobContext";
+import { usePricing } from "@/hooks/usePricing";
 import { useBackendUpload } from "@/hooks/useBackendUpload";
 import { useCreatePrintJob } from "@/hooks/useDatabase";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +46,7 @@ export default function Payment() {
   const isMobile = useIsMobile();
   const { userId, getToken } = useAuth();
   const { toast } = useToast();
+  const { pricing, loading: pricingLoading, error: pricingError } = usePricing();
   const [selectedMethod, setSelectedMethod] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ [fileId: string]: number }>({});
@@ -55,6 +57,7 @@ export default function Payment() {
     files, 
     settings, 
     selectedPrinter, 
+    payment,
     updateFileWithCloudinaryData,
     getSessionFile,
     goToNextStep,
@@ -107,6 +110,11 @@ export default function Payment() {
     console.log('⚠️ PAYMENT - No payment.totalCost, calculating from files...');
 
     // Fallback calculation if backend total not available
+    if (!pricing) {
+      console.log('❌ PAYMENT - No pricing data available');
+      return 0;
+    }
+
     let total = 0;
     files.forEach(file => {
       const fileSettings = settings[file.id];
@@ -117,14 +125,24 @@ export default function Payment() {
       });
 
       if (fileSettings) {
-        const blackAndWhiteRate = 2.00; // ₹2.00 per page for B&W
-        const colorRate = 5.00; // ₹5.00 per page for color
-        const baseCost = fileSettings.color ? colorRate : blackAndWhiteRate;
+        const baseCost = fileSettings.color ? pricing.baseRates.color : pricing.baseRates.blackAndWhite;
         const pages = file.pages || 1;
         const copies = fileSettings.copies || 1;
-        const fileCost = baseCost * pages * copies;
+        
+        // Apply paper surcharge if available
+        const paperSurcharge = pricing.paperSurcharges?.[fileSettings.paperType.toLowerCase()] || 0;
+        const pageRate = baseCost + paperSurcharge;
+        
+        let fileCost = pageRate * pages * copies;
+        
+        // Apply duplex discount if applicable
+        if (fileSettings.duplex && pricing.discounts?.duplexPercentage > 0) {
+          const discount = fileCost * (pricing.discounts.duplexPercentage / 100);
+          fileCost -= discount;
+          console.log(`🔄 PAYMENT - Applied duplex discount: ${discount} (${pricing.discounts.duplexPercentage}%)`);
+        }
 
-        console.log(`💵 PAYMENT - File cost: ${fileCost} (${baseCost}/page × ${pages} pages × ${copies} copies)`);
+        console.log(`💵 PAYMENT - File cost: ${fileCost} (${pageRate}/page × ${pages} pages × ${copies} copies)`);
         total += fileCost;
       }
     });

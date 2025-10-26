@@ -17,6 +17,7 @@ import { MobileStepNavigation } from "@/components/mobile/MobileStepNavigation";
 import { MobileCard, MobileTouchButton } from "@/components/mobile/MobileComponents";
 import { useNavigate } from "react-router-dom";
 import { usePrintJobContext } from "@/hooks/usePrintJobContext";
+import { usePricing } from "@/hooks/usePricing";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Calculator, FileText, Copy, Settings, ChevronDown, ChevronUp, Palette, FileStack, Printer } from "lucide-react";
 
@@ -37,6 +38,7 @@ interface FileSettings {
 export default function PrintSettings() {
   const navigate = useNavigate();
   const { files, settings: contextSettings, updateFileSettings: updateContextFileSettings } = usePrintJobContext();
+  const { pricing, loading: pricingLoading, error: pricingError } = usePricing();
   const [activeTab, setActiveTab] = useState<string>("");
   const [showSpecialPaperAlert, setShowSpecialPaperAlert] = useState(false);
   const [specialPaperType, setSpecialPaperType] = useState<"A3" | "certificate" | "photo" | "cardstock">("A3");
@@ -163,16 +165,14 @@ export default function PrintSettings() {
     const settings = fileSettings[fileId];
     if (!file || !settings) return { perPage: 0, total: 0, pages: 0 };
 
-    // INR pricing: ₹2 per page for B&W, ₹5 per page for color
-    const BLACK_AND_WHITE_RATE = 2.00;
-    const COLOR_RATE = 5.00;
+    // Use dynamic pricing from the pricing hook
+    if (pricingLoading || !pricing) {
+      return { perPage: 0, total: 0, pages: 0 };
+    }
 
-    const paperSizeMultiplier = {
-      A4: 1.0,
-      A3: 1.5,
-      Letter: 1.0,
-      Legal: 1.2
-    };
+    // Get base rates from pricing configuration
+    const BLACK_AND_WHITE_RATE = pricing.baseRates.blackAndWhite;
+    const COLOR_RATE = pricing.baseRates.color;
 
     // Calculate pages to print based on page range selection
     let pagesToPrint = file.pages;
@@ -210,18 +210,26 @@ export default function PrintSettings() {
 
     // Determine base cost based on color mode
     const baseCost = settings.colorMode === "color" ? COLOR_RATE : BLACK_AND_WHITE_RATE;
-    const sizeMultiplier = paperSizeMultiplier[settings.paperSize as keyof typeof paperSizeMultiplier];
-    let totalCost = pagesToPrint * settings.copies * baseCost * sizeMultiplier;
 
-    // Apply duplex discount (10% off) if double-sided is enabled
+    // Get paper surcharge from pricing configuration
+    const paperSizeLower = settings.paperSize.toLowerCase();
+    const paperSurcharge = pricing.paperSurcharges[paperSizeLower as keyof typeof pricing.paperSurcharges] || 0;
+
+    // Calculate total cost: (base cost per page * pages * copies) + paper surcharge
+    let totalCost = (pagesToPrint * settings.copies * baseCost) + paperSurcharge;
+
+    // Apply duplex discount from pricing configuration
     if (settings.duplex === "double") {
-      totalCost = totalCost * 0.9; // 10% discount
+      const duplexDiscount = totalCost * (pricing.discounts.duplexPercentage / 100);
+      totalCost -= duplexDiscount;
     }
 
     return {
-      perPage: baseCost * sizeMultiplier,
-      total: totalCost,
-      pages: pagesToPrint
+      perPage: baseCost,
+      total: Math.round(totalCost * 100) / 100, // Round to 2 decimal places
+      pages: pagesToPrint,
+      paperSurcharge,
+      duplexDiscount: settings.duplex === "double" ? pricing.discounts.duplexPercentage : 0
     };
   };
 
@@ -243,15 +251,34 @@ export default function PrintSettings() {
         showBackButton={true}
         backTo="/upload"
         rightAction={
-          <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-            ₹{getTotalCost().toFixed(2)}
-          </Badge>
+          pricingLoading ? (
+            <Badge variant="secondary" className="bg-gray-100 text-gray-600">
+              Loading...
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+              ₹{getTotalCost().toFixed(2)}
+            </Badge>
+          )
         }
       />
 
       <div className={`${isMobile ? 'pb-24' : ''} container mx-auto py-8 px-4`}>
         <div className="max-w-6xl mx-auto space-y-6">
           {!isMobile && <PrintFlowBreadcrumb currentStep="/student/print-settings" />}
+
+          {/* Pricing Error Alert */}
+          {pricingError && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-center gap-2">
+                <Calculator className="h-5 w-5 text-yellow-600" />
+                <span className="font-medium text-yellow-800">Pricing Information Unavailable</span>
+              </div>
+              <p className="text-yellow-700 text-sm mt-1">
+                Using default pricing. Some calculations may not be accurate. Please refresh the page.
+              </p>
+            </div>
+          )}
 
           <div className={`text-center space-y-2 ${isMobile ? 'px-4' : ''}`}>
             <h1 className={`font-bold tracking-tight text-blue-600 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>
