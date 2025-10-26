@@ -65,24 +65,28 @@ const requireAuth = async (req, res, next) => {
 };
 
 // Admin-only middleware that verifies admin role
-// NOTE: This middleware assumes requireAuth has already been called
-const requireAdmin = (req, res, next) => {
-  // Check if user is authenticated (should be set by requireAuth)
-  if (!req.user) {
-    console.log('❌ Admin check failed: No user object (requireAuth not called first?)');
-    return res.status(401).json({
-      success: false,
-      error: {
-        message: 'Authentication required',
-        code: 'AUTH_REQUIRED'
+const requireAdmin = async (req, res, next) => {
+  try {
+    // First ensure user is authenticated
+    await requireAuth(req, res, () => {
+      // Check if user has admin role
+      if (req.user?.role !== 'admin') {
+        console.log(`❌ Access denied: User ${req.user?.id} has role "${req.user?.role}" but "admin" required`);
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: 'Admin access required',
+            code: 'ADMIN_REQUIRED'
+          }
+        });
       }
-    });
-  }
 
-  // Check if user has admin role
-  if (req.user.role !== 'admin') {
-    console.log(`❌ Access denied: User ${req.user.id} has role "${req.user.role}" but "admin" required`);
-    return res.status(403).json({
+      console.log(`✅ Admin access granted for user: ${req.user.id}`);
+      next();
+    });
+  } catch (error) {
+    console.error('❌ Admin auth error:', error);
+    res.status(403).json({
       success: false,
       error: {
         message: 'Admin access required',
@@ -90,9 +94,6 @@ const requireAdmin = (req, res, next) => {
       }
     });
   }
-
-  console.log(`✅ Admin access granted for user: ${req.user.id}`);
-  next();
 };
 
 // Staff-only middleware that verifies staff role
