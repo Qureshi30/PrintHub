@@ -9,8 +9,10 @@ const { mapPrintSettings } = require('./fileUtils');
 const getAvailablePrinters = async () => {
   try {
     const printers = await printer.getPrinters();
-    console.log(`🖨️ Found ${printers.length} available printers`);
-    return printers;
+    // Filter out any invalid printer objects that don't have a name
+    const validPrinters = printers.filter(p => p && typeof p.name === 'string' && p.name.trim() !== '');
+    console.log(`🖨️ Found ${validPrinters.length} available printers (${printers.length - validPrinters.length} invalid)`);
+    return validPrinters;
   } catch (error) {
     console.error('❌ Failed to get printers:', error.message);
     throw new Error(`Failed to get available printers: ${error.message}`);
@@ -27,9 +29,11 @@ const getDefaultPrinter = async () => {
     
     // Prefer HP LaserJet if available
     const hpPrinter = printers.find(p => 
-      p.name.toLowerCase().includes('hp laserjet') ||
-      p.name.toLowerCase().includes('m201') ||
-      p.name.toLowerCase().includes('m202')
+      p.name && (
+        p.name.toLowerCase().includes('hp laserjet') ||
+        p.name.toLowerCase().includes('m201') ||
+        p.name.toLowerCase().includes('m202')
+      )
     );
     
     if (hpPrinter) {
@@ -80,7 +84,7 @@ const getPrinterName = async (printerId) => {
     console.log(`🖨️ Found ${availablePrinters.length} available system printers`);
     
     // Try to find exact match first
-    let targetPrinter = availablePrinters.find(p => p.name === dbPrinterName);
+    let targetPrinter = availablePrinters.find(p => p.name && p.name === dbPrinterName);
     
     if (targetPrinter) {
       console.log(`✅ Found exact match: ${targetPrinter.name}`);
@@ -89,7 +93,7 @@ const getPrinterName = async (printerId) => {
     
     // Try case-insensitive match
     targetPrinter = availablePrinters.find(p => 
-      p.name.toLowerCase() === dbPrinterName.toLowerCase()
+      p.name && p.name.toLowerCase() === dbPrinterName.toLowerCase()
     );
     
     if (targetPrinter) {
@@ -101,6 +105,7 @@ const getPrinterName = async (printerId) => {
     if (dbPrinterName.toLowerCase().includes('pdf') || 
         dbPrinterName.toLowerCase().includes('microsoft')) {
       targetPrinter = availablePrinters.find(p => 
+        p.name && 
         p.name.toLowerCase().includes('microsoft') && 
         p.name.toLowerCase().includes('pdf')
       );
@@ -136,13 +141,14 @@ const _oldGetPrinterName = async (printerId) => {
     
     // This was the problem - always looking for HP LaserJet regardless of what printer was requested
     const targetPrinterName = 'HP LaserJet Pro M201-M202 PCL 6';
-    const targetPrinter = availablePrinters.find(p => p.name === targetPrinterName);
+    const targetPrinter = availablePrinters.find(p => p.name && p.name === targetPrinterName);
     
     if (targetPrinter) {
       return targetPrinter.name;
     }
     
     const hpPrinter = availablePrinters.find(p => 
+      p.name &&
       p.name.toLowerCase().includes('hp laserjet') && 
       p.name.toLowerCase().includes('m201')
     );

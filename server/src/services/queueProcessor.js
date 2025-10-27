@@ -66,14 +66,43 @@ class QueueProcessor {
           return;
         }
 
-        // Mark printer as processing
-        this.processingPrinters.set(printerId, true);
+        // Mark printer as processing with timestamp
+        this.processingPrinters.set(printerId, {
+          jobId: queueItem.printJobId._id,
+          startTime: Date.now()
+        });
 
         try {
           await this.processJob(queueItem);
         } finally {
+          // Wait for OS to confirm printer finished before releasing lock
+          const printerJobMonitor = require('./printerJobMonitor');
+          const { getPrinterName } = require('../utils/printerUtils');
+          
+          try {
+            const printerName = await getPrinterName(queueItem.printJobId.printerId);
+            console.log(`🔍 Checking if printer "${printerName}" has finished all jobs...`);
+            
+            // Wait for printer queue to be empty (max 5 minutes, check every 2 seconds)
+            const monitorResult = await printerJobMonitor.waitForPrinterToFinish(
+              printerName,
+              300000, // 5 minutes max
+              2000    // Check every 2 seconds
+            );
+            
+            if (monitorResult.success) {
+              console.log(`✅ Printer "${printerName}" confirmed finished (${monitorResult.elapsedTimeMs / 1000}s)`);
+            } else {
+              console.warn(`⚠️ Printer monitoring timeout for "${printerName}" - releasing anyway`);
+            }
+          } catch (err) {
+            console.warn('⚠️ Error monitoring printer queue:', err.message);
+            console.warn('⚠️ Releasing printer lock anyway to prevent deadlock');
+          }
+          
           // Release printer
           this.processingPrinters.delete(printerId);
+          console.log(`✅ Printer ${printerId} released and ready for next job`);
         }
       });
 
