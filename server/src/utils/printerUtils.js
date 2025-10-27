@@ -1,5 +1,5 @@
 const printer = require('pdf-to-printer');
-const os = require('os');
+const os = require('node:os');
 const { mapPrintSettings } = require('./fileUtils');
 
 /**
@@ -273,10 +273,113 @@ const testPrint = async (printerName = null) => {
   }
 };
 
+/**
+ * Print a blank separator page
+ * Creates a temporary blank PDF and sends it to the printer
+ * @param {string} printerName - Name of the printer
+ * @param {string} jobId - ID of the job that just completed (for logging)
+ * @returns {Promise<Object>} - Print result
+ */
+const printBlankPage = async (printerName, jobId = 'unknown') => {
+  const startTime = Date.now();
+  const fs = require('node:fs').promises;
+  const path = require('node:path');
+  const os = require('node:os');
+  
+  let tempFilePath = null;
+  
+  try {
+    console.log(`📄 Preparing blank separator page after job ${jobId}`);
+    console.log(`🖨️ Target printer: ${printerName}`);
+    
+    // Create a blank PDF using PDFKit
+    const PDFDocument = require('pdfkit');
+    const tempDir = os.tmpdir();
+    tempFilePath = path.join(tempDir, `blank_separator_${Date.now()}.pdf`);
+    
+    // Create blank PDF
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 0,
+    });
+    
+    const writeStream = require('node:fs').createWriteStream(tempFilePath);
+    doc.pipe(writeStream);
+    
+    // Add a single blank page (with optional tiny watermark for tracking)
+    doc.fontSize(6)
+       .fillColor('#f0f0f0')
+       .text('Print Separator', 10, 10, { opacity: 0.1 });
+    
+    doc.end();
+    
+    // Wait for PDF to be written
+    await new Promise((resolve, reject) => {
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+    });
+    
+    console.log(`✅ Blank PDF created: ${tempFilePath}`);
+    
+    // Print the blank page
+    const printOptions = {
+      printer: printerName,
+      silent: true, // Don't show print dialog
+    };
+    
+    console.log(`📤 Sending blank separator to printer: ${printerName}`);
+    await printer.print(tempFilePath, printOptions);
+    
+    const endTime = Date.now();
+    const processingTime = Math.round((endTime - startTime) / 1000);
+    
+    console.log(`✅ Blank page separator sent successfully in ${processingTime}s`);
+    console.log(`📋 Inserted blank page separator after job ${jobId}`);
+    
+    // Clean up temp file
+    try {
+      await fs.unlink(tempFilePath);
+      console.log(`🗑️ Cleaned up blank page temp file`);
+    } catch (cleanupError) {
+      console.warn(`⚠️ Failed to cleanup blank page temp file:`, cleanupError.message);
+    }
+    
+    return {
+      success: true,
+      printerName,
+      processingTimeSeconds: processingTime,
+      message: `Inserted blank page separator after job ${jobId}`,
+    };
+    
+  } catch (error) {
+    const endTime = Date.now();
+    const processingTime = Math.round((endTime - startTime) / 1000);
+    
+    console.error(`❌ Failed to print blank separator after ${processingTime}s:`, error.message);
+    
+    // Clean up temp file on error
+    if (tempFilePath) {
+      try {
+        await fs.unlink(tempFilePath);
+      } catch (cleanupError) {
+        console.debug('Temp file cleanup failed:', cleanupError.message);
+      }
+    }
+    
+    return {
+      success: false,
+      error: error.message,
+      processingTimeSeconds: processingTime,
+      message: `Failed to print blank separator: ${error.message}`,
+    };
+  }
+};
+
 module.exports = {
   getAvailablePrinters,
   getDefaultPrinter,
   getPrinterName,
   printFile,
+  printBlankPage,
   testPrint,
 };

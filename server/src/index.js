@@ -206,7 +206,7 @@ app.listen(PORT, () => {
     });
   });
   
-  console.log(`📡 Windows printer monitoring scheduled (every 2 minutes)`);
+  console.log(`📡 Windows printer monitoring ENABLED - Checking every 2 minutes`);
 });
 
 module.exports = app;

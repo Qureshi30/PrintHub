@@ -6,96 +6,141 @@ const mongoose = require('mongoose');
 
 class QueueManager {
   /**
-   * Add a new print job to the queue
+   * Add a new print job to the queue with retry logic for write conflicts
    * @param {string} printJobId - The ObjectId of the PrintJob
+   * @param {number} maxRetries - Maximum number of retry attempts
    * @returns {Promise<Object>} The created queue item
    */
-  static async enqueue(printJobId) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
+  static async enqueue(printJobId, maxRetries = 3) {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const session = await mongoose.startSession();
+      session.startTransaction();
 
-    try {
-      // Verify the print job exists and is pending
-      const printJob = await PrintJob.findById(printJobId).session(session);
-      if (!printJob) {
-        throw new Error('Print job not found');
-      }
-
-      if (printJob.status !== 'pending') {
-        throw new Error('Only pending print jobs can be added to queue');
-      }
-
-      // Check if job is already in queue
-      const existingQueueItem = await Queue.findOne({ printJobId }).session(session);
-      if (existingQueueItem) {
-        throw new Error('Print job is already in queue');
-      }
-
-      // Priority-based positioning
-      let nextPosition;
-
-      if (printJob.priority === 'high') {
-        // High priority jobs go before all normal priority jobs
-        // Find the last high priority job in queue
-        const lastHighPriorityJob = await Queue.findOne({ status: { $in: ['pending', 'in-progress'] } })
-          .sort({ position: -1 })
-          .populate('printJobId')
-          .session(session);
-
-        // Check if the last job has high priority
-        if (lastHighPriorityJob && lastHighPriorityJob.printJobId?.priority === 'high') {
-          // Add after the last high priority job
-          nextPosition = lastHighPriorityJob.position + 1;
-        } else if (lastHighPriorityJob) {
-          // There are jobs but no high priority ones, insert at position 1
-          nextPosition = 1;
-        } else {
-          // Queue is empty
-          nextPosition = 1;
+      try {
+        // Verify the print job exists and is pending
+        const printJob = await PrintJob.findById(printJobId).session(session);
+        if (!printJob) {
+          throw new Error('Print job not found');
         }
 
-        // Shift all jobs at or after this position down
-        await Queue.updateMany(
-          {
+        if (printJob.status !== 'pending') {
+          throw new Error('Only pending print jobs can be added to queue');
+        }
+
+        // Check if job is already in queue
+        const existingQueueItem = await Queue.findOne({ printJobId }).session(session);
+        if (existingQueueItem) {
+          throw new Error('Print job is already in queue');
+        }
+
+        // Priority-based positioning
+        let nextPosition;
+
+        if (printJob.priority === 'high') {
+          // High priority jobs go before all normal priority jobs
+          // Find the last high priority job in queue
+          const lastHighPriorityJob = await Queue.findOne({ status: { $in: ['pending', 'in-progress'] } })
+            .sort({ position: -1 })
+            .populate('printJobId')
+            .session(session);
+
+          // Check if the last job has high priority
+          if (lastHighPriorityJob && lastHighPriorityJob.printJobId?.priority === 'high') {
+            // Add after the last high priority job
+            nextPosition = lastHighPriorityJob.position + 1;
+          } else if (lastHighPriorityJob) {
+            // There are jobs but no high priority ones, insert at position 1
+            nextPosition = 1;
+          } else {
+            // Queue is empty
+            nextPosition = 1;
+          }
+
+          // Shift all jobs at or after this position down
+          // Use a temporary high position first to avoid conflicts
+          const jobsToShift = await Queue.find({
             position: { $gte: nextPosition },
             status: { $in: ['pending', 'in-progress'] }
-          },
-          { $inc: { position: 1 } },
-          { session }
-        );
-      } else {
-        // Normal priority jobs go to the end of the queue
-        const lastPosition = await Queue.findOne(
-          { status: { $in: ['pending', 'in-progress'] } }
-        )
-          .sort({ position: -1 })
-          .select('position')
-          .session(session);
+          })
+            .sort({ position: -1 }) // Sort descending to shift from highest position first
+            .session(session);
 
-        nextPosition = lastPosition ? lastPosition.position + 1 : 1;
+          // Shift each job's position by 1, starting from the highest position
+          // Use a large offset first to avoid unique constraint violations
+          const tempOffset = 10000;
+          
+          // Step 1: Move all jobs to temporary positions
+          for (let i = 0; i < jobsToShift.length; i++) {
+            const job = jobsToShift[i];
+            await Queue.updateOne(
+              { _id: job._id },
+              { $set: { position: tempOffset + i } },
+              { session }
+            );
+          }
+          
+          // Step 2: Move them back to final positions
+          for (let i = 0; i < jobsToShift.length; i++) {
+            const job = jobsToShift[i];
+            await Queue.updateOne(
+              { _id: job._id },
+              { $set: { position: job.position + 1 } },
+              { session }
+            );
+          }
+        } else {
+          // Normal priority jobs go to the end of the queue
+          const lastPosition = await Queue.findOne(
+            { status: { $in: ['pending', 'in-progress'] } }
+          )
+            .sort({ position: -1 })
+            .select('position')
+            .session(session);
+
+          nextPosition = lastPosition ? lastPosition.position + 1 : 1;
+        }
+
+        // Create queue item
+        const queueItem = new Queue({
+          printJobId,
+          position: nextPosition,
+          status: 'pending'
+        });
+
+        await queueItem.save({ session });
+        await session.commitTransaction();
+
+        const priorityLabel = printJob.priority === 'high' ? ' (HIGH PRIORITY)' : '';
+        console.log(`✅ Print job ${printJobId} added to queue at position ${nextPosition}${priorityLabel}`);
+        return queueItem;
+
+      } catch (error) {
+        await session.abortTransaction();
+        lastError = error;
+        
+        // Check if it's a write conflict that we should retry
+        const isWriteConflict = error.message.includes('Write conflict') || 
+                                error.message.includes('E11000');
+        
+        if (isWriteConflict && attempt < maxRetries) {
+          const delay = Math.pow(2, attempt) * 100; // Exponential backoff: 200ms, 400ms, 800ms
+          console.log(`⚠️ Write conflict on attempt ${attempt}/${maxRetries}, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue; // Retry
+        }
+        
+        // Non-retryable error or max retries reached
+        console.error('❌ Error adding job to queue:', error.message);
+        throw error;
+      } finally {
+        session.endSession();
       }
-
-      // Create queue item
-      const queueItem = new Queue({
-        printJobId,
-        position: nextPosition,
-        status: 'pending'
-      });
-
-      await queueItem.save({ session });
-      await session.commitTransaction();
-
-      const priorityLabel = printJob.priority === 'high' ? ' (HIGH PRIORITY)' : '';
-      console.log(`✅ Print job ${printJobId} added to queue at position ${nextPosition}${priorityLabel}`);
-      return queueItem;
-
-    } catch (error) {
-      await session.abortTransaction();
-      console.error('❌ Error adding job to queue:', error.message);
-      throw error;
-    } finally {
-      session.endSession();
     }
+    
+    // If we get here, all retries failed
+    throw lastError;
   }
 
   /**
@@ -117,12 +162,62 @@ class QueueManager {
   }
 
   /**
+   * Get the next pending job for each printer (per-printer queues)
+   * Enables concurrent processing of multiple printers
+   * @returns {Promise<Array>} Array of queue items (one per printer with pending jobs)
+   */
+  static async getNextJobsPerPrinter() {
+    try {
+      // Get all pending jobs with populated print job details
+      const pendingJobs = await Queue.find({
+        status: 'pending'
+      })
+        .populate({
+          path: 'printJobId',
+          populate: {
+            path: 'printerId',
+            model: 'Printer'
+          }
+        })
+        .sort({ position: 1 }); // Sort by position
+
+      if (!pendingJobs || pendingJobs.length === 0) {
+        return [];
+      }
+
+      // Group jobs by printer and get the first job for each printer
+      const printerJobsMap = new Map();
+      
+      for (const job of pendingJobs) {
+        if (!job.printJobId || !job.printJobId.printerId) {
+          console.warn(`⚠️ Job ${job._id} missing printer info, skipping`);
+          continue;
+        }
+
+        const printerId = job.printJobId.printerId._id.toString();
+        
+        // Only keep the first job (lowest position) for each printer
+        if (!printerJobsMap.has(printerId)) {
+          printerJobsMap.set(printerId, job);
+        }
+      }
+
+      // Convert map to array
+      const nextJobs = Array.from(printerJobsMap.values());
+      
+      return nextJobs;
+    } catch (error) {
+      console.error('❌ Error getting next jobs per printer:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Mark a job as in-progress
    * @param {string} queueItemId - The ObjectId of the Queue item
    * @returns {Promise<Object>} The updated queue item
    */
-  static async markInProgress(queueItemId, retryCount = 0) {
-    const maxRetries = 3;
+  static async markInProgress(queueItemId) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -364,14 +459,14 @@ class QueueManager {
         inProgress: 0
       };
 
-      stats.forEach(stat => {
+      for (const stat of stats) {
         result.total += stat.count;
         if (stat._id === 'pending') {
           result.pending = stat.count;
         } else if (stat._id === 'in-progress') {
           result.inProgress = stat.count;
         }
-      });
+      }
 
       return result;
     } catch (error) {
