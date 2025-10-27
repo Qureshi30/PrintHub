@@ -2,21 +2,86 @@ const printer = require('pdf-to-printer');
 const os = require('node:os');
 const { mapPrintSettings } = require('./fileUtils');
 
+// Cache for printer list to avoid hammering the pdf-to-printer library
+let printerCache = null;
+let printerCacheTimestamp = 0;
+const CACHE_TTL_MS = 5000; // Cache for 5 seconds
+let printerFetchInProgress = false;
+let printerFetchPromise = null;
+
 /**
- * Get list of available printers on the system
+ * Get list of available printers on the system (with caching)
  * @returns {Promise<Array>} - Array of printer objects
  */
 const getAvailablePrinters = async () => {
-  try {
-    const printers = await printer.getPrinters();
-    // Filter out any invalid printer objects that don't have a name
-    const validPrinters = printers.filter(p => p && typeof p.name === 'string' && p.name.trim() !== '');
-    console.log(`🖨️ Found ${validPrinters.length} available printers (${printers.length - validPrinters.length} invalid)`);
-    return validPrinters;
-  } catch (error) {
-    console.error('❌ Failed to get printers:', error.message);
-    throw new Error(`Failed to get available printers: ${error.message}`);
+  // Check cache first
+  const now = Date.now();
+  if (printerCache && (now - printerCacheTimestamp) < CACHE_TTL_MS) {
+    console.log(`🖨️ Returning cached printer list (${printerCache.length} printers)`);
+    return printerCache;
   }
+
+  // If a fetch is already in progress, wait for it
+  if (printerFetchInProgress && printerFetchPromise) {
+    console.log(`⏳ Waiting for in-progress printer fetch...`);
+    return await printerFetchPromise;
+  }
+
+  // Start a new fetch
+  printerFetchInProgress = true;
+  printerFetchPromise = (async () => {
+    try {
+      console.log(`🔍 Fetching printer list from system...`);
+      const printers = await printer.getPrinters();
+      
+      // Ensure printers is an array
+      if (!Array.isArray(printers)) {
+        console.warn('⚠️ getPrinters() did not return an array, returning empty array');
+        printerCache = [];
+        printerCacheTimestamp = now;
+        return [];
+      }
+      
+      // Filter out any invalid printer objects that don't have a name
+      // Some printer drivers can cause undefined/null entries or malformed objects
+      const validPrinters = printers.filter(p => {
+        try {
+          return p && typeof p === 'object' && typeof p.name === 'string' && p.name.trim() !== '';
+        } catch (err) {
+          // Skip any printers that cause errors when accessing properties
+          return false;
+        }
+      });
+      
+      if (validPrinters.length === 0) {
+        console.warn('⚠️ No valid printers found on system');
+      } else {
+        console.log(`🖨️ Found ${validPrinters.length} available printers (${printers.length - validPrinters.length} invalid)`);
+      }
+      
+      // Update cache
+      printerCache = validPrinters;
+      printerCacheTimestamp = now;
+      
+      return validPrinters;
+    } catch (error) {
+      // pdf-to-printer library can crash when reading malformed printer drivers
+      console.error('❌ Failed to get printers:', error.message);
+      console.error('❌ This may be due to corrupted printer drivers in Windows registry');
+      console.error('❌ Try reinstalling the printer driver or removing unused printers');
+      
+      // Return empty array instead of throwing to allow the app to continue
+      // This way other printers can still work even if one driver is broken
+      printerCache = [];
+      printerCacheTimestamp = now;
+      return [];
+    } finally {
+      printerFetchInProgress = false;
+      printerFetchPromise = null;
+    }
+  })();
+
+  return await printerFetchPromise;
 };
 
 /**
@@ -82,6 +147,13 @@ const getPrinterName = async (printerId) => {
     // Get available system printers
     const availablePrinters = await getAvailablePrinters();
     console.log(`🖨️ Found ${availablePrinters.length} available system printers`);
+    
+    // Check if we got any printers at all
+    if (!availablePrinters || availablePrinters.length === 0) {
+      const errorMsg = 'No printers available on system. Printer drivers may be corrupted or printer service not running.';
+      console.error(`❌ ${errorMsg}`);
+      throw new Error(errorMsg);
+    }
     
     // Try to find exact match first
     let targetPrinter = availablePrinters.find(p => p.name && p.name === dbPrinterName);
