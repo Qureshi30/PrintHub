@@ -6,6 +6,12 @@ const User = require('../models/User');
 const PrintJob = require('../models/PrintJob');
 const Printer = require('../models/Printer');
 const Revenue = require('../models/Revenue');
+const {
+  getCurrentPricing,
+  updatePricing,
+  getPricingHistory,
+  resetToDefaults
+} = require('../controllers/pricingController');
 const router = express.Router();
 
 console.log('🔧 Loading admin routes...');
@@ -614,6 +620,88 @@ router.post('/test-auth', requireAuth, requireAdmin, async (req, res) => {
   });
 });
 
+// ============================================================================
+// PRICING MANAGEMENT ROUTES
+// ============================================================================
+
+/**
+ * @route   GET /admin/pricing
+ * @desc    Get current pricing configuration (Admin only)
+ * @access  Admin only
+ */
+router.get('/pricing', requireAdmin, getCurrentPricing);
+
+/**
+ * @route   PUT /admin/pricing
+ * @desc    Update pricing configuration (Admin only)
+ * @access  Admin only
+ */
+router.put('/pricing',
+  requireAdmin,
+  [
+    // Validate base rates
+    body('baseRates.blackAndWhite')
+      .optional()
+      .isFloat({ min: 0, max: 100 })
+      .withMessage('Black and white rate must be between 0 and 100'),
+    body('baseRates.color')
+      .optional()
+      .isFloat({ min: 0, max: 100 })
+      .withMessage('Color rate must be between 0 and 100'),
+    
+    // Validate paper surcharges
+    body('paperSurcharges.a4')
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage('A4 surcharge cannot be negative'),
+    body('paperSurcharges.a3')
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage('A3 surcharge cannot be negative'),
+    body('paperSurcharges.letter')
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage('Letter surcharge cannot be negative'),
+    body('paperSurcharges.legal')
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage('Legal surcharge cannot be negative'),
+    body('paperSurcharges.certificate')
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage('Certificate surcharge cannot be negative'),
+    
+    // Validate discounts
+    body('discounts.duplexPercentage')
+      .optional()
+      .isFloat({ min: 0, max: 100 })
+      .withMessage('Duplex discount percentage must be between 0 and 100'),
+    
+    // Validate description
+    body('description')
+      .optional()
+      .isLength({ max: 500 })
+      .withMessage('Description cannot exceed 500 characters')
+  ],
+  validateRequest,
+  updatePricing
+);
+
+/**
+ * @route   GET /admin/pricing/history
+ * @desc    Get pricing configuration history (Admin only)
+ * @access  Admin only
+ */
+router.get('/pricing/history', requireAdmin, getPricingHistory);
+
+/**
+ * @route   POST /admin/pricing/reset
+ * @desc    Reset pricing to default values (Admin only)
+ * @access  Admin only
+ */
+router.post('/pricing/reset', requireAdmin, resetToDefaults);
+
+console.log('💰 Admin pricing routes registered');
 console.log('📝 Admin create-user route registered');
 
 module.exports = router;
