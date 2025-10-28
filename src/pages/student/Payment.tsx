@@ -12,6 +12,7 @@ import { useCreatePrintJob } from "@/hooks/useDatabase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@clerk/clerk-react";
 import { usePayment } from "@/hooks/usePayment";
+import { usePricing } from "@/hooks/usePricing";
 import {
   CreditCard,
   Smartphone,
@@ -36,6 +37,7 @@ export default function Payment() {
   const navigate = useNavigate();
   const { userId, getToken } = useAuth();
   const { toast } = useToast();
+  const { calculateCost } = usePricing();
   const [selectedMethod, setSelectedMethod] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ [fileId: string]: number }>({});
@@ -84,7 +86,7 @@ export default function Payment() {
   }, [payment, files, settings]);
 
 
-  // Calculate total cost from files and settings
+  // Calculate total cost from files and settings using dynamic pricing
   const calculateTotalCost = () => {
     console.log('💰 PAYMENT - calculateTotalCost called');
     console.log('💰 PAYMENT - payment context:', payment);
@@ -97,9 +99,9 @@ export default function Payment() {
       return payment.totalCost;
     }
 
-    console.log('⚠️ PAYMENT - No payment.totalCost, calculating from files...');
+    console.log('⚠️ PAYMENT - No payment.totalCost, calculating from files using dynamic pricing...');
 
-    // Fallback calculation if backend total not available
+    // Calculate using dynamic pricing from admin panel
     let total = 0;
     files.forEach(file => {
       const fileSettings = settings[file.id];
@@ -110,14 +112,21 @@ export default function Payment() {
       });
 
       if (fileSettings) {
-        const blackAndWhiteRate = 2.00; // ₹2.00 per page for B&W
-        const colorRate = 5.00; // ₹5.00 per page for color
-        const baseCost = fileSettings.color ? colorRate : blackAndWhiteRate;
         const pages = file.pages || 1;
         const copies = fileSettings.copies || 1;
-        const fileCost = baseCost * pages * copies;
+        const isColor = fileSettings.color || false;
+        const isDuplex = fileSettings.duplex || false;
+        const paperSize = (fileSettings.paperType || 'a4').toLowerCase();
 
-        console.log(`💵 PAYMENT - File cost: ${fileCost} (${baseCost}/page × ${pages} pages × ${copies} copies)`);
+        // Use dynamic pricing calculation
+        const fileCost = calculateCost({
+          pageCount: pages * copies,
+          isColor,
+          paperSize,
+          isDuplex
+        });
+
+        console.log(`💵 PAYMENT - File cost: ₹${fileCost} (${pages} pages × ${copies} copies, ${isColor ? 'Color' : 'B&W'}, ${isDuplex ? 'Duplex' : 'Single'})`);
         total += fileCost;
       }
     });

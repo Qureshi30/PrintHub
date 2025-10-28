@@ -18,17 +18,23 @@ export function HeroSection() {
       </div>
 
       {/* Hero Content */}
-      <div className={`relative z-10 text-center max-w-4xl mx-auto px-6 transition-all duration-1000 ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-      }`}>
+      <div className={`relative z-10 text-center max-w-4xl mx-auto px-6 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}>
         <h1 className="text-6xl md:text-8xl font-bold text-blue-600 mb-6 animate-glow">
           PrintHub
         </h1>
-        
-        <p className={`text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto transition-all duration-1000 delay-300 ${
-          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-        }`}>
-          Nobody prints it better.
+
+        <p className={`text-xl md:text-3xl font-semibold mb-8 max-w-2xl mx-auto transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}>
+          <span className="relative inline-block">
+            <span
+              className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent animate-gradient-x font-bold"
+              style={{ backgroundSize: '200% auto' }}
+            >
+              Nobody prints it better.
+            </span>
+            <span className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-blue-600/20 blur-xl animate-pulse"></span>
+          </span>
         </p>
       </div>
 

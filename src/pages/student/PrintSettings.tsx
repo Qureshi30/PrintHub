@@ -18,6 +18,7 @@ import { MobileCard, MobileTouchButton } from "@/components/mobile/MobileCompone
 import { useNavigate } from "react-router-dom";
 import { usePrintJobContext } from "@/hooks/usePrintJobContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { usePricing } from "@/hooks/usePricing";
 import { Calculator, FileText, Copy, Settings, ChevronDown, ChevronUp, Palette, FileStack, Printer } from "lucide-react";
 
 interface PrintSettings {
@@ -37,6 +38,7 @@ interface FileSettings {
 export default function PrintSettings() {
   const navigate = useNavigate();
   const { files, settings: contextSettings, updateFileSettings: updateContextFileSettings } = usePrintJobContext();
+  const { pricing, loading: pricingLoading, calculateCost } = usePricing();
   const [activeTab, setActiveTab] = useState<string>("");
   const [showSpecialPaperAlert, setShowSpecialPaperAlert] = useState(false);
   const [specialPaperType, setSpecialPaperType] = useState<"A3" | "certificate" | "photo" | "cardstock">("A3");
@@ -157,22 +159,11 @@ export default function PrintSettings() {
     setFileSettings(newSettings);
   };
 
-  // Cost calculation for a specific file
+  // Cost calculation for a specific file using dynamic pricing
   const calculateFileCost = (fileId: string) => {
     const file = selectedFiles.find(f => f.id === fileId);
     const settings = fileSettings[fileId];
-    if (!file || !settings) return { perPage: 0, total: 0, pages: 0 };
-
-    // INR pricing: ₹2 per page for B&W, ₹5 per page for color
-    const BLACK_AND_WHITE_RATE = 2.00;
-    const COLOR_RATE = 5.00;
-
-    const paperSizeMultiplier = {
-      A4: 1.0,
-      A3: 1.5,
-      Letter: 1.0,
-      Legal: 1.2
-    };
+    if (!file || !settings || pricingLoading) return { perPage: 0, total: 0, pages: 0 };
 
     // Calculate pages to print based on page range selection
     let pagesToPrint = file.pages;
@@ -208,18 +199,27 @@ export default function PrintSettings() {
       }
     }
 
-    // Determine base cost based on color mode
-    const baseCost = settings.colorMode === "color" ? COLOR_RATE : BLACK_AND_WHITE_RATE;
-    const sizeMultiplier = paperSizeMultiplier[settings.paperSize as keyof typeof paperSizeMultiplier];
-    let totalCost = pagesToPrint * settings.copies * baseCost * sizeMultiplier;
+    // Use dynamic pricing from admin panel
+    const totalPagesWithCopies = pagesToPrint * settings.copies;
+    const isColor = settings.colorMode === "color";
+    const isDuplex = settings.duplex === "double";
+    const paperSize = settings.paperSize.toLowerCase();
 
-    // Apply duplex discount (10% off) if double-sided is enabled
-    if (settings.duplex === "double") {
-      totalCost = totalCost * 0.9; // 10% discount
-    }
+    // Calculate cost using the pricing hook
+    const totalCost = calculateCost({
+      pageCount: totalPagesWithCopies,
+      isColor,
+      paperSize,
+      isDuplex
+    });
+
+    // Calculate per-page rate for display
+    const baseRate = isColor ? pricing.baseRates.color : pricing.baseRates.blackAndWhite;
+    const paperSurcharge = pricing.paperSurcharges[paperSize as keyof typeof pricing.paperSurcharges] || 0;
+    const perPageRate = baseRate + (paperSurcharge / Math.max(totalPagesWithCopies, 1));
 
     return {
-      perPage: baseCost * sizeMultiplier,
+      perPage: perPageRate,
       total: totalCost,
       pages: pagesToPrint
     };
