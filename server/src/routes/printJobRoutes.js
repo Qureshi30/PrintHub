@@ -15,6 +15,7 @@ const router = express.Router();
 const validateRequest = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.error('❌ Validation failed:', JSON.stringify(errors.array(), null, 2));
     return res.status(400).json({
       success: false,
       error: {
@@ -40,11 +41,13 @@ router.post('/',
     body('settings.color').optional().isBoolean(),
     body('settings.duplex').optional().isBoolean(),
     body('settings.paperType').optional().isIn(['A4', 'A3', 'Letter', 'Legal', 'Certificate']),
+    body('priority').optional().isIn(['normal', 'high']).withMessage('Priority must be either "normal" or "high"'),
     requireAuth
   ],
   validateRequest,
   async (req, res) => {
     try {
+      console.log('📝 Creating print job with data:', JSON.stringify(req.body, null, 2));
       const { clerkUserId, printerId, file, settings = {}, notes } = req.body;
 
       // Block admin users from uploading files
@@ -81,11 +84,31 @@ router.post('/',
         });
       }
 
+      // For virtual printers (like Microsoft Print to PDF), automatically recover from offline status
+      // if they were marked offline due to previous job failures
+      if (!printer.isAvailable && printer.status === 'offline') {
+        const isVirtualPrinter = printer.name.includes('Print to PDF') || 
+                                 printer.name.includes('Microsoft') ||
+                                 printer.name.includes('XPS');
+        
+        if (isVirtualPrinter && printer.isActive) {
+          console.log(`🔄 Auto-recovering virtual printer: ${printer.name}`);
+          printer.status = 'online';
+          await printer.save();
+        }
+      }
+
       if (!printer.isAvailable) {
+        console.error(`❌ Printer unavailable: ${printer.name}`, {
+          status: printer.status,
+          isActive: printer.isActive,
+          queueLength: printer.queueLength,
+          maxQueueSize: printer.settings.maxQueueSize
+        });
         return res.status(400).json({
           success: false,
           error: {
-            message: 'Printer is not available',
+            message: `Printer is not available. Status: ${printer.status}, Active: ${printer.isActive}`,
             code: 'PRINTER_UNAVAILABLE'
           }
         });
@@ -248,7 +271,7 @@ router.get('/user/:clerkUserId',
           .populate('printerId', 'name location status')
           .sort({ priority: -1, createdAt: 1 })
           .skip(skip)
-          .limit(parseInt(limit)),
+          .limit(Number.parseInt(limit, 10)),
         PrintJob.countDocuments(filter)
       ]);
 
@@ -257,8 +280,8 @@ router.get('/user/:clerkUserId',
         data: {
           jobs,
           pagination: {
-            page: parseInt(page),
-            limit: parseInt(limit),
+            page: Number.parseInt(page, 10),
+            limit: Number.parseInt(limit, 10),
             total,
             pages: Math.ceil(total / limit)
           }
@@ -493,7 +516,7 @@ router.get('/',
           .populate('printerId', 'name location status')
           .sort({ priority: -1, createdAt: 1 })
           .skip(skip)
-          .limit(parseInt(limit)),
+          .limit(Number.parseInt(limit, 10)),
         PrintJob.countDocuments(filter)
       ]);
 
@@ -502,8 +525,8 @@ router.get('/',
         data: {
           jobs,
           pagination: {
-            page: parseInt(page),
-            limit: parseInt(limit),
+            page: Number.parseInt(page, 10),
+            limit: Number.parseInt(limit, 10),
             total,
             pages: Math.ceil(total / limit)
           }

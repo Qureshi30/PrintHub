@@ -135,6 +135,11 @@ const printerSchema = new mongoose.Schema({
       default: 20, // pages per minute
       min: 1,
     },
+    enableBlankPageSeparator: {
+      type: Boolean,
+      default: true,
+      description: 'Print a blank page between jobs to separate different users\' outputs',
+    },
   },
   lastChecked: {
     type: Date,

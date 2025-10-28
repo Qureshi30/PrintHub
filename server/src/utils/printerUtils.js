@@ -1,20 +1,87 @@
 const printer = require('pdf-to-printer');
-const os = require('os');
+const os = require('node:os');
 const { mapPrintSettings } = require('./fileUtils');
 
+// Cache for printer list to avoid hammering the pdf-to-printer library
+let printerCache = null;
+let printerCacheTimestamp = 0;
+const CACHE_TTL_MS = 5000; // Cache for 5 seconds
+let printerFetchInProgress = false;
+let printerFetchPromise = null;
+
 /**
- * Get list of available printers on the system
+ * Get list of available printers on the system (with caching)
  * @returns {Promise<Array>} - Array of printer objects
  */
 const getAvailablePrinters = async () => {
-  try {
-    const printers = await printer.getPrinters();
-    console.log(`🖨️ Found ${printers.length} available printers`);
-    return printers;
-  } catch (error) {
-    console.error('❌ Failed to get printers:', error.message);
-    throw new Error(`Failed to get available printers: ${error.message}`);
+  // Check cache first
+  const now = Date.now();
+  if (printerCache && (now - printerCacheTimestamp) < CACHE_TTL_MS) {
+    console.log(`🖨️ Returning cached printer list (${printerCache.length} printers)`);
+    return printerCache;
   }
+
+  // If a fetch is already in progress, wait for it
+  if (printerFetchInProgress && printerFetchPromise) {
+    console.log(`⏳ Waiting for in-progress printer fetch...`);
+    return await printerFetchPromise;
+  }
+
+  // Start a new fetch
+  printerFetchInProgress = true;
+  printerFetchPromise = (async () => {
+    try {
+      console.log(`🔍 Fetching printer list from system...`);
+      const printers = await printer.getPrinters();
+      
+      // Ensure printers is an array
+      if (!Array.isArray(printers)) {
+        console.warn('⚠️ getPrinters() did not return an array, returning empty array');
+        printerCache = [];
+        printerCacheTimestamp = now;
+        return [];
+      }
+      
+      // Filter out any invalid printer objects that don't have a name
+      // Some printer drivers can cause undefined/null entries or malformed objects
+      const validPrinters = printers.filter(p => {
+        try {
+          return p && typeof p === 'object' && typeof p.name === 'string' && p.name.trim() !== '';
+        } catch (err) {
+          // Skip any printers that cause errors when accessing properties
+          return false;
+        }
+      });
+      
+      if (validPrinters.length === 0) {
+        console.warn('⚠️ No valid printers found on system');
+      } else {
+        console.log(`🖨️ Found ${validPrinters.length} available printers (${printers.length - validPrinters.length} invalid)`);
+      }
+      
+      // Update cache
+      printerCache = validPrinters;
+      printerCacheTimestamp = now;
+      
+      return validPrinters;
+    } catch (error) {
+      // pdf-to-printer library can crash when reading malformed printer drivers
+      console.error('❌ Failed to get printers:', error.message);
+      console.error('❌ This may be due to corrupted printer drivers in Windows registry');
+      console.error('❌ Try reinstalling the printer driver or removing unused printers');
+      
+      // Return empty array instead of throwing to allow the app to continue
+      // This way other printers can still work even if one driver is broken
+      printerCache = [];
+      printerCacheTimestamp = now;
+      return [];
+    } finally {
+      printerFetchInProgress = false;
+      printerFetchPromise = null;
+    }
+  })();
+
+  return await printerFetchPromise;
 };
 
 /**
@@ -27,9 +94,11 @@ const getDefaultPrinter = async () => {
     
     // Prefer HP LaserJet if available
     const hpPrinter = printers.find(p => 
-      p.name.toLowerCase().includes('hp laserjet') ||
-      p.name.toLowerCase().includes('m201') ||
-      p.name.toLowerCase().includes('m202')
+      p.name && (
+        p.name.toLowerCase().includes('hp laserjet') ||
+        p.name.toLowerCase().includes('m201') ||
+        p.name.toLowerCase().includes('m202')
+      )
     );
     
     if (hpPrinter) {
@@ -79,8 +148,15 @@ const getPrinterName = async (printerId) => {
     const availablePrinters = await getAvailablePrinters();
     console.log(`🖨️ Found ${availablePrinters.length} available system printers`);
     
+    // Check if we got any printers at all
+    if (!availablePrinters || availablePrinters.length === 0) {
+      const errorMsg = 'No printers available on system. Printer drivers may be corrupted or printer service not running.';
+      console.error(`❌ ${errorMsg}`);
+      throw new Error(errorMsg);
+    }
+    
     // Try to find exact match first
-    let targetPrinter = availablePrinters.find(p => p.name === dbPrinterName);
+    let targetPrinter = availablePrinters.find(p => p.name && p.name === dbPrinterName);
     
     if (targetPrinter) {
       console.log(`✅ Found exact match: ${targetPrinter.name}`);
@@ -89,7 +165,7 @@ const getPrinterName = async (printerId) => {
     
     // Try case-insensitive match
     targetPrinter = availablePrinters.find(p => 
-      p.name.toLowerCase() === dbPrinterName.toLowerCase()
+      p.name && p.name.toLowerCase() === dbPrinterName.toLowerCase()
     );
     
     if (targetPrinter) {
@@ -101,6 +177,7 @@ const getPrinterName = async (printerId) => {
     if (dbPrinterName.toLowerCase().includes('pdf') || 
         dbPrinterName.toLowerCase().includes('microsoft')) {
       targetPrinter = availablePrinters.find(p => 
+        p.name && 
         p.name.toLowerCase().includes('microsoft') && 
         p.name.toLowerCase().includes('pdf')
       );
@@ -136,13 +213,14 @@ const _oldGetPrinterName = async (printerId) => {
     
     // This was the problem - always looking for HP LaserJet regardless of what printer was requested
     const targetPrinterName = 'HP LaserJet Pro M201-M202 PCL 6';
-    const targetPrinter = availablePrinters.find(p => p.name === targetPrinterName);
+    const targetPrinter = availablePrinters.find(p => p.name && p.name === targetPrinterName);
     
     if (targetPrinter) {
       return targetPrinter.name;
     }
     
     const hpPrinter = availablePrinters.find(p => 
+      p.name &&
       p.name.toLowerCase().includes('hp laserjet') && 
       p.name.toLowerCase().includes('m201')
     );
@@ -273,10 +351,113 @@ const testPrint = async (printerName = null) => {
   }
 };
 
+/**
+ * Print a blank separator page
+ * Creates a temporary blank PDF and sends it to the printer
+ * @param {string} printerName - Name of the printer
+ * @param {string} jobId - ID of the job that just completed (for logging)
+ * @returns {Promise<Object>} - Print result
+ */
+const printBlankPage = async (printerName, jobId = 'unknown') => {
+  const startTime = Date.now();
+  const fs = require('node:fs').promises;
+  const path = require('node:path');
+  const os = require('node:os');
+  
+  let tempFilePath = null;
+  
+  try {
+    console.log(`📄 Preparing blank separator page after job ${jobId}`);
+    console.log(`🖨️ Target printer: ${printerName}`);
+    
+    // Create a blank PDF using PDFKit
+    const PDFDocument = require('pdfkit');
+    const tempDir = os.tmpdir();
+    tempFilePath = path.join(tempDir, `blank_separator_${Date.now()}.pdf`);
+    
+    // Create blank PDF
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 0,
+    });
+    
+    const writeStream = require('node:fs').createWriteStream(tempFilePath);
+    doc.pipe(writeStream);
+    
+    // Add a single blank page (with optional tiny watermark for tracking)
+    doc.fontSize(6)
+       .fillColor('#f0f0f0')
+       .text('Print Separator', 10, 10, { opacity: 0.1 });
+    
+    doc.end();
+    
+    // Wait for PDF to be written
+    await new Promise((resolve, reject) => {
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+    });
+    
+    console.log(`✅ Blank PDF created: ${tempFilePath}`);
+    
+    // Print the blank page
+    const printOptions = {
+      printer: printerName,
+      silent: true, // Don't show print dialog
+    };
+    
+    console.log(`📤 Sending blank separator to printer: ${printerName}`);
+    await printer.print(tempFilePath, printOptions);
+    
+    const endTime = Date.now();
+    const processingTime = Math.round((endTime - startTime) / 1000);
+    
+    console.log(`✅ Blank page separator sent successfully in ${processingTime}s`);
+    console.log(`📋 Inserted blank page separator after job ${jobId}`);
+    
+    // Clean up temp file
+    try {
+      await fs.unlink(tempFilePath);
+      console.log(`🗑️ Cleaned up blank page temp file`);
+    } catch (cleanupError) {
+      console.warn(`⚠️ Failed to cleanup blank page temp file:`, cleanupError.message);
+    }
+    
+    return {
+      success: true,
+      printerName,
+      processingTimeSeconds: processingTime,
+      message: `Inserted blank page separator after job ${jobId}`,
+    };
+    
+  } catch (error) {
+    const endTime = Date.now();
+    const processingTime = Math.round((endTime - startTime) / 1000);
+    
+    console.error(`❌ Failed to print blank separator after ${processingTime}s:`, error.message);
+    
+    // Clean up temp file on error
+    if (tempFilePath) {
+      try {
+        await fs.unlink(tempFilePath);
+      } catch (cleanupError) {
+        console.debug('Temp file cleanup failed:', cleanupError.message);
+      }
+    }
+    
+    return {
+      success: false,
+      error: error.message,
+      processingTimeSeconds: processingTime,
+      message: `Failed to print blank separator: ${error.message}`,
+    };
+  }
+};
+
 module.exports = {
   getAvailablePrinters,
   getDefaultPrinter,
   getPrinterName,
   printFile,
+  printBlankPage,
   testPrint,
 };

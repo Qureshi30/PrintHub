@@ -1,29 +1,47 @@
 const printer = require('pdf-to-printer');
 
+// Import the cached getAvailablePrinters from printerUtils to avoid duplicate library calls
+const { getAvailablePrinters } = require('./printerUtils');
+
 /**
  * Detect real printer capabilities from system printers
  */
 async function detectSystemPrinterCapabilities() {
   try {
-    const systemPrinters = await printer.getPrinters();
+    // Use the cached getAvailablePrinters function instead of calling pdf-to-printer directly
+    const systemPrinters = await getAvailablePrinters();
+    
     const capabilities = {};
     
+    // Filter and process valid printers only
     for (const sysPrinter of systemPrinters) {
-      const capability = detectCapabilitiesFromName(sysPrinter.name);
-      capabilities[sysPrinter.name] = {
-        name: sysPrinter.name,
-        status: sysPrinter.status || 'unknown',
-        isDefault: sysPrinter.isDefault || false,
-        colorSupport: capability.colorSupport,
-        duplexSupport: capability.duplexSupport,
-        supportedPaperTypes: capability.supportedPaperTypes,
-        detectionMethod: capability.detectionMethod
-      };
+      try {
+        // Skip invalid printer objects (already filtered by getAvailablePrinters, but double-check)
+        if (!sysPrinter || typeof sysPrinter !== 'object' || !sysPrinter.name || typeof sysPrinter.name !== 'string') {
+          continue;
+        }
+        
+        const capability = detectCapabilitiesFromName(sysPrinter.name);
+        capabilities[sysPrinter.name] = {
+          name: sysPrinter.name,
+          status: sysPrinter.status || 'unknown',
+          isDefault: sysPrinter.isDefault || false,
+          colorSupport: capability.colorSupport,
+          duplexSupport: capability.duplexSupport,
+          supportedPaperTypes: capability.supportedPaperTypes,
+          detectionMethod: capability.detectionMethod
+        };
+      } catch (printerError) {
+        // Skip printers that cause errors when accessing properties
+        console.debug('Skipping malformed printer object:', printerError.message);
+        continue;
+      }
     }
     
     return capabilities;
   } catch (error) {
-    console.error('❌ Error detecting system printer capabilities:', error);
+    console.error('❌ Error detecting system printer capabilities:', error.message);
+    console.error('❌ This may be due to corrupted printer drivers in Windows registry');
     return {};
   }
 }
