@@ -1,7 +1,7 @@
 const snmp = require('net-snmp');
 const Printer = require('../models/Printer');
 const Notification = require('../models/Notification');
-const { getSocketIO } = require('./socketService');
+const { getIO } = require('./socketService');
 
 /**
  * SNMP OID Definitions for Printer Monitoring
@@ -299,7 +299,7 @@ async function createAdminNotification(printer, errors, alertMessage) {
     });
     
     // Emit real-time notification via Socket.IO
-    const io = getSocketIO();
+    const io = getIO();
     if (io) {
       io.to('admin').emit('printer-error', {
         printerId: printer._id,

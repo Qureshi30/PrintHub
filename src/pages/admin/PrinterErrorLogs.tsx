@@ -117,11 +117,10 @@ export default function PrinterErrorLogs() {
           }
         );
       } else if (status === 'resolved') {
-        // Optionally prompt for resolution notes
-        const resolutionNotes = prompt('Enter resolution notes (optional):');
+        // Mark as resolved without prompting for notes
         await apiClient.post(
           `/printer-errors/${errorId}/resolve`,
-          { resolvedBy: 'Admin', resolutionNotes },
+          { resolvedBy: 'Admin' },
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -161,6 +160,89 @@ export default function PrinterErrorLogs() {
     } catch (error) {
       console.error('Error deleting error:', error);
     }
+  };
+
+  const markAllAsResolved = async () => {
+    if (!confirm('Are you sure you want to mark all errors as resolved?')) return;
+    
+    try {
+      const token = await getToken();
+      
+      // Get all unresolved and in-progress error IDs
+      const unresolvedErrors = errors.filter(
+        error => error.status === 'unresolved' || error.status === 'in_progress'
+      );
+      
+      // Mark each error as resolved
+      await Promise.all(
+        unresolvedErrors.map(error =>
+          apiClient.post(
+            `/printer-errors/${error._id}/resolve`,
+            { resolvedBy: 'Admin' },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          )
+        )
+      );
+      
+      fetchErrors();
+    } catch (error) {
+      console.error('Error marking all as resolved:', error);
+    }
+  };
+
+  const exportToCSV = () => {
+    // Create CSV headers
+    const headers = [
+      'Printer Name',
+      'Error Type',
+      'Description',
+      'Priority',
+      'Status',
+      'Timestamp',
+      'Location',
+      'Error Code',
+      'Affected Jobs',
+      'Resolved At',
+      'Resolved By'
+    ];
+
+    // Create CSV rows
+    const rows = errors.map(error => [
+      error.printerName,
+      error.errorType,
+      error.description.split(',').join(';'), // Replace commas to avoid CSV issues
+      error.priority,
+      error.status,
+      formatTimestamp(error.timestamp),
+      error.metadata?.location || '',
+      error.metadata?.errorCode || '',
+      error.metadata?.affectedJobs?.toString() || '',
+      error.resolvedAt ? formatTimestamp(error.resolvedAt) : '',
+      error.resolvedBy || ''
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `printer-error-logs-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   const getPriorityColor = (priority: string) => {
@@ -231,7 +313,20 @@ export default function PrinterErrorLogs() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button variant="outline">
+          <Button 
+            onClick={markAllAsResolved} 
+            variant="default"
+            className="bg-green-600 hover:bg-green-700"
+            disabled={stats.unresolved === 0 && stats.inProgress === 0}
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Mark All Resolved
+          </Button>
+          <Button 
+            onClick={exportToCSV} 
+            variant="outline"
+            disabled={errors.length === 0}
+          >
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>

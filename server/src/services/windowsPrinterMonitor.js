@@ -11,7 +11,7 @@ const execAsync = promisify(exec);
 const Printer = require('../models/Printer');
 const PrinterError = require('../models/PrinterError');
 const Notification = require('../models/Notification');
-const { getSocketIO } = require('./socketService');
+const { getIO } = require('./socketService');
 
 /**
  * Get Windows printer status using PowerShell
@@ -19,7 +19,8 @@ const { getSocketIO } = require('./socketService');
 async function getWindowsPrinterStatus(printerName) {
   try {
     // PowerShell command to get printer status
-    const psCommand = `Get-Printer -Name "${printerName}" | Select-Object Name, PrinterStatus, JobCount | ConvertTo-Json`;
+    // Use single quotes inside the command and escape the printer name properly
+    const psCommand = `Get-Printer -Name '${printerName}' | Select-Object Name, PrinterStatus, JobCount | ConvertTo-Json`;
     
     const { stdout, stderr } = await execAsync(`powershell.exe -Command "${psCommand}"`, {
       timeout: 10000
@@ -261,7 +262,7 @@ async function createWindowsPrinterNotification(printer, errors) {
     console.log(`📢 Admin notification created for printer ${printer.name}`);
     
     // Emit Socket.IO event
-    const io = getSocketIO();
+    const io = getIO();
     if (io) {
       io.to('admin').emit('printer-error', {
         printerId: printer._id,

@@ -232,10 +232,21 @@ router.get('/test', async (req, res) => {
 
     // Process printers with real queue data from Queue collection
     const printersWithQueueData = await Promise.all(finalPrinters.map(async (printer) => {
-      // Get actual queue length from Queue collection
+      // Get actual queue length from Queue collection PER PRINTER
+      // First, get all PrintJobs for this printer
+      const printerPrintJobs = await PrintJob.find({ 
+        printerId: printer._id,
+        status: { $in: ['pending', 'processing', 'in-progress'] }
+      }).select('_id');
+      
+      const printJobIds = printerPrintJobs.map(job => job._id);
+      
+      // Then count Queue items that reference these PrintJobs
       const queueLength = await Queue.countDocuments({
+        printJobId: { $in: printJobIds },
         status: { $in: ['pending', 'in-progress'] }
       });
+      
       const estimatedWait = queueLength * 3;
 
       // Extract capabilities from specifications object

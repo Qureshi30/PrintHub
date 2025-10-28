@@ -8,7 +8,7 @@
 const Notification = require('../models/Notification');
 const Printer = require('../models/Printer');
 const PrinterError = require('../models/PrinterError');
-const { getSocketIO } = require('./socketService');
+const { getIO } = require('./socketService');
 const { monitorPrinter } = require('./snmpPrinterMonitor');
 
 /**
@@ -102,21 +102,24 @@ async function handlePrintError(printJob, errorMessage, printerDocument = null) 
       printer = await Printer.findById(printJob.printerId);
     }
     
+    // Windows printer monitoring disabled - causes issues with some printers
     // Trigger Windows printer monitoring if hardware-related
-    if (errorType === ERROR_TYPES.HARDWARE_ERROR || errorType === ERROR_TYPES.COMMUNICATION_FAILURE) {
-      if (printer && printer.systemInfo?.connectionType !== 'Virtual') {
-        
-        console.log('🔍 Triggering immediate Windows printer check due to print error...');
-        
-        // Run Windows monitoring immediately (async, don't wait)
-        const { monitorWindowsPrinter } = require('./windowsPrinterMonitor');
-        monitorWindowsPrinter(printer).then(() => {
-          console.log('✅ Windows printer check completed');
-        }).catch(error => {
-          console.error('❌ Windows printer check failed:', error.message);
-        });
-      }
-    }
+    // if (errorType === ERROR_TYPES.HARDWARE_ERROR || errorType === ERROR_TYPES.COMMUNICATION_FAILURE) {
+    //   if (printer && printer.systemInfo?.connectionType !== 'Virtual') {
+    //     
+    //     console.log('🔍 Triggering immediate Windows printer check due to print error...');
+    //     
+    //     // Run Windows monitoring immediately (async, don't wait)
+    //     const { monitorWindowsPrinter } = require('./windowsPrinterMonitor');
+    //     monitorWindowsPrinter(printer).then(() => {
+    //       console.log('✅ Windows printer check completed');
+    //     }).catch(error => {
+    //       console.error('❌ Windows printer check failed:', error.message);
+    //     });
+    //   }
+    // }
+    
+    console.log('ℹ️ Windows printer monitoring disabled for error handling');
     
     // Create user notification
     const userFriendlyMessage = getUserFriendlyMessage(errorType, errorMessage);
@@ -186,7 +189,7 @@ async function handlePrintError(printJob, errorMessage, printerDocument = null) 
     }
     
     // Emit real-time Socket.IO events
-    const io = getSocketIO();
+    const io = getIO();
     if (io) {
       // Emit to user
       io.to(printJob.clerkUserId).emit('print-error', {
@@ -283,16 +286,19 @@ async function checkPrinterHealth(printerId) {
       }
     }
     
+    // SNMP check disabled - causes issues with non-SNMP compatible printers
     // Quick SNMP check if supported (async, don't block)
-    if (printer.systemInfo?.ipAddress && 
-        printer.systemInfo.ipAddress !== 'localhost' && 
-        printer.systemInfo.connectionType !== 'Virtual') {
-      
-      // Trigger async check but don't wait
-      monitorPrinter(printer).catch(error => {
-        console.warn('⚠️ Background health check failed:', error.message);
-      });
-    }
+    // if (printer.systemInfo?.ipAddress && 
+    //     printer.systemInfo.ipAddress !== 'localhost' && 
+    //     printer.systemInfo.connectionType !== 'Virtual') {
+    //   
+    //   // Trigger async check but don't wait
+    //   monitorPrinter(printer).catch(error => {
+    //     console.warn('⚠️ Background health check failed:', error.message);
+    //   });
+    // }
+    
+    console.log('ℹ️ SNMP monitoring disabled - skipping background health check');
     
     return {
       healthy: true,
