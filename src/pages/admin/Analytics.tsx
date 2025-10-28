@@ -13,7 +13,6 @@ import {
   Printer,
   BarChart3,
   Activity,
-  ArrowUpDown,
   ArrowUp,
   ArrowDown
 } from "lucide-react";
@@ -127,13 +126,33 @@ export default function Analytics() {
           {/* Printer Usage */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Printer className="h-5 w-5" />
-                Printer Utilization
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Printer className="h-5 w-5" />
+                  Printer Utilization
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleSortOrder}
+                  className="flex items-center gap-1"
+                >
+                  {sortOrder === 'desc' ? (
+                    <>
+                      <ArrowDown className="h-3 w-3" />
+                      <span className="text-xs">High</span>
+                    </>
+                  ) : (
+                    <>
+                      <ArrowUp className="h-3 w-3" />
+                      <span className="text-xs">Low</span>
+                    </>
+                  )}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {analytics.printerUsage.map((printer) => (
+              {sortedPrinters.map((printer) => (
                 <div key={printer.printer} className="space-y-2">
                   <div className="flex justify-between items-center">
                     <div>
@@ -141,13 +160,21 @@ export default function Analytics() {
                       <p className="text-sm text-muted-foreground">Status: {printer.status}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium">{printer.jobsToday} jobs</p>
-                      <p className="text-sm text-muted-foreground">{printer.usage}% usage</p>
+                      <p className="font-medium">{printer.usage}% usage</p>
+                      <p className="text-sm text-muted-foreground">
+                        {printer.jobCount ? `${printer.jobCount} jobs` : 'Utilization'}
+                      </p>
                     </div>
                   </div>
                   <Progress value={printer.usage} className="h-2" />
                 </div>
               ))}
+              
+              {sortedPrinters.length === 0 && (
+                <div className="text-center py-4 text-muted-foreground">
+                  No printer data available
+                </div>
+              )}
             </CardContent>
           </Card>
 

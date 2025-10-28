@@ -525,7 +525,7 @@ router.get('/analytics', requireAuth, requireAdmin, async (req, res) => {
     const totalJobsForPercentage = totalPrintJobs || 1; // Avoid division by zero
     const printerUsage = printerUsageAgg.map(item => ({
       printer: item.printer || 'Unknown Printer',
-      usage: Number.Number.parseFloat(((item.jobCount / totalJobsForPercentage) * 100).toFixed(1)),
+      usage: Number.parseFloat(((item.jobCount / totalJobsForPercentage) * 100).toFixed(1)),
       jobCount: item.jobCount,
       status: item.status || 'offline'
     }));
@@ -575,7 +575,7 @@ router.get('/analytics', requireAuth, requireAdmin, async (req, res) => {
 
     const analytics = {
       totalPrintJobs,
-      totalRevenue: Number.Number.parseFloat(totalRevenue.toFixed(2)),
+      totalRevenue: Number.parseFloat(totalRevenue.toFixed(2)),
       totalUsers,
       activePrinters,
       popularPaperTypes,
