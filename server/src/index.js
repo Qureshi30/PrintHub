@@ -24,6 +24,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const webhookRoutes = require('./routes/webhookRoutes');
 const cashPaymentRoutes = require('./routes/cashPaymentRoutes');
 const queryRoutes = require('./routes/queryRoutes');
+const pricingRoutes = require('./routes/pricingRoutes');
 
 // Import queue processor
 const queueProcessor = require('./services/queueProcessor');
@@ -148,6 +149,7 @@ app.use('/api/queue', queueRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/cash-payment', cashPaymentRoutes);
 app.use('/api/queries', queryRoutes);
+app.use('/api/pricing', pricingRoutes);
 // Webhook routes (no rate limiting for webhooks)
 app.use('/webhooks', webhookRoutes);
 
@@ -207,8 +209,8 @@ app.listen(PORT, () => {
       console.error('❌ Scheduled printer monitoring error:', error);
     });
   });
-  
-  console.log(`📡 Windows printer monitoring ENABLED - Checking every 2 minutes`);
+
+  console.log(`📡 Windows printer monitoring scheduled (every 2 minutes)`);
 });
 
 module.exports = app;
