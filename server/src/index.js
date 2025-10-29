@@ -71,6 +71,19 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 
+// More lenient rate limiter for admin routes
+const adminLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 50, // 50 requests per minute for admin operations
+  message: {
+    error: 'Too many admin requests, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply rate limiters
+app.use('/api/admin/', adminLimiter);
 app.use('/api/', limiter);
 
 // Body parsing middleware

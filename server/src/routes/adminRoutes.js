@@ -12,6 +12,10 @@ const {
   getPricingHistory,
   resetToDefaults
 } = require('../controllers/pricingController');
+const {
+  terminatePrintJob,
+  getTerminatedJobs
+} = require('../controllers/terminateJobController');
 const router = express.Router();
 
 console.log('🔧 Loading admin routes...');
@@ -619,6 +623,37 @@ router.post('/test-auth', requireAuth, requireAdmin, async (req, res) => {
     }
   });
 });
+
+// ============================================================================
+// PRINT JOB TERMINATION ROUTES
+// ============================================================================
+
+/**
+ * @route   DELETE /admin/printjobs/:id/terminate
+ * @desc    Terminate an ongoing or pending print job with refund
+ * @access  Admin only
+ */
+router.delete('/printjobs/:id/terminate',
+  requireAuth,
+  requireAdmin,
+  [
+    body('reason')
+      .optional()
+      .isString()
+      .trim()
+      .isLength({ max: 500 })
+      .withMessage('Reason must be a string with maximum 500 characters')
+  ],
+  validateRequest,
+  terminatePrintJob
+);
+
+/**
+ * @route   GET /admin/printjobs/terminated
+ * @desc    Get all terminated print jobs
+ * @access  Admin only
+ */
+router.get('/printjobs/terminated', requireAuth, requireAdmin, getTerminatedJobs);
 
 // ============================================================================
 // PRICING MANAGEMENT ROUTES

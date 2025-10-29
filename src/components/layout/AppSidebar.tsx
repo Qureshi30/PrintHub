@@ -51,6 +51,7 @@ const adminItems = [
   { title: "Admin Dashboard", url: "/admin", icon: Settings },
   { title: "User Management", url: "/admin/users", icon: Users },
   { title: "Printer Management", url: "/admin/printers", icon: Printer },
+  { title: "Active Jobs", url: "/admin/active-jobs", icon: FileText },
   { title: "Cash Payments", url: "/admin/cash-payments", icon: DollarSign },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
 ];

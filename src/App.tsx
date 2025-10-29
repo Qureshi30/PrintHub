@@ -31,6 +31,7 @@ import CashPayments from "./pages/admin/CashPayments";
 import PrinterErrorLogs from "./pages/admin/PrinterErrorLogs";
 import Queries from "./pages/admin/Queries";
 import PricingSettings from "./pages/admin/PricingSettings";
+import ActivePrintJobs from "./pages/admin/ActivePrintJobs";
 import AuthTestPage from "./pages/AuthTestPage";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import Layout from "@/components/layout/Layout";
@@ -196,6 +197,11 @@ const App = () => (
             <Route path="/admin/pricing" element={
               <ProtectedRoute requiredRole="admin">
                 <AdminLayout><PricingSettings /></AdminLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/active-jobs" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminLayout><ActivePrintJobs /></AdminLayout>
               </ProtectedRoute>
             } />
 

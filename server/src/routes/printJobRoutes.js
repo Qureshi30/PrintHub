@@ -493,12 +493,13 @@ router.delete('/:id',
 
 // GET /api/print-jobs - Get all print jobs (Admin only)
 router.get('/',
+  requireAuth,
+  requireAdmin,
   [
-    query('status').optional().isIn(['pending', 'queued', 'printing', 'completed', 'failed', 'cancelled']),
+    query('status').optional().isIn(['pending', 'queued', 'in-progress', 'printing', 'completed', 'failed', 'cancelled', 'terminated']),
     query('printerId').optional().isMongoId(),
     query('page').optional().isInt({ min: 1 }),
-    query('limit').optional().isInt({ min: 1, max: 100 }),
-    requireAdmin
+    query('limit').optional().isInt({ min: 1, max: 100 })
   ],
   validateRequest,
   async (req, res) => {
@@ -520,10 +521,30 @@ router.get('/',
         PrintJob.countDocuments(filter)
       ]);
 
+      // Fetch user data for each job
+      const jobsWithUserData = await Promise.all(jobs.map(async (job) => {
+        const jobObj = job.toObject();
+        try {
+          const user = await User.findOne({ clerkUserId: job.clerkUserId })
+            .select('profile.firstName profile.lastName profile.email')
+            .lean();
+          
+          if (user && user.profile) {
+            jobObj.userName = user.profile.firstName 
+              ? `${user.profile.firstName}${user.profile.lastName ? ' ' + user.profile.lastName : ''}`
+              : null;
+            jobObj.userEmail = user.profile.email || null;
+          }
+        } catch (err) {
+          console.warn(`⚠️ Failed to fetch user data for job ${job._id}:`, err);
+        }
+        return jobObj;
+      }));
+
       res.json({
         success: true,
         data: {
-          jobs,
+          jobs: jobsWithUserData,
           pagination: {
             page: Number.parseInt(page, 10),
             limit: Number.parseInt(limit, 10),
