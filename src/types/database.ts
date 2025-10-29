@@ -83,11 +83,20 @@ export interface PrintJobPricing {
   currency: string;
 }
 
+// Backend uses 'cost' field instead of 'pricing'
+export interface PrintJobCost {
+  baseCost: number;
+  colorCost: number;
+  paperCost: number;
+  totalCost: number;
+}
+
 export interface PrintJobPayment {
-  status: 'pending' | 'paid' | 'refunded';
-  method: 'student_credit' | 'card' | 'campus_card';
-  transactionId: string;
-  paidAt: string;
+  status: 'pending' | 'paid' | 'refunded' | 'unpaid';
+  method: 'student_credit' | 'card' | 'campus_card' | 'cash' | 'razorpay' | 'dev' | 'other';
+  transactionId?: string;
+  paidAt?: string;
+  amount?: number;
 }
 
 export interface PrintJobTiming {
@@ -103,10 +112,11 @@ export interface PrintJob {
   printerId: string;
   file: PrintJobFile;
   settings: PrintSettings;
-  status: 'queued' | 'printing' | 'completed' | 'failed' | 'cancelled';
+  status: 'pending' | 'in-progress' | 'queued' | 'printing' | 'completed' | 'failed' | 'cancelled' | 'terminated' | 'refunded';
   queuePosition?: number;
   estimatedCompletionTime?: string;
-  pricing?: PrintJobPricing;
+  pricing?: PrintJobPricing; // Legacy field
+  cost?: PrintJobCost; // Current backend field
   payment?: PrintJobPayment;
   timing?: PrintJobTiming;
   misprint: boolean;

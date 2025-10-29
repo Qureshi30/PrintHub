@@ -48,7 +48,7 @@ router.post('/',
   async (req, res) => {
     try {
       console.log('📝 Creating print job with data:', JSON.stringify(req.body, null, 2));
-      const { clerkUserId, printerId, file, settings = {}, notes } = req.body;
+      const { clerkUserId, printerId, file, settings = {}, notes, cost, payment } = req.body;
 
       // Block admin users from uploading files
       if (req.user?.role === 'admin') {
@@ -131,12 +131,32 @@ router.post('/',
         },
         priority, // Set priority based on user role
         notes,
-        status: 'pending'
+        status: 'pending',
+        // Use cost from request if provided, otherwise calculate
+        cost: cost || {
+          totalCost: 0 // Will be calculated below if not provided
+        },
+        // Use payment info from request if provided
+        payment: payment || {
+          status: 'unpaid',
+          method: 'student_credit'
+        }
       });
 
-      // Calculate estimated cost
-      const estimatedCost = printJob.estimatedTotalCost;
-      printJob.cost.totalCost = estimatedCost;
+      // Only calculate cost if not provided from frontend
+      if (!cost || !cost.totalCost) {
+        const estimatedCost = printJob.estimatedTotalCost;
+        printJob.cost.totalCost = estimatedCost;
+        printJob.cost.baseCost = estimatedCost * 0.8;
+        printJob.cost.paperCost = estimatedCost * 0.2;
+        printJob.cost.colorCost = 0;
+      }
+
+      console.log('💰 Print job cost:', {
+        totalCost: printJob.cost.totalCost,
+        paymentStatus: printJob.payment.status,
+        paymentMethod: printJob.payment.method
+      });
 
       await printJob.save();
 

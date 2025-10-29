@@ -11,10 +11,8 @@ import { useBackendUpload } from "@/hooks/useBackendUpload";
 import { useCreatePrintJob } from "@/hooks/useDatabase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@clerk/clerk-react";
-import { usePayment } from "@/hooks/usePayment";
 import {
   CreditCard,
-  Smartphone,
   Shield,
   CheckCircle,
   Clock,
@@ -26,9 +24,38 @@ import {
 } from "lucide-react";
 
 // Razorpay interface
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: (response: RazorpayResponse) => void;
+  prefill?: {
+    name?: string;
+    email?: string;
+  };
+  notes?: Record<string, string>;
+  theme?: {
+    color?: string;
+  };
+  modal?: {
+    ondismiss?: () => void;
+  };
+}
+
+interface RazorpayResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
 declare global {
   interface Window {
-    Razorpay: any;
+    Razorpay: new (options: RazorpayOptions) => {
+      open: () => void;
+    };
   }
 }
 
@@ -56,7 +83,6 @@ export default function Payment() {
 
   // Hooks for backend operations
   const { mutateAsync: createPrintJob } = useCreatePrintJob();
-  const { createPaymentOrder, verifyPayment } = usePayment();
 
   // Upload hook for Cloudinary upload
   const { uploadFile } = useBackendUpload({
@@ -143,18 +169,11 @@ export default function Payment() {
 
   const paymentMethods = [
     {
-      id: "upi",
-      name: "UPI Payment",
-      description: "Pay using Google Pay, PhonePe, Paytm",
-      icon: Smartphone,
-      popular: true
-    },
-    {
-      id: "card",
-      name: "Credit/Debit Card",
-      description: "Visa, Mastercard, RuPay",
+      id: "razorpay",
+      name: "Online Payment (Razorpay)",
+      description: "UPI, Cards, Wallets & More",
       icon: CreditCard,
-      popular: false
+      popular: true
     },
     {
       id: "cash",
@@ -498,7 +517,7 @@ export default function Payment() {
         name: "PrintHub",
         description: `Print Job Payment - ${files.length} file(s)`,
         order_id: order.orderId,
-        handler: async (response: any) => {
+        handler: async (response: RazorpayResponse) => {
           try {
             console.log('💳 Payment successful, verifying...', response);
             setPaymentStatus("processing");
@@ -515,7 +534,7 @@ export default function Payment() {
 
             // Store payment info
             setPaymentInfo({
-              method: selectedMethod as 'upi' | 'card' | 'dev',
+              method: 'razorpay',
               totalCost: amount,
               transactionId: response.razorpay_payment_id,
               breakdown: {
@@ -576,7 +595,12 @@ export default function Payment() {
   };
 
   // Create temporary payment order without print job dependency
-  const createTemporaryPaymentOrder = async (orderData: any) => {
+  const createTemporaryPaymentOrder = async (orderData: {
+    amount: number;
+    currency: string;
+    receipt: string;
+    notes: Record<string, string>;
+  }) => {
     try {
       const token = await getToken();
 
@@ -778,18 +802,16 @@ export default function Payment() {
       // Cleanup local files after successful submission
       cleanupLocalFiles();
 
+      setPaymentStatus("success");
+
       toast({
         title: "Cash Payment Request Submitted",
         description: `Please pay ₹${amount.toFixed(2)} at the counter. Your print job will be processed after admin approval.`,
         duration: 5000,
       });
 
-      setPaymentStatus("success");
-
-      // Navigate to queue or dashboard after a delay
-      setTimeout(() => {
-        navigate("/student/dashboard");
-      }, 3000);
+      // Don't auto-navigate - let user click the button
+      setIsProcessing(false);
 
     } catch (error) {
       console.error('Cash payment error:', error);
@@ -826,19 +848,10 @@ export default function Payment() {
 
         await uploadFilesToCloudinary();
         setPaymentStatus("success");
-      } else if (selectedMethod === "upi") {
-        // UPI Payment processing
-        console.log('� Processing UPI payment...');
-        // Real UPI payment processing via Razorpay
-        if (!window.Razorpay) {
-          throw new Error("Razorpay SDK not loaded. Please refresh the page and try again.");
-        }
-
-        await handleRazorpayPayment(totalAmount);
-      } else if (selectedMethod === "card") {
-        // Real card payment processing via Razorpay
-        console.log('💳 Processing card payment via Razorpay...');
-
+      } else if (selectedMethod === "razorpay") {
+        // Online Payment processing via Razorpay (UPI, Cards, Wallets)
+        console.log('💳 Processing Razorpay payment...');
+        
         if (!window.Razorpay) {
           throw new Error("Razorpay SDK not loaded. Please refresh the page and try again.");
         }
@@ -861,7 +874,7 @@ export default function Payment() {
       if (selectedMethod === "dev") {
         setIsProcessing(false);
       }
-      // For Razorpay payments, setIsProcessing(false) is handled in the success/failure callbacks
+      // For Razorpay and cash payments, setIsProcessing is handled in their respective callbacks
     }
   };
 
@@ -951,9 +964,10 @@ export default function Payment() {
                   </div>
                   {isCashPayment && (
                     <div className="pt-4 border-t">
-                      <p className="text-sm text-muted-foreground">
-                        Status: <Badge variant="outline" className="ml-2">Pending Admin Approval</Badge>
-                      </p>
+                      <div className="text-sm text-muted-foreground flex items-center gap-2">
+                        <span>Status:</span>
+                        <Badge variant="outline">Pending Admin Approval</Badge>
+                      </div>
                     </div>
                   )}
                 </div>

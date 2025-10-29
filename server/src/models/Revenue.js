@@ -29,7 +29,7 @@ const revenueSchema = new mongoose.Schema({
   paymentMethod: {
     type: String,
     required: true,
-    enum: ['card', 'cash', 'upi', 'wallet', 'student_credit', 'dev', 'other']
+    enum: ['card', 'cash', 'upi', 'wallet', 'student_credit', 'dev', 'razorpay', 'other']
   },
   transactionId: {
     type: String,

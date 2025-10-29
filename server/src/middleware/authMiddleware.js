@@ -1,6 +1,29 @@
 const { ClerkExpressRequireAuth, clerkClient } = require('@clerk/clerk-sdk-node');
 const jwt = require('jsonwebtoken');
 
+// Utility function to retry Clerk API calls with exponential backoff
+async function retryClerkRequest(fn, maxRetries = 3, baseDelay = 300) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries - 1;
+      
+      // Check if error is retryable (502, 503, 504, network errors)
+      const isRetryable = error.status === 502 || error.status === 503 || error.status === 504 || 
+                          error.message?.includes('ECONNREFUSED') || error.message?.includes('ETIMEDOUT');
+      
+      if (!isRetryable || isLastAttempt) {
+        throw error;
+      }
+      
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.log(`⚠️ Clerk API error (attempt ${attempt + 1}/${maxRetries}), retrying in ${delay}ms...`, error.message);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
 // Enhanced auth middleware that uses Clerk SDK for verification
 const requireAuth = async (req, res, next) => {
   try {
@@ -22,8 +45,9 @@ const requireAuth = async (req, res, next) => {
       console.log('🔐 Auth middleware - user ID:', userId);
 
       try {
-        // Fetch user details from Clerk to get publicMetadata
-        const user = await clerkClient.users.getUser(userId);
+        // Fetch user details from Clerk with retry logic
+        const user = await retryClerkRequest(() => clerkClient.users.getUser(userId));
+        
         req.user = {
           id: userId,
           role: user.publicMetadata?.role || 'student',
@@ -43,6 +67,22 @@ const requireAuth = async (req, res, next) => {
         next();
       } catch (userError) {
         console.error('❌ Failed to fetch user from Clerk:', userError);
+        
+        // If Clerk is completely down, fallback to basic JWT verification
+        if (userError.status === 502 || userError.status === 503 || userError.status === 504) {
+          console.log('⚠️ Clerk API unavailable, using fallback authentication');
+          req.user = {
+            id: userId,
+            role: 'student', // Default to student role
+            email: null,
+            firstName: null,
+            lastName: null,
+            fullName: 'User',
+            metadata: {}
+          };
+          return next();
+        }
+        
         return res.status(500).json({
           success: false,
           error: {

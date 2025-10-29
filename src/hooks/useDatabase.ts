@@ -95,7 +95,13 @@ interface PrintJob {
   status: 'queued' | 'printing' | 'completed' | 'failed' | 'cancelled';
   queuePosition?: number;
   estimatedCompletionTime?: string;
-  pricing: {
+  cost?: {
+    baseCost: number;
+    colorCost: number;
+    paperCost: number;
+    totalCost: number;
+  };
+  pricing?: {
     costPerPage: number;
     colorSurcharge: number;
     paperTypeSurcharge: number;
@@ -328,7 +334,12 @@ export const useUserPrintJobs = (userId?: string, options?: UserPrintJobsOptions
   const [printJobs, setPrintJobs] = useState<PrintJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { getToken } = useAuth();
+
+  const refresh = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
 
   useEffect(() => {
     const fetchPrintJobs = async () => {
@@ -338,10 +349,15 @@ export const useUserPrintJobs = (userId?: string, options?: UserPrintJobsOptions
       }
 
       try {
+        setLoading(true);
         const authFetch = createAuthenticatedFetch(getToken);
         const url = `/students/print-jobs`;
         const response = await authFetch(url);
-        setPrintJobs(response.data.jobs || response.data || []);
+        
+        // Backend returns: { success: true, data: [...printJobs] }
+        const jobs = response.data || [];
+        console.log('🔄 useUserPrintJobs - Fetched jobs:', jobs.length);
+        setPrintJobs(Array.isArray(jobs) ? jobs : []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch print jobs');
       } finally {
@@ -350,14 +366,15 @@ export const useUserPrintJobs = (userId?: string, options?: UserPrintJobsOptions
     };
 
     fetchPrintJobs();
-  }, [userId, getToken]);
+  }, [userId, getToken, refreshTrigger]);
 
   return {
     data: printJobs,
     printJobs,
     loading,
     isLoading: loading,
-    error
+    error,
+    refresh
   };
 };
 

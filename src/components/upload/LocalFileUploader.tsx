@@ -167,48 +167,6 @@ export default function LocalFileUploader({ onFileAdded }: LocalFileUploaderProp
         className="hidden"
         onChange={(e) => onFiles(e.target.files)}
       />
-
-      {items.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileIcon className="h-5 w-5" />
-              Selected Files ({items.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {items.map((item) => {
-              const Icon = getIconForFile(item.file);
-              return (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className="h-6 w-6 text-gray-600" />
-                    <div>
-                      <p className="font-medium text-sm">{item.file.name}</p>
-                      <p className="text-xs text-gray-600">
-                        {formatBytes(item.file.size)} • Ready for printing
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeItem(item.id);
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
