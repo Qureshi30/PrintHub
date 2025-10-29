@@ -392,7 +392,7 @@ export default function SelectPrinter() {
             <MobileStepNavigation
               currentStep={2}
               totalSteps={4}
-              onPrevious={() => navigate(-1)}
+              onPrevious={() => navigate('/print-settings')}
               onNext={handleContinue}
               nextDisabled={!selectedPrinterId || hasIncompatibleSettings}
               nextLabel={hasIncompatibleSettings ? "Resolve Issues" : "Continue"}
@@ -402,7 +402,7 @@ export default function SelectPrinter() {
           {/* Desktop Navigation */}
           {!isMobile && (
             <div className="flex gap-4">
-              <Button variant="outline" onClick={() => navigate(-1)} className="flex-1">
+              <Button variant="outline" onClick={() => navigate('/print-settings')} className="flex-1">
                 Back to Settings
               </Button>
               <Button 

@@ -11,7 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { MobileCard, MobileTouchButton } from "@/components/mobile/MobileComponents";
-import { FileText, Calendar, Download, Trash2, Eye, RefreshCw } from "lucide-react";
+import { FileText, Calendar, Download, Trash2, RefreshCw } from "lucide-react";
 
 // Match the PrintJob type from useDatabase hook
 interface PrintJobType {
@@ -229,13 +229,6 @@ function History() {
                             <Download className="h-4 w-4" />
                           </MobileTouchButton>
                         )}
-                        <MobileTouchButton
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {/* Add view details functionality */}}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </MobileTouchButton>
                       </div>
                     </div>
 
@@ -370,14 +363,6 @@ function History() {
                                   Download
                                 </Button>
                               )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {/* Add view details functionality */}}
-                              >
-                                <Eye className="h-4 w-4 mr-1" />
-                                Details
-                              </Button>
                             </div>
                           </div>
 

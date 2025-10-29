@@ -6,7 +6,6 @@ import {
   HelpCircle,
   Clock,
   User,
-  Calendar,
   Shield,
   FileText,
   Bell,
@@ -33,7 +32,6 @@ const items = [
   { title: "Upload & Print", url: "/upload", icon: Upload },
   { title: "Print History", url: "/history", icon: Folder },
   { title: "Print Queue", url: "/queue", icon: Clock },
-  { title: "Schedule Print", url: "/schedule", icon: Calendar },
   { title: "Notifications", url: "/notifications", icon: Bell },
 ];
 

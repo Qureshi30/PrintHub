@@ -16,7 +16,6 @@ import Queue from "./pages/student/Queue";
 import History from "./pages/student/History";
 import UserSettings from "./pages/student/UserSettings";
 import AccessDenied from "./pages/shared/AccessDenied";
-import Schedule from "./pages/student/Schedule";
 import Support from "./pages/shared/Support";
 import Terms from "./pages/shared/Terms";
 import Privacy from "./pages/shared/Privacy";
@@ -26,7 +25,6 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import UserManagement from "./pages/admin/UserManagement";
 import PrinterManagement from "./pages/admin/PrinterManagement";
 import Analytics from "./pages/admin/Analytics";
-import EmailConfiguration from "./pages/admin/EmailConfiguration";
 import CashPayments from "./pages/admin/CashPayments";
 import PrinterErrorLogs from "./pages/admin/PrinterErrorLogs";
 import Queries from "./pages/admin/Queries";
@@ -90,7 +88,6 @@ const App = () => (
             <Route path="/queue" element={<SignedIn><Layout><Queue /></Layout></SignedIn>} />
             <Route path="/history" element={<SignedIn><Layout><History /></Layout></SignedIn>} />
             <Route path="/user-settings" element={<SignedIn><Layout><UserSettings /></Layout></SignedIn>} />
-            <Route path="/schedule" element={<SignedIn><Layout><Schedule /></Layout></SignedIn>} />
             <Route path="/notifications" element={<SignedIn><Layout><Notifications /></Layout></SignedIn>} />
 
             {/* Shared routes (available to both authenticated and non-authenticated users) */}
@@ -172,11 +169,6 @@ const App = () => (
             <Route path="/admin/analytics" element={
               <ProtectedRoute requiredRole="admin">
                 <AdminLayout><Analytics /></AdminLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/email" element={
-              <ProtectedRoute requiredRole="admin">
-                <AdminLayout><EmailConfiguration /></AdminLayout>
               </ProtectedRoute>
             } />
             <Route path="/admin/cash-payments" element={

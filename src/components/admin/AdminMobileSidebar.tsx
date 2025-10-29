@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { X, Users, Printer, BarChart3, Home, Mail, Shield, FileText } from "lucide-react";
+import { X, Users, Printer, BarChart3, Home, Shield, FileText } from "lucide-react";
 
 const adminMenuItems = [
   { name: "Dashboard", icon: Home, path: "/admin" },
@@ -7,7 +7,6 @@ const adminMenuItems = [
   { name: "Printers", icon: Printer, path: "/admin/printers" },
   { name: "Active Jobs", icon: FileText, path: "/admin/active-jobs" },
   { name: "Analytics", icon: BarChart3, path: "/admin/analytics" },
-  { name: "Email Config", icon: Mail, path: "/admin/email" },
 ];
 
 interface AdminMobileSidebarProps {

@@ -1,8 +1,9 @@
-import { UploadCloud, Home, History, Clock, Calendar, Bell, User, Printer } from "lucide-react";
+import { UploadCloud, Home, History, Clock, User, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import AuthButtons from "@/components/auth/AuthButtons";
 import { useNavigate, useLocation } from "react-router-dom";
+import { NotificationBell } from "./NotificationBell";
 
 export function AppHeader() {
   const navigate = useNavigate();
@@ -13,8 +14,6 @@ export function AppHeader() {
     { path: "/upload", label: "Upload", icon: UploadCloud },
     { path: "/queue", label: "Queue", icon: Clock },
     { path: "/history", label: "History", icon: History },
-    { path: "/schedule", label: "Schedule", icon: Calendar },
-    { path: "/notifications", label: "Notifications", icon: Bell },
   ];
 
   return (
@@ -58,6 +57,7 @@ export function AppHeader() {
 
         <div className="flex items-center gap-3">
           <ThemeToggle />
+          <NotificationBell />
           <Button
             onClick={() => navigate("/user-settings")}
             className="hover-scale bg-gradient-hero hover:shadow-glow transition-all duration-300"

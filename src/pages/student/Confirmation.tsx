@@ -1,10 +1,8 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
@@ -17,11 +15,8 @@ import { MobileCard, MobileTouchButton } from "@/components/mobile/MobileCompone
 import {
   FileText,
   Printer,
-  CreditCard,
   Clock,
-  CheckCircle,
   AlertTriangle,
-  Calendar,
   DollarSign,
   Edit,
   ArrowLeft
@@ -61,10 +56,8 @@ interface JobSummary {
 
 export default function Confirmation() {
   const navigate = useNavigate();
-  const { files, settings, selectedPrinter, payment, setPaymentInfo } = usePrintJobContext();
+  const { files, settings, selectedPrinter, setPaymentInfo } = usePrintJobContext();
   const isMobile = useIsMobile();
-  const [notifyEmail, setNotifyEmail] = useState(true);
-  const [notifySMS, setNotifySMS] = useState(false);
 
   // Get the first file for display (assuming single file upload for now)
   const currentFile = files[0];
@@ -88,16 +81,16 @@ export default function Confirmation() {
       return { base: 0, color: 0, duplex: 0, paperSurcharge: 0, total: 0 };
     }
 
-    const BLACK_AND_WHITE_RATE = 2.00; // ₹2.00 per page
-    const COLOR_RATE = 5.00; // ₹5.00 per page
+    const BLACK_AND_WHITE_RATE = 2; // ₹2.00 per page
+    const COLOR_RATE = 5; // ₹5.00 per page
 
     // Paper type surcharges (per page)
     const paperSurcharges: { [key: string]: number } = {
       'A4': 0,
-      'A3': 3.00,
-      'Letter': 0.50,
-      'Legal': 1.00,
-      'Certificate': 5.00
+      'A3': 3,
+      'Letter': 0.5,
+      'Legal': 1,
+      'Certificate': 5
     };
 
     const pages = currentFile.pages || 1;
@@ -125,7 +118,7 @@ export default function Confirmation() {
     let total = baseCost + paperSurcharge;
 
     // Apply duplex discount (10% off)
-    const duplexDiscount = isDuplex ? total * 0.10 : 0;
+    const duplexDiscount = isDuplex ? total * 0.1 : 0;
     total = total - duplexDiscount;
 
     console.log('💰 CONFIRMATION - Calculated breakdown:', {
@@ -191,7 +184,7 @@ export default function Confirmation() {
 
     // Store the calculated cost in payment context
     setPaymentInfo({
-      method: 'upi', // Default method, will be updated on payment page
+      method: 'razorpay', // Default method, will be updated on payment page
       totalCost: calculatedCost.total,
       breakdown: {
         baseCost: calculatedCost.base,
@@ -352,51 +345,6 @@ export default function Confirmation() {
                 </div>
               </MobileCard>
             )}
-
-            {/* Timing */}
-            <MobileCard selected={false} className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-orange-50 rounded-lg">
-                  <Calendar className="h-5 w-5 text-orange-600" />
-                </div>
-                <div className="flex-1">
-                  <div className="font-medium mb-2 text-foreground">Print Schedule</div>
-                  <div className="text-sm text-muted-foreground">
-                    Scheduled for: <span className="font-medium text-foreground">{jobSummary.timing.scheduledFor}</span>
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    Est. completion: <span className="font-medium text-foreground">{jobSummary.timing.estimatedCompletion}</span>
-                  </div>
-                </div>
-              </div>
-            </MobileCard>
-
-            {/* Notification Preferences */}
-            <MobileCard selected={false} className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
-              <div className="space-y-4">
-                <div className="font-medium text-foreground">Notification Preferences</div>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="email-notify" className="text-sm text-foreground">Email notifications</Label>
-                    <Switch
-                      id="email-notify"
-                      checked={notifyEmail}
-                      onCheckedChange={setNotifyEmail}
-                      disabled={jobSummary.file.pages === 0}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="sms-notify" className="text-sm text-foreground">SMS notifications</Label>
-                    <Switch
-                      id="sms-notify"
-                      checked={notifySMS}
-                      onCheckedChange={setNotifySMS}
-                      disabled={jobSummary.file.pages === 0}
-                    />
-                  </div>
-                </div>
-              </div>
-            </MobileCard>
 
             {/* Action Buttons */}
             <div className="space-y-3 pt-4">
@@ -573,53 +521,6 @@ export default function Confirmation() {
                     </CardContent>
                   </Card>
                 )}
-
-                {/* Timing */}
-                <Card className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Calendar className="h-5 w-5" />
-                      Print Schedule
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex justify-between text-foreground">
-                      <span>Scheduled for:</span>
-                      <span className="font-medium">{jobSummary.timing.scheduledFor}</span>
-                    </div>
-                    <div className="flex justify-between text-foreground">
-                      <span>Est. completion:</span>
-                      <span className="font-medium">{jobSummary.timing.estimatedCompletion}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Notification Preferences */}
-                <Card className={jobSummary.file.pages === 0 ? 'opacity-60' : ''}>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Notification Preferences</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="email-notify-desktop">Email notifications</Label>
-                      <Switch
-                        id="email-notify-desktop"
-                        checked={notifyEmail}
-                        onCheckedChange={setNotifyEmail}
-                        disabled={jobSummary.file.pages === 0}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="sms-notify-desktop">SMS notifications</Label>
-                      <Switch
-                        id="sms-notify-desktop"
-                        checked={notifySMS}
-                        onCheckedChange={setNotifySMS}
-                        disabled={jobSummary.file.pages === 0}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             </div>
 

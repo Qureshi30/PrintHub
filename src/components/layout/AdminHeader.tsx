@@ -4,7 +4,6 @@ import {
   BarChart3,
   Home,
   Shield,
-  Mail,
   DollarSign,
   MessageSquare,
   Coins,
@@ -29,7 +28,6 @@ export function AdminHeader() {
     { path: "/admin/cash-payments", label: "Cash Payments", icon: DollarSign },
     { path: "/admin/pricing", label: "Pricing", icon: Coins },
     { path: "/admin/analytics", label: "Analytics", icon: BarChart3 },
-    { path: "/admin/email", label: "Email", icon: Mail },
   ];
 
   return (

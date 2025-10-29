@@ -1,14 +1,11 @@
-import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { X, Home, Upload, List, History, Calendar, Bell, Printer } from "lucide-react";
+import { X, Home, Upload, List, History, Printer } from "lucide-react";
 
 const menuItems = [
   { name: "Dashboard", icon: Home, path: "/student/dashboard" },
   { name: "Upload", icon: Upload, path: "/upload" },
   { name: "Queue", icon: List, path: "/queue" },
   { name: "History", icon: History, path: "/history" },
-  { name: "Schedule", icon: Calendar, path: "/schedule" },
-  { name: "Notifications", icon: Bell, path: "/notifications" },
 ];
 
 interface MobileSidebarProps {
