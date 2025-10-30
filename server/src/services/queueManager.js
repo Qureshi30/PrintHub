@@ -2,6 +2,7 @@ const Queue = require('../models/Queue');
 const PrintJob = require('../models/PrintJob');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const Revenue = require('../models/Revenue');
 const { clerkClient } = require('@clerk/clerk-sdk-node');
 const emailService = require('./unifiedEmailService');
 const mongoose = require('mongoose');
@@ -322,7 +323,65 @@ class QueueManager {
         updateData.completedAt = new Date();
       }
 
-      await PrintJob.findByIdAndUpdate(printJobId, updateData, { session });
+      const updatedPrintJob = await PrintJob.findByIdAndUpdate(printJobId, updateData, { session, new: true })
+        .populate('printerId');
+
+      // Update Revenue collection when job is completed
+      if (finalStatus === 'completed') {
+        const printJob = await PrintJob.findById(printJobId).session(session);
+        console.log('🔍 Checking revenue creation for completed job:', {
+          jobId: printJobId,
+          hasCost: !!printJob?.cost,
+          totalCost: printJob?.cost?.totalCost,
+          paymentMethod: printJob?.payment?.method,
+          paymentStatus: printJob?.payment?.status,
+          transactionId: printJob?.payment?.transactionId
+        });
+        
+        // Create revenue record if:
+        // 1. Job has cost data AND totalCost > 0
+        // 2. Payment status is 'paid'
+        if (printJob && printJob.cost && printJob.cost.totalCost > 0 && printJob.payment?.status === 'paid') {
+          try {
+            // Create a revenue record for this completed job
+            const revenueData = {
+              printJobId: printJob._id,
+              clerkUserId: printJob.clerkUserId,
+              printerId: printJob.printerId,
+              userEmail: printJob.userEmail || 'unknown@email.com',
+              price: printJob.cost.totalCost,
+              paymentMethod: printJob.payment?.method || 'other',
+              transactionId: printJob.payment?.transactionId,
+              paidAt: printJob.payment?.paidAt || new Date()
+            };
+            
+            console.log('💰 Creating revenue record with data:', revenueData);
+            
+            await Revenue.create([revenueData], { session });
+            console.log(`✅ Revenue record created: ₹${printJob.cost.totalCost} (Job: ${printJobId})`);
+          } catch (revenueError) {
+            console.error('❌ Failed to create revenue record:', {
+              error: revenueError.message,
+              stack: revenueError.stack,
+              jobId: printJobId
+            });
+            // Don't fail the transaction for revenue creation errors
+          }
+        } else {
+          console.warn('⚠️ Cannot create revenue record:', {
+            jobId: printJobId,
+            hasPrintJob: !!printJob,
+            hasCost: !!printJob?.cost,
+            totalCost: printJob?.cost?.totalCost,
+            paymentStatus: printJob?.payment?.status,
+            reason: !printJob ? 'No print job found' :
+                   !printJob.cost ? 'No cost data' :
+                   printJob.cost.totalCost <= 0 ? 'Cost is zero or negative' :
+                   printJob.payment?.status !== 'paid' ? 'Payment not marked as paid' :
+                   'Unknown reason'
+          });
+        }
+      }
 
       // Create notification only for completed or failed jobs
       if (finalStatus === 'completed' || finalStatus === 'failed') {
@@ -393,6 +452,36 @@ class QueueManager {
 
       const emoji = finalStatus === 'completed' ? '✅' : '❌';
       console.log(`${emoji} Print job ${printJobId} ${finalStatus}, removed from queue`);
+
+      // Emit Socket.IO events after successful transaction
+      if (updatedPrintJob && updatedPrintJob.clerkUserId) {
+        const { emitPrintJobCompleted, emitPrintJobFailed } = require('./socketService');
+        
+        console.log('🔔 Print job completed, preparing to emit notification:', {
+          clerkUserId: updatedPrintJob.clerkUserId,
+          jobId: updatedPrintJob._id,
+          fileName: updatedPrintJob.file.originalName,
+          status: finalStatus
+        });
+        
+        if (finalStatus === 'completed') {
+          emitPrintJobCompleted(updatedPrintJob.clerkUserId, {
+            jobId: updatedPrintJob._id,
+            fileName: updatedPrintJob.file.originalName,
+            printerName: updatedPrintJob.printerId?.name || 'Unknown Printer',
+            completedAt: updatedPrintJob.completedAt
+          });
+        } else if (finalStatus === 'failed') {
+          emitPrintJobFailed(updatedPrintJob.clerkUserId, {
+            jobId: updatedPrintJob._id,
+            fileName: updatedPrintJob.file.originalName,
+            printerName: updatedPrintJob.printerId?.name || 'Unknown Printer',
+            error: errorMessage || 'Print job failed'
+          });
+        }
+      } else {
+        console.warn('⚠️ Cannot emit notification: Missing clerkUserId or updatedPrintJob');
+      }
 
       return true;
 

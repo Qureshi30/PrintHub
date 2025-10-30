@@ -120,7 +120,7 @@ router.get('/print-jobs', requireAuth, async (req, res) => {
 
     const printJobs = await PrintJob.find({ clerkUserId: userId })
       .populate('printerId', 'name location')
-      .sort({ priority: -1, createdAt: 1 });
+      .sort({ updatedAt: -1 }); // Sort by most recently updated first
 
     console.log(`✅ Found ${printJobs.length} print jobs for student: ${userId}`);
 

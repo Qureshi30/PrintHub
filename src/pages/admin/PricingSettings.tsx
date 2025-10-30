@@ -215,11 +215,11 @@ const PricingSettings = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <DollarSign className="w-8 h-8 text-green-600" />
+          <h1 className="text-3xl font-bold flex items-center gap-2 dark:text-gray-100">
+            <DollarSign className="w-8 h-8 text-green-600 dark:text-green-500" />
             Pricing Management
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
             Configure print pricing, paper surcharges, and discounts for the entire system
           </p>
         </div>
@@ -275,11 +275,11 @@ const PricingSettings = () => {
         {/* Base Rates */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-600" />
+            <CardTitle className="flex items-center gap-2 dark:text-gray-100">
+              <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               Base Rates
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="dark:text-gray-400">
               Set the base price per page for different print types
             </CardDescription>
           </CardHeader>
@@ -316,11 +316,11 @@ const PricingSettings = () => {
         {/* Paper Surcharges */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-orange-600" />
+            <CardTitle className="flex items-center gap-2 dark:text-gray-100">
+              <FileText className="w-5 h-5 text-orange-600 dark:text-orange-400" />
               Paper Surcharges
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="dark:text-gray-400">
               Additional charges for different paper sizes and types
             </CardDescription>
           </CardHeader>
@@ -347,11 +347,11 @@ const PricingSettings = () => {
         {/* Discounts */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-green-600" />
+            <CardTitle className="flex items-center gap-2 dark:text-gray-100">
+              <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
               Discounts & Offers
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="dark:text-gray-400">
               Configure discounts for special print options
             </CardDescription>
           </CardHeader>
@@ -379,43 +379,43 @@ const PricingSettings = () => {
       {/* Price Preview */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calculator className="w-5 h-5 text-purple-600" />
+          <CardTitle className="flex items-center gap-2 dark:text-gray-100">
+            <Calculator className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             Price Preview
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="dark:text-gray-400">
             Preview how changes affect actual print costs
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-medium text-sm text-gray-700">Standard B&W</h4>
-              <p className="text-lg font-bold text-gray-900">
+            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300">Standard B&W</h4>
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 ₹{calculatePreviewCost(1, false, 'a4', false)}
               </p>
-              <p className="text-xs text-gray-500">1 page B&W on A4</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">1 page B&W on A4</p>
             </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-medium text-sm text-gray-700">Standard Color</h4>
-              <p className="text-lg font-bold text-gray-900">
+            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300">Standard Color</h4>
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 ₹{calculatePreviewCost(1, true, 'a4', false)}
               </p>
-              <p className="text-xs text-gray-500">1 page Color on A4</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">1 page Color on A4</p>
             </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-medium text-sm text-gray-700">B&W Duplex A3</h4>
-              <p className="text-lg font-bold text-gray-900">
+            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300">B&W Duplex A3</h4>
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 ₹{calculatePreviewCost(1, false, 'a3', true)}
               </p>
-              <p className="text-xs text-gray-500">1 page B&W duplex on A3</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">1 page B&W duplex on A3</p>
             </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-medium text-sm text-gray-700">Bulk Color</h4>
-              <p className="text-lg font-bold text-gray-900">
+            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300">Bulk Color</h4>
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 ₹{calculatePreviewCost(10, true, 'a4', true)}
               </p>
-              <p className="text-xs text-gray-500">10 pages Color duplex on A4</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">10 pages Color duplex on A4</p>
             </div>
           </div>
         </CardContent>
@@ -425,27 +425,27 @@ const PricingSettings = () => {
       {pricing && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Eye className="w-5 h-5 text-indigo-600" />
+            <CardTitle className="flex items-center gap-2 dark:text-gray-100">
+              <Eye className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               Current Configuration
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="dark:text-gray-400">
               Information about the active pricing configuration
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-gray-500" />
-                <span className="text-sm text-gray-600">Updated by:</span>
-                <Badge variant="outline">
+                <User className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <span className="text-sm text-gray-600 dark:text-gray-400">Updated by:</span>
+                <Badge variant="outline" className="dark:bg-gray-700 dark:text-gray-300">
                   {pricing.lastUpdatedBy ? `Admin ${pricing.lastUpdatedBy.substring(0, 8)}` : 'System'}
                 </Badge>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-gray-500" />
-                <span className="text-sm text-gray-600">Last updated:</span>
-                <span className="text-sm font-medium">
+                <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <span className="text-sm text-gray-600 dark:text-gray-400">Last updated:</span>
+                <span className="text-sm font-medium dark:text-gray-300">
                   {pricing.lastUpdatedAt 
                     ? new Date(pricing.lastUpdatedAt).toLocaleString()
                     : 'Unknown'
@@ -453,14 +453,14 @@ const PricingSettings = () => {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                <span className="text-sm text-gray-600">Version:</span>
-                <Badge variant="secondary">v{pricing.version || 1}</Badge>
+                <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400" />
+                <span className="text-sm text-gray-600 dark:text-gray-400">Version:</span>
+                <Badge variant="secondary" className="dark:bg-gray-700 dark:text-gray-300">v{pricing.version || 1}</Badge>
               </div>
             </div>
             {pricing.description && (
-              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-700">
+              <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   <strong>Last change:</strong> {pricing.description}
                 </p>
               </div>
@@ -472,8 +472,8 @@ const PricingSettings = () => {
       {/* Update Description */}
       <Card>
         <CardHeader>
-          <CardTitle>Change Description</CardTitle>
-          <CardDescription>
+          <CardTitle className="dark:text-gray-100">Change Description</CardTitle>
+          <CardDescription className="dark:text-gray-400">
             Add a description for this pricing update (optional)
           </CardDescription>
         </CardHeader>

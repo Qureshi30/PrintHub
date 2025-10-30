@@ -3,6 +3,7 @@ import { ChevronLeft, Home, Menu, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { NotificationBell } from '@/components/layout/NotificationBell';
 
 interface MobileHeaderProps {
   title: string;
@@ -81,11 +82,10 @@ export function MobileHeader({
           </h1>
         </div>
         
-        {rightAction && (
-          <div className="flex items-center ml-3 flex-shrink-0">
-            {rightAction}
-          </div>
-        )}
+        <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+          <NotificationBell iconSize="h-5 w-5" />
+          {rightAction}
+        </div>
       </div>
     </div>
   );

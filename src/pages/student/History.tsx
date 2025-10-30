@@ -11,7 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { MobileCard, MobileTouchButton } from "@/components/mobile/MobileComponents";
-import { FileText, Calendar, Printer, Filter, Download, Trash2, Eye } from "lucide-react";
+import { FileText, Calendar, Download, Trash2, RefreshCw } from "lucide-react";
 
 // Match the PrintJob type from useDatabase hook
 interface PrintJobType {
@@ -35,37 +35,50 @@ interface PrintJobType {
   status: 'queued' | 'printing' | 'completed' | 'failed' | 'cancelled';
   queuePosition?: number;
   estimatedCompletionTime?: string;
-  pricing: {
+  pricing?: {
     costPerPage: number;
     colorSurcharge: number;
     paperTypeSurcharge: number;
     totalCost: number;
     currency: string;
   };
-  payment: {
+  cost?: {
+    baseCost: number;
+    colorCost: number;
+    paperCost: number;
+    totalCost: number;
+  };
+  payment?: {
     status: 'pending' | 'paid' | 'failed' | 'refunded';
     method: string;
     transactionId?: string;
     paidAt?: string;
   };
-  timing: {
+  timing?: {
     submittedAt: string;
     startedAt?: string;
     completedAt?: string;
     totalProcessingTime?: number;
-    misprint: boolean;
-    reprintCount: number;
-    createdAt: string;
-    updatedAt: string;
   };
+  misprint?: boolean;
+  reprintCount?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 function History() {
   const { user } = useUser();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { data: printJobs, isLoading } = useUserPrintJobs(user?.id, { limit: 50 });
+  const { data: printJobs, isLoading, refresh } = useUserPrintJobs(user?.id, { limit: 50 });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const handleRefresh = () => {
+    console.log('🔄 Refreshing print history...');
+    if (refresh) {
+      refresh();
+    }
+  };
 
   if (isLoading) {
     return (
@@ -77,7 +90,19 @@ function History() {
     );
   }
 
-  const jobs = printJobs || [];
+  const jobs = (printJobs || []) as unknown as PrintJobType[];
+
+  // Debug logging
+  console.log('📊 History Page - Jobs received:', jobs.length);
+  if (jobs.length > 0) {
+    console.log('📄 First job data:', {
+      id: jobs[0]._id,
+      file: jobs[0].file?.originalName,
+      cost: jobs[0].cost,
+      pricing: jobs[0].pricing,
+      payment: jobs[0].payment
+    });
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -104,13 +129,22 @@ function History() {
             title="Print History"
             onMenuClick={() => setIsSidebarOpen(true)}
             rightAction={
-              <MobileTouchButton 
-                variant="primary" 
-                size="sm"
-                onClick={() => navigate("/upload")}
-              >
-                New Job
-              </MobileTouchButton>
+              <div className="flex gap-2">
+                <MobileTouchButton 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handleRefresh}
+                >
+                  <RefreshCw className="h-5 w-5" />
+                </MobileTouchButton>
+                <MobileTouchButton 
+                  variant="primary" 
+                  size="sm"
+                  onClick={() => navigate("/upload")}
+                >
+                  New Job
+                </MobileTouchButton>
+              </div>
             }
           />
           
@@ -131,7 +165,7 @@ function History() {
               jobs.map((job) => {
                 const pages = job.settings?.pages === "all"
                   ? 10
-                  : parseInt(job.settings.pages.split("-")[1] || "1");
+                  : Number.parseInt(job.settings.pages.split("-")[1] || "1", 10);
 
                 return (
                   <MobileCard key={job._id} selected={false} className="space-y-3">
@@ -156,7 +190,7 @@ function History() {
                       <div>
                         <span className="text-muted-foreground">Printer:</span>
                         <div className="font-medium text-foreground">
-                          {(job.printerId as any)?.name || 'Unknown Printer'}
+                          {typeof job.printerId === 'object' ? job.printerId?.name : 'Unknown Printer'}
                         </div>
                       </div>
                       <div>
@@ -170,7 +204,7 @@ function History() {
                       <div>
                         <span className="text-muted-foreground">Cost:</span>
                         <div className="font-medium text-green-600 dark:text-green-400">
-                          ₹{job.pricing?.totalCost?.toFixed(2) || '0.00'}
+                          ₹{(job.cost?.totalCost || job.pricing?.totalCost || 0).toFixed(2)}
                         </div>
                       </div>
                     </div>
@@ -195,13 +229,6 @@ function History() {
                             <Download className="h-4 w-4" />
                           </MobileTouchButton>
                         )}
-                        <MobileTouchButton
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {/* Add view details functionality */}}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </MobileTouchButton>
                       </div>
                     </div>
 
@@ -241,9 +268,14 @@ function History() {
                     View and manage your past print jobs
                   </p>
                 </div>
-                <Button onClick={() => navigate("/upload")} className="bg-gradient-hero">
-                  New Print Job
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={handleRefresh} variant="outline" size="icon">
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                  <Button onClick={() => navigate("/upload")} className="bg-gradient-hero">
+                    New Print Job
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -262,7 +294,7 @@ function History() {
                   jobs.map((job) => {
                     const pages = job.settings?.pages === "all"
                       ? 10
-                      : parseInt(job.settings.pages.split("-")[1] || "1");
+                      : Number.parseInt(job.settings.pages.split("-")[1] || "1", 10);
 
                     return (
                       <Card key={job._id} className="p-6 hover:shadow-lg transition-shadow">
@@ -291,7 +323,7 @@ function History() {
                             <div>
                               <span className="text-muted-foreground">Printer:</span>
                               <div className="font-medium text-foreground">
-                                {(job.printerId as any)?.name || 'Unknown Printer'}
+                                {typeof job.printerId === 'object' ? job.printerId?.name : 'Unknown Printer'}
                               </div>
                             </div>
                             <div>
@@ -305,7 +337,7 @@ function History() {
                             <div>
                               <span className="text-muted-foreground">Cost:</span>
                               <div className="font-medium text-green-600">
-                                ₹{job.pricing?.totalCost?.toFixed(2) || '0.00'}
+                                ₹{(job.cost?.totalCost || job.pricing?.totalCost || 0).toFixed(2)}
                               </div>
                             </div>
                           </div>
@@ -331,14 +363,6 @@ function History() {
                                   Download
                                 </Button>
                               )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {/* Add view details functionality */}}
-                              >
-                                <Eye className="h-4 w-4 mr-1" />
-                                Details
-                              </Button>
                             </div>
                           </div>
 

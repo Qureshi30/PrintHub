@@ -1,5 +1,29 @@
 const { ClerkExpressRequireAuth, clerkClient } = require('@clerk/clerk-sdk-node');
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+
+// Utility function to retry Clerk API calls with exponential backoff
+async function retryClerkRequest(fn, maxRetries = 3, baseDelay = 300) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries - 1;
+      
+      // Check if error is retryable (502, 503, 504, network errors)
+      const isRetryable = error.status === 502 || error.status === 503 || error.status === 504 || 
+                          error.message?.includes('ECONNREFUSED') || error.message?.includes('ETIMEDOUT');
+      
+      if (!isRetryable || isLastAttempt) {
+        throw error;
+      }
+      
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.log(`⚠️ Clerk API error (attempt ${attempt + 1}/${maxRetries}), retrying in ${delay}ms...`, error.message);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
 
 // Enhanced auth middleware that uses Clerk SDK for verification
 const requireAuth = async (req, res, next) => {
@@ -22,8 +46,46 @@ const requireAuth = async (req, res, next) => {
       console.log('🔐 Auth middleware - user ID:', userId);
 
       try {
-        // Fetch user details from Clerk to get publicMetadata
-        const user = await clerkClient.users.getUser(userId);
+        // Fetch user details from Clerk with retry logic
+        const user = await retryClerkRequest(() => clerkClient.users.getUser(userId));
+        
+        // Check if user exists in our database, create if not (fallback for race condition)
+        try {
+          let dbUser = await User.findOne({ clerkUserId: userId });
+          
+          if (!dbUser) {
+            console.log('⚠️ User not found in database, creating on-the-fly for:', userId);
+            
+            // Create user immediately to prevent race condition issues
+            dbUser = await User.create({
+              clerkUserId: userId,
+              role: user.publicMetadata?.role || 'student',
+              profile: {
+                firstName: user.firstName || '',
+                lastName: user.lastName || '',
+                email: user.emailAddresses?.[0]?.emailAddress || '',
+                phone: user.phoneNumbers?.[0]?.phoneNumber || '',
+              },
+              status: 'active',
+              preferences: {
+                emailNotifications: true,
+                defaultPaperType: 'A4',
+                defaultColor: false,
+              },
+              statistics: {
+                totalJobs: 0,
+                totalSpent: 0,
+                completedJobs: 0,
+              }
+            });
+            
+            console.log('✅ User created successfully in database:', dbUser._id);
+          }
+        } catch (dbError) {
+          // Log the error but don't fail the request - webhook might still be processing
+          console.error('⚠️ Database user check/create failed:', dbError.message);
+        }
+        
         req.user = {
           id: userId,
           role: user.publicMetadata?.role || 'student',
@@ -43,6 +105,22 @@ const requireAuth = async (req, res, next) => {
         next();
       } catch (userError) {
         console.error('❌ Failed to fetch user from Clerk:', userError);
+        
+        // If Clerk is completely down, fallback to basic JWT verification
+        if (userError.status === 502 || userError.status === 503 || userError.status === 504) {
+          console.log('⚠️ Clerk API unavailable, using fallback authentication');
+          req.user = {
+            id: userId,
+            role: 'student', // Default to student role
+            email: null,
+            firstName: null,
+            lastName: null,
+            fullName: 'User',
+            metadata: {}
+          };
+          return next();
+        }
+        
         return res.status(500).json({
           success: false,
           error: {

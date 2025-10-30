@@ -408,8 +408,8 @@ export default function CashPayments() {
                                                     <div className="flex items-center gap-2">
                                                         <Printer className="w-4 h-4 text-muted-foreground" />
                                                         <div>
-                                                            <p className="text-sm">{request.printerId.name}</p>
-                                                            <p className="text-xs text-muted-foreground">{request.printerId.location}</p>
+                                                            <p className="text-sm">{request.printerId?.name || 'Unknown Printer'}</p>
+                                                            <p className="text-xs text-muted-foreground">{request.printerId?.location || 'N/A'}</p>
                                                         </div>
                                                     </div>
                                                 </TableCell>

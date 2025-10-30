@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MobileSidebar from "@/components/layout/MobileSidebar";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
@@ -281,8 +281,8 @@ export default function Notifications() {
               return (
                 <Card
                   key={notification._id}
-                  className={`transition-all duration-200 ${hasQueryId ? 'cursor-pointer hover:shadow-lg hover:border-blue-400 hover:bg-blue-50/30' : ''
-                    } ${!notification.read ? 'border-blue-200 bg-blue-50/50' : ''
+                  className={`transition-all duration-200 ${hasQueryId ? 'cursor-pointer hover:shadow-lg hover:border-blue-400 hover:bg-blue-50/30 dark:hover:bg-blue-950/30' : ''
+                    } ${!notification.read ? 'border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/30' : ''
                     }`}
                   onClick={() => {
                     console.log('🖱️ Notification clicked:', notification._id, 'Has queryId:', hasQueryId);
@@ -427,7 +427,7 @@ export default function Notifications() {
               </div>
 
               {/* Ticket Info */}
-              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm font-medium">Ticket ID:</span>
                   <span className="text-sm text-muted-foreground">#{selectedQuery._id.slice(-8)}</span>
@@ -460,7 +460,7 @@ export default function Notifications() {
                   <span className="w-1 h-4 bg-blue-500 rounded"></span>
                   Your Message
                 </h4>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                   <p className="text-sm whitespace-pre-wrap">{selectedQuery.message}</p>
                 </div>
               </div>
@@ -472,7 +472,7 @@ export default function Notifications() {
                     <span className="w-1 h-4 bg-green-500 rounded"></span>
                     Admin Response
                   </h4>
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
                     <p className="text-sm whitespace-pre-wrap">{selectedQuery.adminResponse}</p>
                     {selectedQuery.respondedAt && (
                       <p className="text-xs text-muted-foreground mt-2">
@@ -485,10 +485,10 @@ export default function Notifications() {
 
               {/* No Response Yet */}
               {!selectedQuery.adminResponse && selectedQuery.status !== 'closed' && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-yellow-600" />
-                    <p className="text-sm text-yellow-800">
+                    <Clock className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
                       {selectedQuery.status === 'in-progress'
                         ? 'Our team is working on your ticket. You will receive an email when we respond.'
                         : 'Our support team will respond within 24 hours. You will receive an email notification.'}

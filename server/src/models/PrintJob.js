@@ -83,7 +83,7 @@ const printJobSchema = new mongoose.Schema({
   // Queue & Status
   status: {
     type: String,
-    enum: ['pending', 'queued', 'in-progress', 'printing', 'completed', 'failed', 'cancelled', 'paused', 'resumed'],
+    enum: ['pending', 'queued', 'in-progress', 'printing', 'completed', 'failed', 'cancelled', 'paused', 'resumed', 'terminated'],
     default: 'pending',
     index: true,
   },
@@ -160,7 +160,7 @@ const printJobSchema = new mongoose.Schema({
     },
     status: {
       type: String,
-      enum: ['unpaid', 'pending', 'paid', 'failed', 'refunded'],
+      enum: ['unpaid', 'pending', 'paid', 'failed', 'refunded', 'refund_initiated', 'refund_failed'],
       default: 'unpaid',
     },
     method: {
@@ -193,6 +193,15 @@ const printJobSchema = new mongoose.Schema({
     refundAmount: {
       type: Number,
       default: 0,
+    },
+    refundId: {
+      type: String,
+      sparse: true,
+    },
+    refundStatus: {
+      type: String,
+      enum: ['none', 'initiated', 'processing', 'completed', 'failed'],
+      default: 'none',
     },
   },
 

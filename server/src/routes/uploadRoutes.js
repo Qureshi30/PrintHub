@@ -463,7 +463,7 @@ router.post('/print-job',
   validateRequest,
   async (req, res) => {
     try {
-      const { printerId, settings = {}, notes, cloudinaryUrl, cloudinaryPublicId, originalName } = req.body;
+      const { printerId, settings = {}, notes, cloudinaryUrl, cloudinaryPublicId, originalName, payment: paymentData } = req.body;
       const file = req.file;
       const clerkUserId = req.auth.userId;
       let fileData;
@@ -473,7 +473,8 @@ router.post('/print-job',
         hasCloudinaryData: !!(cloudinaryUrl && cloudinaryPublicId),
         printerId,
         settings,
-        originalName
+        originalName,
+        payment: paymentData
       });
 
       // Determine file data source
@@ -638,8 +639,14 @@ router.post('/print-job',
           totalCost: totalCost,
         },
 
-        // Payment Status
-        payment: {
+        // Payment Status - Use provided payment data or default to unpaid
+        payment: paymentData ? {
+          status: paymentData.status || 'paid',
+          method: paymentData.method || 'razorpay',
+          transactionId: paymentData.transactionId,
+          amount: paymentData.amount || totalCost,
+          paidAt: paymentData.paidAt || new Date()
+        } : {
           status: 'unpaid',
           method: 'student_credit',
         },

@@ -16,7 +16,6 @@ import Queue from "./pages/student/Queue";
 import History from "./pages/student/History";
 import UserSettings from "./pages/student/UserSettings";
 import AccessDenied from "./pages/shared/AccessDenied";
-import Schedule from "./pages/student/Schedule";
 import Support from "./pages/shared/Support";
 import Terms from "./pages/shared/Terms";
 import Privacy from "./pages/shared/Privacy";
@@ -26,11 +25,11 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import UserManagement from "./pages/admin/UserManagement";
 import PrinterManagement from "./pages/admin/PrinterManagement";
 import Analytics from "./pages/admin/Analytics";
-import EmailConfiguration from "./pages/admin/EmailConfiguration";
 import CashPayments from "./pages/admin/CashPayments";
 import PrinterErrorLogs from "./pages/admin/PrinterErrorLogs";
 import Queries from "./pages/admin/Queries";
 import PricingSettings from "./pages/admin/PricingSettings";
+import ActivePrintJobs from "./pages/admin/ActivePrintJobs";
 import AuthTestPage from "./pages/AuthTestPage";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import Layout from "@/components/layout/Layout";
@@ -38,6 +37,8 @@ import LandingLayout from "@/components/layout/LandingLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import RoleBasedDashboard from "@/components/RoleBasedDashboard";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { NotificationPrompt } from "@/components/NotificationPrompt";
+import { SocketNotificationProvider } from "@/components/SocketNotificationProvider";
 
 // Feature Pages
 import SecurityPrivacy from "./pages/features/SecurityPrivacy";
@@ -56,6 +57,8 @@ const App = () => (
       <Sonner />
       <PrintJobProvider>
         <BrowserRouter>
+          <SocketNotificationProvider />
+          <NotificationPrompt />
           <Routes>
             {/* Landing page for non-authenticated users */}
             <Route path="/" element={
@@ -89,7 +92,6 @@ const App = () => (
             <Route path="/queue" element={<SignedIn><Layout><Queue /></Layout></SignedIn>} />
             <Route path="/history" element={<SignedIn><Layout><History /></Layout></SignedIn>} />
             <Route path="/user-settings" element={<SignedIn><Layout><UserSettings /></Layout></SignedIn>} />
-            <Route path="/schedule" element={<SignedIn><Layout><Schedule /></Layout></SignedIn>} />
             <Route path="/notifications" element={<SignedIn><Layout><Notifications /></Layout></SignedIn>} />
 
             {/* Shared routes (available to both authenticated and non-authenticated users) */}
@@ -173,11 +175,6 @@ const App = () => (
                 <AdminLayout><Analytics /></AdminLayout>
               </ProtectedRoute>
             } />
-            <Route path="/admin/email" element={
-              <ProtectedRoute requiredRole="admin">
-                <AdminLayout><EmailConfiguration /></AdminLayout>
-              </ProtectedRoute>
-            } />
             <Route path="/admin/cash-payments" element={
               <ProtectedRoute requiredRole="admin">
                 <AdminLayout><CashPayments /></AdminLayout>
@@ -196,6 +193,11 @@ const App = () => (
             <Route path="/admin/pricing" element={
               <ProtectedRoute requiredRole="admin">
                 <AdminLayout><PricingSettings /></AdminLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/active-jobs" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminLayout><ActivePrintJobs /></AdminLayout>
               </ProtectedRoute>
             } />
 

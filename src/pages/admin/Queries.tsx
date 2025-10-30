@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useUser, useAuth } from "@clerk/clerk-react";
+import { useAuth } from "@clerk/clerk-react";
 import {
     Dialog,
     DialogContent,
@@ -32,7 +32,6 @@ import {
 import {
     MessageSquare,
     Search,
-    Filter,
     Mail,
     Clock,
     CheckCircle2,
@@ -74,7 +73,6 @@ interface QueryStats {
 }
 
 export default function Queries() {
-    const { user } = useUser();
     const { getToken } = useAuth();
     const { toast } = useToast();
 
@@ -313,9 +311,9 @@ export default function Queries() {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <MessageSquare className="h-8 w-8 text-blue-600" />
+                        <MessageSquare className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight">Student Queries</h1>
+                            <h1 className="text-3xl font-bold tracking-tight dark:text-gray-100">Student Queries</h1>
                             <p className="text-muted-foreground">Manage and respond to student support tickets</p>
                         </div>
                     </div>
@@ -328,73 +326,72 @@ export default function Queries() {
                 {/* Statistics Cards */}
                 <div className="grid gap-4 md:grid-cols-6">
                     <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Queries</CardTitle>
+                            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{stats.total}</div>
+                            <p className="text-xs text-muted-foreground">All queries</p>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-gray-600">Total Queries</CardTitle>
+                            <CardTitle className="text-sm font-medium text-red-700 dark:text-red-400">Open</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="flex items-center gap-2">
-                                <MessageSquare className="h-4 w-4 text-blue-600" />
-                                <span className="text-2xl font-bold">{stats.total}</span>
+                                <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-500" />
+                                <span className="text-2xl font-bold text-red-900 dark:text-red-300">{stats.open}</span>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="border-red-200 bg-red-50">
+                    <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-red-700">Open</CardTitle>
+                            <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400">In Progress</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="flex items-center gap-2">
-                                <AlertCircle className="h-4 w-4 text-red-600" />
-                                <span className="text-2xl font-bold text-red-900">{stats.open}</span>
+                                <Clock className="h-4 w-4 text-blue-600 dark:text-blue-500" />
+                                <span className="text-2xl font-bold text-blue-900 dark:text-blue-300">{stats.inProgress}</span>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="border-blue-200 bg-blue-50">
+                    <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-blue-700">In Progress</CardTitle>
+                            <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">Resolved</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="flex items-center gap-2">
-                                <Clock className="h-4 w-4 text-blue-600" />
-                                <span className="text-2xl font-bold text-blue-900">{stats.inProgress}</span>
+                                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-500" />
+                                <span className="text-2xl font-bold text-green-900 dark:text-green-300">{stats.resolved}</span>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="border-green-200 bg-green-50">
+                    <Card className="border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-green-700">Resolved</CardTitle>
+                            <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">Closed</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="flex items-center gap-2">
-                                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                                <span className="text-2xl font-bold text-green-900">{stats.resolved}</span>
+                                <XCircle className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                                <span className="text-2xl font-bold text-gray-900 dark:text-gray-200">{stats.closed}</span>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="border-gray-200 bg-gray-50">
+                    <Card className="border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-gray-700">Closed</CardTitle>
+                            <CardTitle className="text-sm font-medium text-orange-700 dark:text-orange-400">Urgent</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="flex items-center gap-2">
-                                <XCircle className="h-4 w-4 text-gray-600" />
-                                <span className="text-2xl font-bold text-gray-900">{stats.closed}</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-orange-200 bg-orange-50">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-orange-700">Urgent</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex items-center gap-2">
-                                <TrendingUp className="h-4 w-4 text-orange-600" />
-                                <span className="text-2xl font-bold text-orange-900">{stats.urgent}</span>
+                                <TrendingUp className="h-4 w-4 text-orange-600 dark:text-orange-500" />
+                                <span className="text-2xl font-bold text-orange-900 dark:text-orange-300">{stats.urgent}</span>
                             </div>
                         </CardContent>
                     </Card>
@@ -454,10 +451,10 @@ export default function Queries() {
                     </CardHeader>
                     <CardContent>
                         {filteredQueries.length === 0 ? (
-                            <div className="text-center py-12 text-gray-500">
+                            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                                 <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                                <p className="text-lg font-medium">No queries found</p>
-                                <p className="text-sm">Try adjusting your filters or check back later.</p>
+                                <p className="text-lg font-medium dark:text-gray-300">No queries found</p>
+                                <p className="text-sm dark:text-gray-400">Try adjusting your filters or check back later.</p>
                             </div>
                         ) : (
                             <div className="rounded-md border overflow-hidden">

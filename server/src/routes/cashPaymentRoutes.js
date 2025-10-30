@@ -4,6 +4,7 @@ const { requireAuth } = require('../middleware/authMiddleware');
 const CashPrintRequest = require('../models/CashPrintRequest');
 const PrintJob = require('../models/PrintJob');
 const Printer = require('../models/Printer');
+const QueueManager = require('../services/queueManager');
 
 const router = express.Router();
 
@@ -276,6 +277,7 @@ router.patch('/admin/cash-requests/:id/complete',
             const printJob = new PrintJob({
                 clerkUserId: cashRequest.clerkUserId,
                 printerId: cashRequest.printerId,
+                userEmail: cashRequest.userEmail,
                 file: {
                     cloudinaryUrl: cashRequest.file.cloudinaryUrl,
                     publicId: cashRequest.file.publicId,
@@ -288,8 +290,7 @@ router.patch('/admin/cash-requests/:id/complete',
                     copies: cashRequest.settings.copies,
                     color: cashRequest.settings.color,
                     duplex: cashRequest.settings.duplex,
-                    paperType: cashRequest.settings.paperType,
-                    status: 'queued' // Ready for printing
+                    paperType: cashRequest.settings.paperType
                 },
                 cost: {
                     totalCost: cashRequest.cost.totalCost
@@ -297,23 +298,17 @@ router.patch('/admin/cash-requests/:id/complete',
                 payment: {
                     amount: cashRequest.payment.amount,
                     status: 'paid', // Mark as paid
-                    method: 'cash'
+                    method: 'cash',
+                    paidAt: new Date()
                 },
-                timing: {
-                    submittedAt: cashRequest.timing.submittedAt,
-                    updatedAt: new Date()
-                }
+                status: 'pending' // Will be queued by QueueManager
             });
 
             // Save print job
             await printJob.save();
 
-            // Add to printer queue
-            await Printer.findByIdAndUpdate(
-                cashRequest.printerId,
-                { $push: { queue: printJob._id } },
-                { new: true }
-            );
+            // Add to queue using QueueManager (this will properly enqueue it)
+            await QueueManager.enqueue(printJob._id);
 
             // Update cash request status
             cashRequest.status = 'approved';
@@ -327,7 +322,16 @@ router.patch('/admin/cash-requests/:id/complete',
 
             console.log(`✅ Cash payment completed and print job created: ${printJob._id}`);
             console.log(`📄 File: ${printJob.file.originalName}, User: ${cashRequest.userName}`);
-            console.log(`🖨️ Added to printer queue: ${printer.name}`);
+            console.log(`🖨️ Added to printer queue via QueueManager: ${printer.name}`);
+
+            // Emit Socket.IO notification for cash payment approval
+            const { emitCashPaymentApproved } = require('../services/socketService');
+            emitCashPaymentApproved(cashRequest.clerkUserId, {
+                requestId: cashRequest._id,
+                amount: cashRequest.payment.amount,
+                jobId: printJob._id,
+                approvedAt: new Date().toISOString()
+            });
 
             res.json({
                 success: true,

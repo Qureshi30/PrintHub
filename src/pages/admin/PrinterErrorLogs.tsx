@@ -305,8 +305,8 @@ export default function PrinterErrorLogs() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Printer Error Logs</h1>
-          <p className="text-gray-600 mt-1">Monitor and manage printer errors</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Printer Error Logs</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Monitor and manage printer errors</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={fetchErrors} variant="outline">
@@ -349,10 +349,10 @@ export default function PrinterErrorLogs() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Unresolved</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.unresolved}</div>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-500">{stats.unresolved}</div>
             <p className="text-xs text-muted-foreground">Needs attention</p>
           </CardContent>
         </Card>
@@ -360,10 +360,10 @@ export default function PrinterErrorLogs() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-600" />
+            <Clock className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.inProgress}</div>
+            <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-500">{stats.inProgress}</div>
             <p className="text-xs text-muted-foreground">Being worked on</p>
           </CardContent>
         </Card>
@@ -371,10 +371,10 @@ export default function PrinterErrorLogs() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Resolved</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
+            <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.resolved}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-500">{stats.resolved}</div>
             <p className="text-xs text-muted-foreground">Fixed successfully</p>
           </CardContent>
         </Card>
@@ -385,8 +385,8 @@ export default function PrinterErrorLogs() {
         <CardContent className="pt-6">
           <div className="flex flex-wrap gap-4 items-center">
             <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-gray-600" />
-              <span className="text-sm font-medium">Status:</span>
+              <Filter className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+              <span className="text-sm font-medium dark:text-gray-200">Status:</span>
             </div>
             <div className="flex gap-2">
               <Button
@@ -419,10 +419,10 @@ export default function PrinterErrorLogs() {
               </Button>
             </div>
 
-            <div className="h-6 w-px bg-gray-300 mx-2" />
+            <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2" />
 
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Priority:</span>
+              <span className="text-sm font-medium dark:text-gray-200">Priority:</span>
             </div>
             <div className="flex gap-2">
               <Button
@@ -465,10 +465,10 @@ export default function PrinterErrorLogs() {
         </CardHeader>
         <CardContent>
           {errors.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
               <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
-              <p className="text-lg font-medium">No errors found</p>
-              <p className="text-sm">All printers are operating normally</p>
+              <p className="text-lg font-medium dark:text-gray-300">No errors found</p>
+              <p className="text-sm dark:text-gray-400">All printers are operating normally</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -476,14 +476,14 @@ export default function PrinterErrorLogs() {
                 <div
                   key={error._id}
                   className={`border rounded-lg p-4 ${
-                    error.status === 'unresolved' ? 'border-red-200 bg-red-50' : 'border-gray-200'
+                    error.status === 'unresolved' ? 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950' : 'border-gray-200 dark:border-gray-700 dark:bg-gray-800'
                   }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <Printer className="h-5 w-5 text-gray-600" />
-                        <h3 className="font-semibold text-lg">{error.printerName}</h3>
+                        <Printer className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                        <h3 className="font-semibold text-lg dark:text-gray-100">{error.printerName}</h3>
                         <Badge className={getPriorityColor(error.priority)}>
                           {error.priority}
                         </Badge>
@@ -494,31 +494,31 @@ export default function PrinterErrorLogs() {
 
                       <div className="space-y-2 ml-8">
                         <div className="flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4 text-red-600" />
-                          <span className="font-medium text-red-800">{error.errorType}</span>
+                          <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-500" />
+                          <span className="font-medium text-red-800 dark:text-red-400">{error.errorType}</span>
                         </div>
                         
-                        <p className="text-gray-700">{error.description}</p>
+                        <p className="text-gray-700 dark:text-gray-300">{error.description}</p>
 
                         {error.metadata?.location && (
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
                             📍 Location: {error.metadata.location}
                           </p>
                         )}
 
                         {error.metadata?.ipAddress && (
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
                             🌐 IP: {error.metadata.ipAddress}
                           </p>
                         )}
 
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                           <span>🕐 {formatTimestamp(error.timestamp)}</span>
                           <span>({getTimeAgo(error.timestamp)})</span>
                         </div>
 
                         {error.resolvedAt && (
-                          <div className="text-sm text-green-700 bg-green-50 p-2 rounded">
+                          <div className="text-sm text-green-700 bg-green-50 dark:text-green-400 dark:bg-green-950 p-2 rounded">
                             ✅ Resolved by {error.resolvedBy} on {formatTimestamp(error.resolvedAt)}
                             {error.resolutionNotes && <p className="mt-1">{error.resolutionNotes}</p>}
                           </div>

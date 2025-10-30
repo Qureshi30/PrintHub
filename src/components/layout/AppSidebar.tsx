@@ -6,7 +6,6 @@ import {
   HelpCircle,
   Clock,
   User,
-  Calendar,
   Shield,
   FileText,
   Bell,
@@ -33,7 +32,6 @@ const items = [
   { title: "Upload & Print", url: "/upload", icon: Upload },
   { title: "Print History", url: "/history", icon: Folder },
   { title: "Print Queue", url: "/queue", icon: Clock },
-  { title: "Schedule Print", url: "/schedule", icon: Calendar },
   { title: "Notifications", url: "/notifications", icon: Bell },
 ];
 
@@ -51,6 +49,7 @@ const adminItems = [
   { title: "Admin Dashboard", url: "/admin", icon: Settings },
   { title: "User Management", url: "/admin/users", icon: Users },
   { title: "Printer Management", url: "/admin/printers", icon: Printer },
+  { title: "Active Jobs", url: "/admin/active-jobs", icon: FileText },
   { title: "Cash Payments", url: "/admin/cash-payments", icon: DollarSign },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
 ];

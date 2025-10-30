@@ -4,10 +4,10 @@ import {
   BarChart3,
   Home,
   Shield,
-  Mail,
   DollarSign,
   MessageSquare,
-  Coins
+  Coins,
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -22,12 +22,12 @@ export function AdminHeader() {
     { path: "/admin", label: "Dashboard", icon: Home },
     { path: "/admin/users", label: "Users", icon: Users },
     { path: "/admin/printers", label: "Printers", icon: Printer },
+    { path: "/admin/active-jobs", label: "Active Jobs", icon: FileText },
     { path: "/admin/queries", label: "Queries", icon: MessageSquare },
     { path: "/admin/error-logs", label: "Error Logs", icon: Shield },
     { path: "/admin/cash-payments", label: "Cash Payments", icon: DollarSign },
     { path: "/admin/pricing", label: "Pricing", icon: Coins },
     { path: "/admin/analytics", label: "Analytics", icon: BarChart3 },
-    { path: "/admin/email", label: "Email", icon: Mail },
   ];
 
   return (

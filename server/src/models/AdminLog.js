@@ -11,6 +11,7 @@ const adminLogSchema = new mongoose.Schema({
     enum: [
       'reprint',
       'cancel_job',
+      'terminate_job',
       'printer_maintenance',
       'user_action',
       'system_config',
@@ -172,6 +173,7 @@ adminLogSchema.virtual('actionDescription').get(function() {
   const actionMap = {
     'reprint': 'Initiated reprint',
     'cancel_job': 'Cancelled print job',
+    'terminate_job': 'Terminated print job',
     'printer_maintenance': 'Performed printer maintenance',
     'user_action': 'User account action',
     'system_config': 'System configuration change',

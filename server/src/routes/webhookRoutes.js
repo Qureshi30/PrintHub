@@ -56,10 +56,26 @@ router.post('/clerk/users', express.raw({ type: 'application/json' }), async (re
                 const existingUser = await User.findOne({ clerkUserId: clerkUser.id });
 
                 if (existingUser) {
-                    console.log('ℹ️ User already exists in database, skipping creation');
+                    console.log('ℹ️ User already exists in database, updating last active time');
+                    
+                    // Update last active time and ensure profile is up to date
+                    await User.findOneAndUpdate(
+                        { clerkUserId: clerkUser.id },
+                        {
+                            $set: {
+                                'profile.firstName': clerkUser.first_name || existingUser.profile.firstName,
+                                'profile.lastName': clerkUser.last_name || existingUser.profile.lastName,
+                                'profile.email': clerkUser.email_addresses?.[0]?.email_address || existingUser.profile.email,
+                                'profile.avatarUrl': clerkUser.image_url || existingUser.profile.avatarUrl,
+                                lastActiveAt: new Date()
+                            }
+                        },
+                        { new: true }
+                    );
+                    
                     return res.status(200).json({
                         success: true,
-                        message: 'User already exists',
+                        message: 'User already exists and profile updated',
                         userId: existingUser._id
                     });
                 }
