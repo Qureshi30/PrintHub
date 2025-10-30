@@ -165,7 +165,7 @@ function History() {
               jobs.map((job) => {
                 const pages = job.settings?.pages === "all"
                   ? 10
-                  : parseInt(job.settings.pages.split("-")[1] || "1");
+                  : Number.parseInt(job.settings.pages.split("-")[1] || "1", 10);
 
                 return (
                   <MobileCard key={job._id} selected={false} className="space-y-3">
@@ -294,7 +294,7 @@ function History() {
                   jobs.map((job) => {
                     const pages = job.settings?.pages === "all"
                       ? 10
-                      : parseInt(job.settings.pages.split("-")[1] || "1");
+                      : Number.parseInt(job.settings.pages.split("-")[1] || "1", 10);
 
                     return (
                       <Card key={job._id} className="p-6 hover:shadow-lg transition-shadow">

@@ -173,7 +173,44 @@ PrintHub is an enterprise-grade printing management platform designed to streaml
 
 ### Advanced Features
 
-#### 🔄 Blank Page Separator
+#### � Real-Time Browser Notifications
+- **Socket.IO Integration**: Real-time event-driven notifications
+- **Web Notifications API**: Native browser notifications with permission management
+- **Event Types**: 
+  - Print job completed (only after printer confirms completion)
+  - Print job failed (on printer errors)
+  - Print job terminated (after termination completes with refund)
+  - Cash payment approved (when admin approves payment)
+- **Dual Notifications**: Browser notification + in-app toast
+- **Click Handlers**: Navigate to relevant pages on notification click
+- **Connection Management**: Auto-reconnection with exponential backoff
+- **User-specific Rooms**: Targeted notifications using userId rooms
+- **Permission Prompt**: User-friendly permission request component
+
+**Technical Details**:
+- **Backend**: Socket.IO server with room-based messaging
+- **Frontend**: React hooks (`useSocketNotifications`, `useBrowserNotifications`)
+- **Transports**: WebSocket + polling fallback
+- **Reconnection**: 1s-5s exponential backoff, max 5 attempts
+- **Security**: User isolation via room names
+
+#### 💰 Dynamic Pricing System
+- **Admin-Configurable**: Real-time pricing management from admin panel
+- **Base Rates**: Separate rates for B&W and Color printing
+- **Paper Surcharges**: Different pricing for A3, A4, Letter, Legal, Certificate
+- **Duplex Discount**: Configurable percentage discount for double-sided printing
+- **Real-time Updates**: Changes immediately reflected in student pages (5-min cache)
+- **Cost Breakdown**: Itemized display of base cost, paper cost, and discounts
+- **API Integration**: Centralized pricing logic via `usePricing` hook
+- **Cache Management**: 5-minute client-side cache to reduce API load
+- **Default Fallback**: Uses default pricing if API fails
+
+**Configuration**:
+- Navigate to Admin → Pricing to update rates
+- Changes apply to all new print job calculations
+- Student pages show dynamic pricing in real-time
+
+#### �🔄 Blank Page Separator
 - **Automatic Separation**: Insert blank page between different users' jobs
 - **Smart Logic**: Only prints if another job is queued
 - **Configurable**: Enable/disable per printer

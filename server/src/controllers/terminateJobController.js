@@ -218,6 +218,15 @@ const terminatePrintJob = async (req, res) => {
 
     console.log(`✅ Job ${jobId} successfully terminated with refund status: ${refundStatus}`);
 
+    // Emit Socket.IO notification for job termination
+    const { emitPrintJobTerminated } = require('../services/socketService');
+    const printer = await require('../models/Printer').findById(printJob.printerId);
+    emitPrintJobTerminated(userId, {
+      jobId: printJob._id,
+      fileName: fileName,
+      printerName: printer?.name || 'Unknown Printer'
+    });
+
     // 11. Send success response
     res.json({
       success: true,

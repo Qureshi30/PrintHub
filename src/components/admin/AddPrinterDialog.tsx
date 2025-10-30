@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { qzTrayService, DetectedPrinter } from "@/services/qzTrayService";
 import { printerService } from "@/services/printerService";
@@ -40,7 +41,12 @@ export function AddPrinterDialog({ open, onOpenChange, onPrinterAdded, existingP
     name: "",
     location: "",
     ipAddress: "",
-    model: ""
+    model: "",
+    capabilities: {
+      color: false,
+      duplex: false,
+      paperSizes: ['A4'] as string[]
+    }
   });
   
   const [isAdding, setIsAdding] = useState(false);
@@ -115,7 +121,12 @@ export function AddPrinterDialog({ open, onOpenChange, onPrinterAdded, existingP
         location: "Auto-detected",
         status: "online" as const,
         connection: printer.connection || "local",
-        type: printer.type || "unknown"
+        type: printer.type || "unknown",
+        capabilities: {
+          color: true, // Default to true for auto-detected printers
+          duplex: true, // Default to true for auto-detected printers
+          paperSizes: ['A4', 'Letter'] // Default paper sizes
+        }
       };
 
       await printerService.addPrinter(printerData, token);
@@ -159,7 +170,8 @@ export function AddPrinterDialog({ open, onOpenChange, onPrinterAdded, existingP
         ipAddress: manualForm.ipAddress || undefined,
         model: manualForm.model || undefined,
         connection: "manual",
-        type: "manual"
+        type: "manual",
+        capabilities: manualForm.capabilities
       };
 
       await printerService.addPrinter(printerData, token);
@@ -174,7 +186,12 @@ export function AddPrinterDialog({ open, onOpenChange, onPrinterAdded, existingP
         name: "",
         location: "",
         ipAddress: "",
-        model: ""
+        model: "",
+        capabilities: {
+          color: false,
+          duplex: false,
+          paperSizes: ['A4']
+        }
       });
       
       onPrinterAdded();
@@ -339,6 +356,84 @@ export function AddPrinterDialog({ open, onOpenChange, onPrinterAdded, existingP
                     value={manualForm.model}
                     onChange={(e) => setManualForm(prev => ({ ...prev, model: e.target.value }))}
                   />
+                </div>
+              </div>
+
+              {/* Printer Capabilities Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <Label className="text-base font-semibold">Printer Capabilities</Label>
+                
+                {/* Color and Duplex Support */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="color"
+                      checked={manualForm.capabilities.color}
+                      onCheckedChange={(checked) => 
+                        setManualForm(prev => ({
+                          ...prev,
+                          capabilities: { ...prev.capabilities, color: checked as boolean }
+                        }))
+                      }
+                    />
+                    <label
+                      htmlFor="color"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      Color Printing
+                    </label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="duplex"
+                      checked={manualForm.capabilities.duplex}
+                      onCheckedChange={(checked) => 
+                        setManualForm(prev => ({
+                          ...prev,
+                          capabilities: { ...prev.capabilities, duplex: checked as boolean }
+                        }))
+                      }
+                    />
+                    <label
+                      htmlFor="duplex"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      Duplex (Double-sided)
+                    </label>
+                  </div>
+                </div>
+
+                {/* Paper Sizes */}
+                <div className="space-y-2">
+                  <Label className="text-sm">Supported Paper Sizes</Label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {['A4', 'A3', 'Letter', 'Legal', 'Certificate'].map((size) => (
+                      <div key={size} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`paper-${size}`}
+                          checked={manualForm.capabilities.paperSizes.includes(size)}
+                          onCheckedChange={(checked) => {
+                            setManualForm(prev => ({
+                              ...prev,
+                              capabilities: {
+                                ...prev.capabilities,
+                                paperSizes: checked
+                                  ? [...prev.capabilities.paperSizes, size]
+                                  : prev.capabilities.paperSizes.filter(s => s !== size)
+                              }
+                            }));
+                          }}
+                        />
+                        <label
+                          htmlFor={`paper-${size}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          {size}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

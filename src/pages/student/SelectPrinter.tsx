@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
 import PrinterCompatibilityAlert from "@/components/PrinterCompatibilityAlert";
@@ -10,7 +8,7 @@ import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { MobileStepNavigation } from "@/components/mobile/MobileStepNavigation";
 import { MobileCard, MobileTouchButton } from "@/components/mobile/MobileComponents";
 import { useNavigate } from "react-router-dom";
-import { Printer, Clock, Users, CheckCircle, Loader2, MapPin, Wifi, Battery, AlertTriangle } from "lucide-react";
+import { Printer, Clock, Users, CheckCircle, Loader2, MapPin, AlertTriangle } from "lucide-react";
 import { printerService, type PrinterStation } from "@/services/printerService";
 import { usePrintJobContext } from "@/hooks/usePrintJobContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -170,8 +168,8 @@ export default function SelectPrinter() {
   };
 
   const getQueueColor = (queueLength: number) => {
-    if (queueLength === 0) return "text-green-600";
-    if (queueLength <= 3) return "text-yellow-600";
+    if (queueLength <= 2) return "text-green-600";
+    if (queueLength <= 5) return "text-yellow-600";
     return "text-red-600";
   };
 
@@ -213,7 +211,7 @@ export default function SelectPrinter() {
           {error && (
             <div className="text-center py-12">
               <p className="text-red-600 mb-4">{error}</p>
-              <Button onClick={() => window.location.reload()}>Try Again</Button>
+              <Button onClick={() => globalThis.location.reload()}>Try Again</Button>
             </div>
           )}
 
@@ -255,7 +253,7 @@ export default function SelectPrinter() {
                     onClick={() => setSelectedPrinterId(printer.id)}
                   >
                     <div className="space-y-4">
-                      {/* Printer Header */}
+                      {/* Printer Header - Location as main focus */}
                       <div className={`flex items-start justify-between ${isMobile ? 'flex-col gap-2' : ''}`}>
                         <div className="flex items-center gap-3">
                           <div className={`p-2 rounded-lg ${
@@ -268,10 +266,12 @@ export default function SelectPrinter() {
                             }`} />
                           </div>
                           <div>
-                            <h3 className="font-semibold text-lg">{printer.name}</h3>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <MapPin className="h-3 w-3" />
-                              <span>{printer.location}</span>
+                            <h3 className="font-semibold text-lg flex items-center gap-2">
+                              <MapPin className="h-4 w-4 text-blue-600" />
+                              {printer.location}
+                            </h3>
+                            <div className="text-sm text-gray-600">
+                              {printer.name}
                             </div>
                           </div>
                         </div>
@@ -292,7 +292,7 @@ export default function SelectPrinter() {
                       </div>
 
                       {/* Printer Stats */}
-                      <div className={`grid gap-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                      <div className="grid gap-4 grid-cols-2">
                         <div className="text-center">
                           <div className="flex items-center justify-center gap-1 text-sm text-gray-600">
                             <Users className="h-4 w-4" />
@@ -312,43 +312,36 @@ export default function SelectPrinter() {
                             {printer.estimatedWait} min
                           </div>
                         </div>
-                        
-                        {!isMobile && (
-                          <div className="text-center">
-                            <div className="flex items-center justify-center gap-1 text-sm text-gray-600">
-                              <Battery className="h-4 w-4" />
-                              <span>Load</span>
-                            </div>
-                            <div className="font-semibold text-gray-900">
-                              {Math.min(printer.queueLength * 20, 100)}%
-                            </div>
-                          </div>
-                        )}
                       </div>
 
-                      {/* Mobile Load Indicator */}
-                      {isMobile && (
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Queue Load</span>
-                            <span className="font-medium">{Math.min(printer.queueLength * 20, 100)}%</span>
-                          </div>
-                          <Progress value={Math.min(printer.queueLength * 20, 100)} className="h-2" />
-                        </div>
-                      )}
-
-                      {/* Pricing */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-sm text-gray-700">Pricing</h4>
-                        <div className={`grid gap-2 text-sm ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                          <div className="flex justify-between">
-                            <span>Base:</span>
-                            <span>₹{printer.pricing?.baseCostPerPage || 1.00}/page</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Color:</span>
-                            <span>₹{printer.pricing?.colorCostPerPage || 2.00}/page</span>
-                          </div>
+                      {/* Printer Capabilities */}
+                      <div className="pt-2 border-t">
+                        <div className="flex flex-wrap gap-2">
+                          {printer.capabilities?.color && (
+                            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                              Color Printing
+                            </Badge>
+                          )}
+                          {printer.capabilities?.duplex && (
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                              Duplex
+                            </Badge>
+                          )}
+                          {printer.capabilities?.paperSizes?.includes('A3') && (
+                            <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                              A3 Support
+                            </Badge>
+                          )}
+                          {printer.capabilities?.paperSizes?.includes('A4') && (
+                            <Badge variant="secondary" className="bg-green-100 text-green-700">
+                              A4
+                            </Badge>
+                          )}
+                          {printer.capabilities?.paperSizes?.includes('Letter') && (
+                            <Badge variant="secondary" className="bg-cyan-100 text-cyan-700">
+                              Letter
+                            </Badge>
+                          )}
                         </div>
                       </div>
 

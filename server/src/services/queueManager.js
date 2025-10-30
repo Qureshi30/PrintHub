@@ -323,7 +323,8 @@ class QueueManager {
         updateData.completedAt = new Date();
       }
 
-      await PrintJob.findByIdAndUpdate(printJobId, updateData, { session });
+      const updatedPrintJob = await PrintJob.findByIdAndUpdate(printJobId, updateData, { session, new: true })
+        .populate('printerId');
 
       // Update Revenue collection when job is completed
       if (finalStatus === 'completed') {
@@ -451,6 +452,36 @@ class QueueManager {
 
       const emoji = finalStatus === 'completed' ? '✅' : '❌';
       console.log(`${emoji} Print job ${printJobId} ${finalStatus}, removed from queue`);
+
+      // Emit Socket.IO events after successful transaction
+      if (updatedPrintJob && updatedPrintJob.clerkUserId) {
+        const { emitPrintJobCompleted, emitPrintJobFailed } = require('./socketService');
+        
+        console.log('🔔 Print job completed, preparing to emit notification:', {
+          clerkUserId: updatedPrintJob.clerkUserId,
+          jobId: updatedPrintJob._id,
+          fileName: updatedPrintJob.file.originalName,
+          status: finalStatus
+        });
+        
+        if (finalStatus === 'completed') {
+          emitPrintJobCompleted(updatedPrintJob.clerkUserId, {
+            jobId: updatedPrintJob._id,
+            fileName: updatedPrintJob.file.originalName,
+            printerName: updatedPrintJob.printerId?.name || 'Unknown Printer',
+            completedAt: updatedPrintJob.completedAt
+          });
+        } else if (finalStatus === 'failed') {
+          emitPrintJobFailed(updatedPrintJob.clerkUserId, {
+            jobId: updatedPrintJob._id,
+            fileName: updatedPrintJob.file.originalName,
+            printerName: updatedPrintJob.printerId?.name || 'Unknown Printer',
+            error: errorMessage || 'Print job failed'
+          });
+        }
+      } else {
+        console.warn('⚠️ Cannot emit notification: Missing clerkUserId or updatedPrintJob');
+      }
 
       return true;
 

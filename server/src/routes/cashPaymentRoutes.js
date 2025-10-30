@@ -324,6 +324,15 @@ router.patch('/admin/cash-requests/:id/complete',
             console.log(`📄 File: ${printJob.file.originalName}, User: ${cashRequest.userName}`);
             console.log(`🖨️ Added to printer queue via QueueManager: ${printer.name}`);
 
+            // Emit Socket.IO notification for cash payment approval
+            const { emitCashPaymentApproved } = require('../services/socketService');
+            emitCashPaymentApproved(cashRequest.clerkUserId, {
+                requestId: cashRequest._id,
+                amount: cashRequest.payment.amount,
+                jobId: printJob._id,
+                approvedAt: new Date().toISOString()
+            });
+
             res.json({
                 success: true,
                 data: {

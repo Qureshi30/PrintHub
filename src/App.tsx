@@ -37,6 +37,8 @@ import LandingLayout from "@/components/layout/LandingLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import RoleBasedDashboard from "@/components/RoleBasedDashboard";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { NotificationPrompt } from "@/components/NotificationPrompt";
+import { SocketNotificationProvider } from "@/components/SocketNotificationProvider";
 
 // Feature Pages
 import SecurityPrivacy from "./pages/features/SecurityPrivacy";
@@ -55,6 +57,8 @@ const App = () => (
       <Sonner />
       <PrintJobProvider>
         <BrowserRouter>
+          <SocketNotificationProvider />
+          <NotificationPrompt />
           <Routes>
             {/* Landing page for non-authenticated users */}
             <Route path="/" element={

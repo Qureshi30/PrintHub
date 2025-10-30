@@ -167,17 +167,17 @@ export default function Queue() {
             />
             <div className="px-4 py-6 space-y-4">
               <div className="animate-pulse space-y-4">
-                <div className="h-20 bg-gray-200 rounded-lg"></div>
-                <div className="h-20 bg-gray-200 rounded-lg"></div>
-                <div className="h-32 bg-gray-200 rounded-lg"></div>
+                <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
               </div>
             </div>
           </>
         ) : (
           <div className="container mx-auto px-4 py-8">
             <div className="animate-pulse space-y-4">
-              <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-              <div className="h-64 bg-gray-200 rounded"></div>
+              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
+              <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
             </div>
           </div>
         )}
@@ -201,16 +201,16 @@ export default function Queue() {
               onMenuClick={() => setIsSidebarOpen(true)}
             />
             <div className="px-4 py-6">
-              <MobileCard selected={false} className="border-red-200 bg-red-50">
-                <div className="text-center text-red-600">
+              <MobileCard selected={false} className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950">
+                <div className="text-center text-red-600 dark:text-red-400">
                   <AlertCircle className="h-12 w-12 mx-auto mb-4" />
                   <p className="font-medium mb-2">Failed to load queue</p>
-                  <p className="text-sm text-red-500 mb-4">Please try again later</p>
+                  <p className="text-sm text-red-500 dark:text-red-400 mb-4">Please try again later</p>
                   <MobileTouchButton
                     variant="secondary"
                     size="sm"
                     onClick={handleRefresh}
-                    className="bg-red-100 text-red-700 border-red-200"
+                    className="bg-red-100 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-900"
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Retry
@@ -221,9 +221,9 @@ export default function Queue() {
           </>
         ) : (
           <div className="container mx-auto px-4 py-8">
-            <Card className="border-red-200">
+            <Card className="border-red-200 dark:border-red-900 dark:bg-gray-800">
               <CardContent className="pt-6">
-                <div className="text-center text-red-600">
+                <div className="text-center text-red-600 dark:text-red-400">
                   <AlertCircle className="h-12 w-12 mx-auto mb-4" />
                   <p>Failed to load queue. Please try again later.</p>
                 </div>
@@ -411,16 +411,16 @@ export default function Queue() {
           </div>
 
           {/* Summary Card */}
-          <Card className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <Card className="mb-8">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-4xl font-bold text-blue-900 mb-1">{currentUserJobs.length}</div>
-                  <div className="text-blue-700">Active Print Jobs</div>
+                  <div className="text-4xl font-bold mb-1">{currentUserJobs.length}</div>
+                  <div className="text-muted-foreground">Active Print Jobs</div>
                 </div>
-                <Activity className="h-12 w-12 text-blue-500" />
+                <Activity className="h-12 w-12 text-muted-foreground" />
               </div>
-              <div className="text-sm text-blue-600 mt-4">
+              <div className="text-sm text-muted-foreground mt-4">
                 Jobs are processed concurrently across multiple printers for faster service
               </div>
             </CardContent>
@@ -433,8 +433,8 @@ export default function Queue() {
                 <CardContent className="pt-6">
                   <div className="text-center text-muted-foreground py-12">
                     <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg font-medium mb-2">No active print jobs</p>
-                    <p className="text-sm mb-4">Upload files to start printing</p>
+                    <p className="text-lg font-medium mb-2 dark:text-gray-300">No active print jobs</p>
+                    <p className="text-sm mb-4 dark:text-gray-400">Upload files to start printing</p>
                     <Button onClick={() => navigate("/upload")}>
                       <Plus className="h-4 w-4 mr-2" />
                       Add New Job
@@ -446,10 +446,10 @@ export default function Queue() {
               Object.entries(jobsByPrinter).map(([printerId, { printerName, printerLocation, jobs }]) => (
                 <Card key={printerId}>
                   <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-3">
-                      <Printer className="h-5 w-5 text-gray-600" />
+                    <CardTitle className="flex items-center gap-3 dark:text-gray-100">
+                      <Printer className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                       <div className="flex-1">
-                        <div className="text-lg">{printerName}</div>
+                        <div className="text-lg dark:text-gray-100">{printerName}</div>
                         <div className="flex items-center gap-1 text-sm text-muted-foreground font-normal">
                           <MapPin className="h-3 w-3" />
                           {printerLocation}
@@ -471,7 +471,7 @@ export default function Queue() {
                                   {getStatusIcon(job.status)}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <h3 className="font-semibold truncate mb-1">
+                                  <h3 className="font-semibold truncate mb-1 dark:text-gray-100">
                                     {job.file?.originalName || 'Document'}
                                   </h3>
                                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
@@ -510,13 +510,13 @@ export default function Queue() {
 
                             {/* Queue Position & Wait Time */}
                             <div className="grid grid-cols-2 gap-3 mt-4">
-                              <div className="bg-blue-50 p-3 rounded-lg">
-                                <div className="text-xs text-gray-600 mb-1">Position in Queue</div>
-                                <div className="text-xl font-bold text-blue-900">#{index + 1}</div>
+                              <div className="bg-muted/50 p-3 rounded-lg">
+                                <div className="text-xs text-muted-foreground mb-1">Position in Queue</div>
+                                <div className="text-xl font-bold">#{index + 1}</div>
                               </div>
-                              <div className="bg-green-50 p-3 rounded-lg">
-                                <div className="text-xs text-gray-600 mb-1">Estimated Wait Time</div>
-                                <div className="text-xl font-bold text-green-900">
+                              <div className="bg-muted/50 p-3 rounded-lg">
+                                <div className="text-xs text-muted-foreground mb-1">Estimated Wait Time</div>
+                                <div className="text-xl font-bold">
                                   {getEstimatedWaitTime(index + 1)}
                                 </div>
                               </div>

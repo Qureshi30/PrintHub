@@ -24,7 +24,7 @@ export function NotificationBell({ className = "", iconSize = "h-5 w-5" }: Notif
     >
       <Bell className={iconSize} />
       {unreadCount > 0 && (
-        <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-background" />
+        <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-600 dark:bg-red-500 ring-2 ring-white dark:ring-gray-900" />
       )}
     </Button>
   );

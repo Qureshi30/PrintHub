@@ -189,13 +189,21 @@ process.on('SIGINT', () => {
 });
 
 // Start server
-app.listen(PORT, () => {
+const http = require('http');
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+const { initializeSocketIO } = require('./services/socketService');
+initializeSocketIO(server);
+
+server.listen(PORT, () => {
   console.log(`🚀 PrintHub Server running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 CORS Origins: Multiple localhost ports`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`📦 MongoDB Connected: localhost`);
   console.log(`🔄 Queue API: http://localhost:${PORT}/api/queue`);
+  console.log(`🔌 Socket.IO initialized for real-time notifications`);
 
   // Start background schedulers for print job processing
   startAllSchedulers();
@@ -226,4 +234,4 @@ app.listen(PORT, () => {
   console.log(`📡 Windows printer monitoring scheduled (every 2 minutes)`);
 });
 
-module.exports = app;
+module.exports = { app, server };

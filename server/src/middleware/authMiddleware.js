@@ -1,5 +1,6 @@
 const { ClerkExpressRequireAuth, clerkClient } = require('@clerk/clerk-sdk-node');
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
 // Utility function to retry Clerk API calls with exponential backoff
 async function retryClerkRequest(fn, maxRetries = 3, baseDelay = 300) {
@@ -47,6 +48,43 @@ const requireAuth = async (req, res, next) => {
       try {
         // Fetch user details from Clerk with retry logic
         const user = await retryClerkRequest(() => clerkClient.users.getUser(userId));
+        
+        // Check if user exists in our database, create if not (fallback for race condition)
+        try {
+          let dbUser = await User.findOne({ clerkUserId: userId });
+          
+          if (!dbUser) {
+            console.log('⚠️ User not found in database, creating on-the-fly for:', userId);
+            
+            // Create user immediately to prevent race condition issues
+            dbUser = await User.create({
+              clerkUserId: userId,
+              role: user.publicMetadata?.role || 'student',
+              profile: {
+                firstName: user.firstName || '',
+                lastName: user.lastName || '',
+                email: user.emailAddresses?.[0]?.emailAddress || '',
+                phone: user.phoneNumbers?.[0]?.phoneNumber || '',
+              },
+              status: 'active',
+              preferences: {
+                emailNotifications: true,
+                defaultPaperType: 'A4',
+                defaultColor: false,
+              },
+              statistics: {
+                totalJobs: 0,
+                totalSpent: 0,
+                completedJobs: 0,
+              }
+            });
+            
+            console.log('✅ User created successfully in database:', dbUser._id);
+          }
+        } catch (dbError) {
+          // Log the error but don't fail the request - webhook might still be processing
+          console.error('⚠️ Database user check/create failed:', dbError.message);
+        }
         
         req.user = {
           id: userId,
