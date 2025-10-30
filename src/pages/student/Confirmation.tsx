@@ -9,6 +9,7 @@ import { PrintFlowBreadcrumb } from "@/components/ui/print-flow-breadcrumb";
 import { useNavigate } from "react-router-dom";
 import { usePrintJobContext } from "@/hooks/usePrintJobContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { usePricing } from "@/hooks/usePricing";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { MobileStepNavigation } from "@/components/mobile/MobileStepNavigation";
 import { MobileCard, MobileTouchButton } from "@/components/mobile/MobileComponents";
@@ -57,6 +58,7 @@ interface JobSummary {
 export default function Confirmation() {
   const navigate = useNavigate();
   const { files, settings, selectedPrinter, setPaymentInfo } = usePrintJobContext();
+  const { pricing, loading: pricingLoading, calculateCostBreakdown } = usePricing();
   const isMobile = useIsMobile();
 
   // Get the first file for display (assuming single file upload for now)
@@ -74,30 +76,17 @@ export default function Confirmation() {
     paperType: currentFileSettings?.paperType
   });
 
-  // Calculate cost using backend pricing logic
-  // Calculate cost using backend pricing logic - recalculates when settings change
+  // Calculate cost using dynamic pricing from admin panel
   const calculatedCost = useMemo(() => {
-    if (!currentFile || !currentFileSettings) {
+    if (!currentFile || !currentFileSettings || pricingLoading) {
       return { base: 0, color: 0, duplex: 0, paperSurcharge: 0, total: 0 };
     }
-
-    const BLACK_AND_WHITE_RATE = 2; // ₹2.00 per page
-    const COLOR_RATE = 5; // ₹5.00 per page
-
-    // Paper type surcharges (per page)
-    const paperSurcharges: { [key: string]: number } = {
-      'A4': 0,
-      'A3': 3,
-      'Letter': 0.5,
-      'Legal': 1,
-      'Certificate': 5
-    };
 
     const pages = currentFile.pages || 1;
     const copies = currentFileSettings.copies || 1;
     const isColor = currentFileSettings.color || false;
     const isDuplex = currentFileSettings.duplex || false;
-    const paperType = currentFileSettings.paperType || 'A4';
+    const paperType = (currentFileSettings.paperType || 'A4').toLowerCase();
 
     console.log('📊 CONFIRMATION - Cost calculation inputs:', {
       pages,
@@ -107,36 +96,24 @@ export default function Confirmation() {
       paperType
     });
 
-    // Base printing cost
-    const baseRate = isColor ? COLOR_RATE : BLACK_AND_WHITE_RATE;
-    const baseCost = baseRate * pages * copies;
-
-    // Paper surcharge
-    const paperSurcharge = (paperSurcharges[paperType] || 0) * pages * copies;
-
-    // Total before duplex discount
-    let total = baseCost + paperSurcharge;
-
-    // Apply duplex discount (10% off)
-    const duplexDiscount = isDuplex ? total * 0.1 : 0;
-    total = total - duplexDiscount;
-
-    console.log('💰 CONFIRMATION - Calculated breakdown:', {
-      baseCost,
-      paperSurcharge,
-      subtotal: baseCost + paperSurcharge,
-      duplexDiscount,
-      total
+    // Use dynamic pricing calculation
+    const breakdown = calculateCostBreakdown({
+      pageCount: pages * copies,
+      isColor,
+      paperSize: paperType,
+      isDuplex
     });
 
+    console.log('💰 CONFIRMATION - Calculated breakdown:', breakdown);
+
     return {
-      base: baseCost,
-      color: isColor ? baseCost : 0,
-      duplex: duplexDiscount,
-      paperSurcharge: paperSurcharge,
-      total: total
+      base: breakdown.baseCost,
+      color: isColor ? breakdown.baseCost : 0,
+      duplex: breakdown.duplexDiscountAmount,
+      paperSurcharge: breakdown.paperCost,
+      total: breakdown.totalCost
     };
-  }, [currentFile, currentFileSettings]);
+  }, [currentFile, currentFileSettings, pricingLoading, calculateCostBreakdown]);
 
   console.log('💰 CONFIRMATION PAGE - Calculated Cost:', calculatedCost);
 
@@ -331,7 +308,7 @@ export default function Confirmation() {
                       </div>
                       {jobSummary.cost.duplex > 0 && (
                         <div className="flex justify-between text-sm text-green-600">
-                          <span>Duplex discount (10%)</span>
+                          <span>Duplex discount ({pricing.discounts.duplexPercentage}%)</span>
                           <span>-₹{jobSummary.cost.duplex.toFixed(2)}</span>
                         </div>
                       )}
@@ -509,7 +486,7 @@ export default function Confirmation() {
                       </div>
                       {jobSummary.cost.duplex > 0 && (
                         <div className="flex justify-between text-green-600">
-                          <span>Duplex discount (10%)</span>
+                          <span>Duplex discount ({pricing.discounts.duplexPercentage}%)</span>
                           <span>-₹{jobSummary.cost.duplex.toFixed(2)}</span>
                         </div>
                       )}

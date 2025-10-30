@@ -673,7 +673,7 @@ router.get('/printjobs/terminated', requireAuth, requireAdmin, getTerminatedJobs
  * @desc    Get current pricing configuration (Admin only)
  * @access  Admin only
  */
-router.get('/pricing', requireAdmin, getCurrentPricing);
+router.get('/pricing', requireAuth, requireAdmin, getCurrentPricing);
 
 /**
  * @route   PUT /admin/pricing
@@ -681,6 +681,7 @@ router.get('/pricing', requireAdmin, getCurrentPricing);
  * @access  Admin only
  */
 router.put('/pricing',
+  requireAuth,
   requireAdmin,
   [
     // Validate base rates
@@ -736,14 +737,14 @@ router.put('/pricing',
  * @desc    Get pricing configuration history (Admin only)
  * @access  Admin only
  */
-router.get('/pricing/history', requireAdmin, getPricingHistory);
+router.get('/pricing/history', requireAuth, requireAdmin, getPricingHistory);
 
 /**
  * @route   POST /admin/pricing/reset
  * @desc    Reset pricing to default values (Admin only)
  * @access  Admin only
  */
-router.post('/pricing/reset', requireAdmin, resetToDefaults);
+router.post('/pricing/reset', requireAuth, requireAdmin, resetToDefaults);
 
 console.log('💰 Admin pricing routes registered');
 console.log('📝 Admin create-user route registered');

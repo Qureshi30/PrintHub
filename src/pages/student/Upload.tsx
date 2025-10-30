@@ -60,7 +60,7 @@ export default function Upload() {
         cloudinaryUrl: file.cloudinaryUrl
       });
     });
-    
+
     if (currentStep !== 'upload') {
       setCurrentStep('upload');
     }
@@ -76,11 +76,11 @@ export default function Upload() {
         fileSize: localFile.size,
         lastModified: localFile.lastModified
       });
-      
+
       await addLocalFile(localFile);
-      
+
       console.log('✅ UPLOAD PAGE: File added successfully, current files count:', files.length + 1);
-      
+
       // Show success notification
       toast({
         title: "File added successfully!",
@@ -99,7 +99,7 @@ export default function Upload() {
   // Handle file removal
   const handleRemoveFile = (file: PrintJobFile) => {
     removeFile(file.id);
-    
+
     // Show removal notification
     toast({
       title: "File removed",
@@ -123,7 +123,7 @@ export default function Upload() {
 
   const handleContinue = async () => {
     if (readyFiles.length === 0) return;
-    
+
     // Proceed to settings step if we have files
     goToNextStep(); // Goes to settings step
     navigate("/student/print-settings");
@@ -144,13 +144,13 @@ export default function Upload() {
   return (
     <ProtectedRoute>
       {isMobile && (
-        <MobileSidebar 
+        <MobileSidebar
           open={isSidebarOpen}
           onOpenChange={setIsSidebarOpen}
         />
       )}
-      <MobileHeader 
-        title="Upload Documents" 
+      <MobileHeader
+        title="Upload Documents"
         showBackButton={true}
         backTo="/student/dashboard"
         onMenuClick={() => setIsSidebarOpen(true)}
@@ -162,11 +162,11 @@ export default function Upload() {
           )
         }
       />
-      
+
       <div className={`${isMobile ? 'pb-24' : ''} container mx-auto py-8 px-4`}>
         <div className="max-w-4xl mx-auto space-y-6">
           {!isMobile && <PrintFlowBreadcrumb currentStep="/upload" />}
-          
+
           <div className={`text-center space-y-2 ${isMobile ? 'px-4' : ''}`}>
             <h1 className={`font-bold tracking-tight text-blue-600 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>
               Upload Documents for Printing
@@ -198,7 +198,7 @@ export default function Upload() {
                 {isMobile ? 'Cloud' : 'From Cloud'}
               </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="device" className="mt-6">
               <MobileCard>
                 <div className="space-y-4">
@@ -210,7 +210,7 @@ export default function Upload() {
                 </div>
               </MobileCard>
             </TabsContent>
-            
+
             <TabsContent value="cloud" className="mt-6">
               <MobileCard>
                 <div className="space-y-4">
@@ -218,7 +218,7 @@ export default function Upload() {
                     <Cloud className="h-5 w-5" />
                     <h3 className="font-semibold">Upload from Cloud Storage</h3>
                   </div>
-                  
+
                   <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
                     <Button variant="outline" className={`${isMobile ? 'h-12' : 'h-16'} flex-col gap-2`} disabled>
                       <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center text-white font-bold">G</div>
@@ -231,7 +231,7 @@ export default function Upload() {
                       <span className="text-xs text-muted-foreground">(Coming Soon)</span>
                     </Button>
                   </div>
-                  
+
                   <MobileCard className="border-yellow-200 bg-yellow-50/50">
                     <div className="flex items-center gap-2">
                       <AlertCircle className="h-4 w-4 text-yellow-600" />
@@ -249,15 +249,15 @@ export default function Upload() {
           {readyFiles.length > 0 && (
             <>
               {/* Selection Summary */}
-              <MobileCard className="border-green-200 bg-green-50/50">
+              <MobileCard className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30">
                 <div className={`flex items-center justify-between ${isMobile ? 'flex-col gap-2 text-center' : ''}`}>
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    <span className="font-medium text-green-800">
+                    <CheckCircle2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <span className="font-medium text-blue-800 dark:text-blue-200">
                       {readyFiles.length} file{readyFiles.length !== 1 ? 's' : ''} selected
                     </span>
                   </div>
-                  <div className={`flex gap-4 text-sm text-green-700 ${isMobile ? 'justify-center' : ''}`}>
+                  <div className={`flex gap-4 text-sm text-blue-700 dark:text-blue-300 ${isMobile ? 'justify-center' : ''}`}>
                     <span>Total: {getTotalPages()} pages</span>
                     <span>Size: {formatFileSize(getTotalSize())}</span>
                   </div>
@@ -265,50 +265,50 @@ export default function Upload() {
               </MobileCard>
 
               {/* File Selection */}
-              <MobileCard>
+              <MobileCard className="border-slate-200 dark:border-slate-700">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Files className="h-5 w-5 text-blue-600" />
                       <h3 className="font-semibold">Ready to Print</h3>
                     </div>
-                    <Badge variant="secondary">
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100">
                       {readyFiles.length} {readyFiles.length === 1 ? 'file' : 'files'}
                     </Badge>
                   </div>
-                  
+
                   <div className="space-y-3">
                     {readyFiles.map((file) => {
                       const Icon = getFileIcon(file);
-                      
+
                       return (
-                        <MobileCard 
+                        <MobileCard
                           key={file.id}
-                          className="border-blue-500 bg-blue-50 text-blue-900"
+                          className="border-blue-200 bg-blue-50/50 hover:bg-blue-100/50 dark:border-blue-800 dark:bg-blue-950/20 dark:hover:bg-blue-950/30 transition-colors"
                           selected={true}
                         >
                           <div className={`flex items-center gap-4 ${isMobile ? 'flex-col text-center' : ''}`}>
-                            <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0" />
-                            
-                            <div className={`p-2 rounded-lg bg-blue-100 flex-shrink-0`}>
-                              <Icon className="h-6 w-6 text-blue-600" />
+                            <CheckCircle2 className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+
+                            <div className={`p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50 flex-shrink-0`}>
+                              <Icon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                             </div>
-                            
+
                             <div className="flex-1 min-w-0">
-                              <h4 className="font-medium text-blue-900 truncate">{file.name}</h4>
-                              <div className={`flex gap-4 text-sm text-blue-700 ${isMobile ? 'justify-center flex-wrap' : ''}`}>
+                              <h4 className="font-medium text-blue-900 dark:text-blue-100 truncate">{file.name}</h4>
+                              <div className={`flex gap-4 text-sm text-blue-700 dark:text-blue-300 ${isMobile ? 'justify-center flex-wrap' : ''}`}>
                                 <span>{file.pages || 1} pages</span>
                                 <span>{formatFileSize(file.size || 0)}</span>
                                 <span className="capitalize">{file.type}</span>
                               </div>
                             </div>
-                            
+
                             <div className={`flex gap-2 ${isMobile ? 'w-full justify-center' : ''}`}>
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setPreviewFile(file)}
-                                className="bg-white hover:bg-blue-50"
+                                className="bg-white hover:bg-blue-50 dark:bg-slate-800 dark:hover:bg-slate-700 border-blue-200 dark:border-blue-800"
                               >
                                 <Eye className="h-4 w-4" />
                                 {!isMobile && <span className="ml-2">Preview</span>}
@@ -317,7 +317,7 @@ export default function Upload() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleRemoveFile(file)}
-                                className="bg-white hover:bg-red-50 text-red-600 hover:text-red-700"
+                                className="bg-white hover:bg-red-50 text-red-600 hover:text-red-700 dark:bg-slate-800 dark:hover:bg-red-950/30 dark:text-red-400 dark:hover:text-red-300 border-red-200 dark:border-red-800"
                               >
                                 <X className="h-4 w-4" />
                                 {!isMobile && <span className="ml-2">Remove</span>}
@@ -368,7 +368,7 @@ export default function Upload() {
               <Button variant="outline" onClick={() => navigate("/student/dashboard")}>
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleContinue}
                 className="bg-gradient-hero text-white px-8"
               >
@@ -392,10 +392,10 @@ export default function Upload() {
 
       {/* File Preview Modal */}
       {previewFile && (
-        <FilePreview 
+        <FilePreview
           isOpen={!!previewFile}
-          file={previewFile} 
-          onClose={() => setPreviewFile(null)} 
+          file={previewFile}
+          onClose={() => setPreviewFile(null)}
         />
       )}
     </ProtectedRoute>
