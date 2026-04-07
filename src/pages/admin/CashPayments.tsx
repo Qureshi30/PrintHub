@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@clerk/clerk-react";
+import { API_BASE_URL } from "@/lib/apiClient";
 import {
     Table,
     TableBody,
@@ -101,7 +102,7 @@ export default function CashPayments() {
 
             const statusParam = filterStatus !== 'all' ? `?status=${filterStatus}` : '';
             const response = await fetch(
-                `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/cash-payment/admin/cash-requests${statusParam}`,
+                `${API_BASE_URL}/cash-payment/admin/cash-requests${statusParam}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -140,7 +141,7 @@ export default function CashPayments() {
             const token = await getToken();
 
             const response = await fetch(
-                `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/cash-payment/admin/cash-requests/${selectedRequest._id}/complete`,
+                `${API_BASE_URL}/cash-payment/admin/cash-requests/${selectedRequest._id}/complete`,
                 {
                     method: 'PATCH',
                     headers: {
@@ -190,7 +191,7 @@ export default function CashPayments() {
             const token = await getToken();
 
             const response = await fetch(
-                `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/cash-payment/admin/cash-requests/${selectedRequest._id}/reject`,
+                `${API_BASE_URL}/cash-payment/admin/cash-requests/${selectedRequest._id}/reject`,
                 {
                     method: 'PATCH',
                     headers: {

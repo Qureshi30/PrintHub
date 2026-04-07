@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@clerk/clerk-react";
+import { API_BASE_URL } from "@/lib/apiClient";
 import {
     Dialog,
     DialogContent,
@@ -108,7 +109,7 @@ export default function Queries() {
     const fetchQueries = async () => {
         try {
             const token = await getToken();
-            const response = await fetch('http://localhost:3001/api/queries/admin/all', {
+            const response = await fetch(`${API_BASE_URL}/queries/admin/all`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -133,7 +134,7 @@ export default function Queries() {
     const fetchStats = async () => {
         try {
             const token = await getToken();
-            const response = await fetch('http://localhost:3001/api/queries/admin/stats/overview', {
+            const response = await fetch(`${API_BASE_URL}/queries/admin/stats/overview`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -187,7 +188,7 @@ export default function Queries() {
 
         try {
             const token = await getToken();
-            const response = await fetch(`http://localhost:3001/api/queries/admin/${selectedQuery._id}`, {
+            const response = await fetch(`${API_BASE_URL}/queries/admin/${selectedQuery._id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -226,7 +227,7 @@ export default function Queries() {
 
         try {
             const token = await getToken();
-            const response = await fetch(`http://localhost:3001/api/queries/admin/${id}`, {
+            const response = await fetch(`${API_BASE_URL}/queries/admin/${id}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`
